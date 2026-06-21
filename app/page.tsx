@@ -135,9 +135,9 @@ function ResultBox({ title, state, links }: {
           <div>
             Experiment name: {(state.result as any)?.experiment?.metadata?.name}
           </div>
-          <div className="overflow-auto leading-relaxed">
+          <pre className="overflow-auto leading-relaxed whitespace-pre-wrap break-words">
             {JSON.stringify(state.result, null, 2)}
-          </div>
+          </pre>
         </div>
       </div>
     </div>
