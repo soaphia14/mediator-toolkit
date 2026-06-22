@@ -1,12 +1,18 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 
 type ActionState = { status: 'idle' | 'loading' | 'done' | 'error'; result: unknown }
 const idle: ActionState = { status: 'idle', result: null }
 
 export default function Home() {
   const [experimentData, setExperimentData] = useState<string | null>(null)
+
+  useEffect(() => {
+    fetch('/mediator-example.yaml')
+      .then(res => res.text())
+      .then(setExperimentData)
+  }, [])
   const [experimentId, setExperimentId] = useState<string | null>('1686b432-b09a-4d52-956a-3decec0ab813')
   const [exportState, setExportState] = useState<ActionState>(idle)
   const [createState, setCreateState] = useState<ActionState>(idle)
@@ -25,7 +31,11 @@ export default function Home() {
   async function handleCreate() {
     setCreateState({ status: 'loading', result: null })
     try {
-      const res  = await fetch('/api/create-experiment', { method: 'POST' })
+      const res = await fetch('/api/create-experiment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mediatorTemplate: experimentData }),
+      })
       const data = await res.json()
       setCreateState({ status: res.ok ? 'done' : 'error', result: data })
     } catch (e) {
@@ -43,11 +53,11 @@ export default function Home() {
         </div>
 
         <div>
-          Experiment Configuration: <textarea value={experimentData ?? ''} onChange={(e) => setExperimentData(e.target.value)} className="w-full h-40 p-2 rounded-lg border border-neutral-700 bg-neutral-900 text-base text-neutral-200 resize-none" />
+          Experiment Configuration: <textarea value={experimentData ?? ''} onChange={(e) => setExperimentData(e.target.value)} className="w-full h-96 p-2 rounded-lg border border-neutral-700 bg-neutral-900 text-base text-neutral-200 resize-y" />
         </div>
 
         <div>
-          Experiment ID: <input type="text" value={experimentId ?? ''} onChange={(e) => setExperimentId(e.target.value)} placeholder="Experiment ID" className="w-full p-2 rounded-lg border border-neutral-700 bg-neutral-900 text-base text-neutral-200" />
+          Experiment ID (for export): <input type="text" value={experimentId ?? ''} onChange={(e) => setExperimentId(e.target.value)} placeholder="Experiment ID" className="w-full p-2 rounded-lg border border-neutral-700 bg-neutral-900 text-base text-neutral-200" />
         </div>
         
         <div className="flex gap-3">
@@ -132,9 +142,6 @@ function ResultBox({ title, state, links }: {
         )}
 
         <div className="text-sm text-neutral-400 space-y-3">
-          <div>
-            Experiment name: {(state.result as any)?.experiment?.metadata?.name}
-          </div>
           <pre className="overflow-auto leading-relaxed whitespace-pre-wrap break-words">
             {JSON.stringify(state.result, null, 2)}
           </pre>
