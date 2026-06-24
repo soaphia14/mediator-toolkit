@@ -6,16 +6,18 @@ type ActionState = { status: 'idle' | 'loading' | 'done' | 'error'; result: unkn
 const idle: ActionState = { status: 'idle', result: null }
 
 export default function Home() {
-  const [experimentData, setExperimentData] = useState<string | null>(null)
+  const [mediatorData, setMediatorData] = useState<string | null>(null)
 
   useEffect(() => {
     fetch('/mediator-example.yaml')
       .then(res => res.text())
-      .then(setExperimentData)
+      .then(setMediatorData)
   }, [])
   const [experimentId, setExperimentId] = useState<string | null>('1686b432-b09a-4d52-956a-3decec0ab813')
   const [exportState, setExportState] = useState<ActionState>(idle)
   const [createState, setCreateState] = useState<ActionState>(idle)
+  const [creating, setCreating] = useState<"human-human" | "human-agent" | null>(null)
+  const busy = creating !== null || exportState.status === 'loading'
 
   async function handleExport() {
     setExportState({ status: 'loading', result: null })
@@ -28,18 +30,21 @@ export default function Home() {
     }
   }
 
-  async function handleCreate() {
+  async function handleCreate(hasAgent: boolean) {
+    setCreating(hasAgent ? "human-agent" : "human-human")
     setCreateState({ status: 'loading', result: null })
     try {
       const res = await fetch('/api/create-experiment', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ mediatorTemplate: experimentData }),
+        body: JSON.stringify({ mediatorTemplate: mediatorData, hasAgent }),
       })
       const data = await res.json()
       setCreateState({ status: res.ok ? 'done' : 'error', result: data })
     } catch (e) {
       setCreateState({ status: 'error', result: String(e) })
+    } finally {
+      setCreating(null)
     }
   }
 
@@ -53,7 +58,7 @@ export default function Home() {
         </div>
 
         <div>
-          Experiment Configuration: <textarea value={experimentData ?? ''} onChange={(e) => setExperimentData(e.target.value)} className="w-full h-96 p-2 rounded-lg border border-neutral-700 bg-neutral-900 text-base text-neutral-200 resize-y" />
+          Mediator Configuration: <textarea value={mediatorData ?? ''} onChange={(e) => setMediatorData(e.target.value)} className="w-full h-96 p-2 rounded-lg border border-neutral-700 bg-neutral-900 text-base text-neutral-200 resize-y" />
         </div>
 
         <div>
@@ -65,15 +70,26 @@ export default function Home() {
             label="Export Experiment"
             loadingLabel="Exporting…"
             loading={exportState.status === 'loading'}
+            disabled={busy}
             onClick={handleExport}
           />
 
           <ActionButton
-            label="Create Experiment"
+            label="Create Experiment (human-human)"
             loadingLabel="Creating…"
-            loading={createState.status === 'loading'}
-            onClick={handleCreate}
+            loading={creating === 'human-human'}
+            disabled={busy}
+            onClick={() => handleCreate(false)}
           />
+
+          <ActionButton
+            label="Create Experiment (human-agent)"
+            loadingLabel="Creating…"
+            loading={creating === 'human-agent'}
+            disabled={busy}
+            onClick={() => handleCreate(true)}
+          />
+
         </div>
 
         {exportState.result !== null && (
@@ -96,16 +112,17 @@ export default function Home() {
   )
 }
 
-function ActionButton({ label, loadingLabel, loading, onClick }: {
+function ActionButton({ label, loadingLabel, loading, disabled, onClick }: {
   label: string
   loadingLabel: string
   loading: boolean
+  disabled?: boolean
   onClick: () => void
 }) {
   return (
     <button
       onClick={onClick}
-      disabled={loading}
+      disabled={loading || disabled}
       className="px-5 py-2.5 rounded-lg border border-neutral-700 bg-neutral-900 text-base font-medium text-neutral-200 hover:bg-neutral-800 hover:border-neutral-600 active:scale-[0.98] transition-all duration-150 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
     >
       {loading ? loadingLabel : label}

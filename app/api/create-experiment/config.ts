@@ -49,9 +49,10 @@ Make sure to appear human-like. Punctuation and capitalization does not have to 
 `
 
 export const BASE_URL = 'https://us-central1-traust-491612.cloudfunctions.net/api/v1'
+export const CREATE_PARTICIPANT_URL = 'https://us-central1-traust-491612.cloudfunctions.net/createParticipant'
 export const FRONTEND_BASE = 'https://traust.infosci.cornell.edu'
 
-export const API_KEY = process.env.DL_API_KEY ?? ''
+export const API_KEY = 'dlb_live_ttWLOHIFIpzTj7XJKg85Mwk4RtxAELtWfL1hu5dTuCg' //process.env.DL_API_KEY ?? ''
 
 export const PROJECT_ROOT = process.cwd()
 export const PROMPT_VARIANTS_DIR = path.join(PROJECT_ROOT, 'data', 'prompts_variants_may_16')
@@ -162,13 +163,23 @@ export const MEDIATOR_SHOULD_RESPOND_PROMPT_TEXT =
   '- The conversation has become stale\n' +
   'Reply with ONLY YES or NO.'
 
+export const AGENT_SHOULD_CONCEDE_PROMPT_TEXT = ''
+export const AGENT_THOUGHT_PROMPT_TEXT = ''
+
 export const MEDIATOR_JSON_DIRECTIVE =
   'Return only valid JSON matching this schema:\n' +
   '{"explanation": "string", "response": "string", "readyToEndChat": boolean}\n' +
   'Set readyToEndChat=true when all other participants have completed their conversation.'
 
-export const DEFAULT_OUTPUT_SCHEMA = {
+export const MEDIATOR_OUTPUT_SCHEMA = {
   explanation: { type: 'STRING', description: '1–2 sentences explaining your message or silence.' },
+  response: { type: 'STRING', description: 'Your chat message.' },
+  readyToEndChat: { type: 'BOOLEAN', description: 'Whether you are ready to end the conversation.' },
+}
+
+export const AGENT_OUTPUT_SCHEMA = {
+  explanation: { type: 'STRING', description: '1–2 sentences explaining your message or silence.' },
+  shouldRespond: { type: 'BOOLEAN', description: 'Whether you want to send a message right now.' },
   response: { type: 'STRING', description: 'Your chat message.' },
   readyToEndChat: { type: 'BOOLEAN', description: 'Whether you are ready to end the conversation.' },
 }

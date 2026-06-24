@@ -1,19 +1,10 @@
 // These must be defined in a config.ts file in this directory
-import { AGENT_PROMPT, RATING_LABELS, TOPIC_BY_NAME } from './config'
+import { RATING_LABELS, TOPIC_BY_NAME, CREATE_PARTICIPANT_URL } from './config'
+import type { AgentParticipantTemplate } from './agent_parser'
 
 export interface TopicInfo {
   topic: string
   decision_prompt: string
-}
-
-interface StanceFields {
-  label: string
-  verb: string
-}
-
-function _stanceFields(side: string): StanceFields {
-  if (side === 'support') return { label: 'AGREEMENT', verb: 'support' }
-  return { label: 'DISAGREEMENT', verb: 'oppose' }
 }
 
 function _stanceFromRating(rating: number): [string, string] {
@@ -27,23 +18,26 @@ function _stanceFromRating(rating: number): [string, string] {
   return [side, strength]
 }
 
-export function makeRandomPromptContext(topicInfo: TopicInfo): string {
+export function fillAgentStance(agentTemplate: Record<string, any>, topicInfo: TopicInfo): Record<string, any> {
   const rating = Math.floor(Math.random() * 7) + 1
   const [side, strength] = _stanceFromRating(rating)
-  const stance = _stanceFields(side)
+  const [label, action] = side === 'support' ? ['AGREEMENT', 'support'] : ['DISAGREEMENT', 'oppose']
 
   const substitutions: Record<string, string> = {
-    '{topic}': topicInfo.topic,
-    '{decision_prompt}': topicInfo.decision_prompt,
-    '{label}': stance.label,
-    '{verb}': stance.verb,
-    '{strength}': strength,
+    '{topic_name}': topicInfo.topic,
+    '{statement}': topicInfo.decision_prompt,
+    '{stance_label}': label,
+    '{stance_action}': action,
+    '{stance_strength}': strength,
   }
-  let out = AGENT_PROMPT
-  for (const [token, value] of Object.entries(substitutions)) {
-    out = out.replaceAll(token, value)
+  for (const item of agentTemplate.prompt ?? []) {
+    if (item.type === 'TEXT') {
+      for (const [token, value] of Object.entries(substitutions)) {
+        item.text = item.text.replaceAll(token, value)
+      }
+    }
   }
-  return out
+  return agentTemplate
 }
 
 export function formatRating(value: number): string {
@@ -52,11 +46,14 @@ export function formatRating(value: number): string {
 }
 
 export function resolveTopic(topicName: string): TopicInfo {
-  if (!(topicName in TOPIC_BY_NAME)) {
+  const byNameLower: Record<string, TopicInfo> = Object.fromEntries(
+    Object.entries(TOPIC_BY_NAME).map(([name, t]) => [name.toLowerCase(), t]),
+  )
+  if (!topicName || !(topicName.toLowerCase() in byNameLower)) {
     const known = Object.keys(TOPIC_BY_NAME).sort().join(', ')
     throw new Error(`Unknown topic name ${JSON.stringify(topicName)}. Known topics: ${known}`)
   }
-  return TOPIC_BY_NAME[topicName]
+  return byNameLower[topicName.toLowerCase()]
 }
 
 export function parseSlotToMs(slot: string): [Date, number] {
@@ -80,6 +77,24 @@ export function wrapChars(statement: string, charsPerLine = 30): string {
   return lines.join('\n') || statement
 }
 
-export function pidToAgentId(p1: string): Record<string, string> {
-  return { [p1]: 'partner-agent-A' }
+export function agentConfig(template: AgentParticipantTemplate): Record<string, any> {
+  const model = template.persona.defaultModelSettings
+  return {
+    agentId: template.persona.id,
+    promptContext: '',
+    modelSettings: { apiType: model.apiType, modelName: model.modelName },
+  }
+}
+
+export async function createParticipant(experimentId: string, cohortId: string, agentConfig: Record<string, any>) {
+  const res = await fetch(CREATE_PARTICIPANT_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      data: { experimentId, cohortId, isAnonymous: true, agentConfig },
+    }),
+  })
+  const body = await res.json()
+  if (!res.ok || body.error) throw new Error(`createParticipant failed: ${body.error ?? res.status}`)
+  return body.result ?? body
 }
