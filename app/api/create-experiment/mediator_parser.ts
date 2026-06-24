@@ -1,6 +1,6 @@
 import fs from 'fs'
 import yaml from 'js-yaml'
-import { MEDIATOR_SHOULD_RESPOND_PROMPT_TEXT, DEFAULT_OUTPUT_SCHEMA } from './config'
+import { MEDIATOR_SHOULD_RESPOND_PROMPT_TEXT, MEDIATOR_OUTPUT_SCHEMA } from './config'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -142,7 +142,7 @@ function _chatSettings(tpl: Record<string, any>): ChatSettings {
 
 function _structuredOutput(tpl: Record<string, any>): StructuredOutputConfig {
   const config = tpl.structured_output ?? {}
-  const schema: Record<string, { type: string; description: string }> = config.schema ?? DEFAULT_OUTPUT_SCHEMA
+  const schema: Record<string, { type: string; description: string }> = config.schema ?? MEDIATOR_OUTPUT_SCHEMA
   const properties: StructuredOutputSchemaProperty[] = Object.entries(schema).map(([name, field]) => ({
     name,
     schema: { type: field.type, description: field.description },
