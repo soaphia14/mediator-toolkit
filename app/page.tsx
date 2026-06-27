@@ -96,7 +96,7 @@ export default function Home() {
           {/* Header */}
           <div>
             <h1 className="text-3xl font-semibold tracking-tight">Mediator Toolkit</h1>
-            <p className="text-base text-neutral-500 mt-1">Manage your deliberate lab experiments.</p>
+            <p className="text-base text-neutral-500 mt-1">Create, audit, and test custom mediators.</p>
           </div>
 
           {/* Experiment configuration */}
@@ -168,6 +168,7 @@ export default function Home() {
               fields={[
                 { label: 'Words Per Minute', path: ['chat_settings', 'words_per_minute'], type: 'number', min: 1, max: 2000, step: 1 },
                 { label: 'Min User Messages Before Responding', path: ['min_participant_messages_before_responding'], type: 'number', min: 0, max: 20, step: 1 },
+                { label: 'Context', path: ['context'], type: 'select', options: [{ value: 'all', label: 'All' }, { value: 'current', label: 'Current' }] },
                 { label: 'Can Self Trigger Calls', path: ['chat_settings', 'can_self_trigger_calls'], type: 'checkbox' },
               ]}
             />
