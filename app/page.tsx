@@ -1,8 +1,13 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
+import * as yaml from 'js-yaml'
+import { TOPICS } from './lib/topics'
+import { ApiKeyType, API_KEY_TYPE_LABELS, REASONING_LEVEL_OPTIONS } from './lib/types'
+import { StructuredPromptEditor, type PromptItem } from './components/StructuredPromptEditor'
+import { MediatorSection } from './components/MediatorSection'
+import { ActionButton, ResultBox, type ActionState } from './components/ExperimentActions'
 
-type ActionState = { status: 'idle' | 'loading' | 'done' | 'error'; result: unknown }
 const idle: ActionState = { status: 'idle', result: null }
 
 export default function Home() {
@@ -11,18 +16,51 @@ export default function Home() {
   useEffect(() => {
     fetch('/mediator-example.yaml')
       .then(res => res.text())
-      .then(setMediatorData)
+      .then(text => {
+        const parsed = yaml.load(text)
+        setMediatorData(JSON.stringify(parsed, null, 2))
+      })
   }, [])
+
+  const [topicId, setTopicId] = useState<number>(Object.keys(TOPICS)[0] as unknown as number)
   const [experimentId, setExperimentId] = useState<string | null>('1686b432-b09a-4d52-956a-3decec0ab813')
   const [exportState, setExportState] = useState<ActionState>(idle)
   const [createState, setCreateState] = useState<ActionState>(idle)
-  const [creating, setCreating] = useState<"human-human" | "human-agent" | null>(null)
+  const [creating, setCreating] = useState<'human-human' | 'human-agent' | null>(null)
+  const [showAsYaml, setShowAsYaml] = useState(true)
   const busy = creating !== null || exportState.status === 'loading'
+
+  const mediatorParsed = useMemo(() => {
+    try { return JSON.parse(mediatorData ?? '') } catch { return null }
+  }, [mediatorData])
+
+  const updateMediatorPrompt = (prompt: PromptItem[]) => {
+    const reindexed = prompt.map((item, i) => ({ ...item, id: i }))
+    setMediatorData(prev => {
+      try {
+        const data = JSON.parse(prev ?? '')
+        data.prompt = reindexed
+        return JSON.stringify(data, null, 2)
+      } catch { return prev }
+    })
+  }
+
+  const updateMediatorField = (path: string[], value: string | boolean | number) => {
+    setMediatorData(prev => {
+      try {
+        const data = JSON.parse(prev ?? '')
+        let obj = data
+        for (let i = 0; i < path.length - 1; i++) obj = obj[path[i]]
+        obj[path[path.length - 1]] = value
+        return JSON.stringify(data, null, 2)
+      } catch { return prev }
+    })
+  }
 
   async function handleExport() {
     setExportState({ status: 'loading', result: null })
     try {
-      const res  = await fetch(`/api/export-experiment?experimentId=${encodeURIComponent(experimentId ?? '')}`)
+      const res = await fetch(`/api/export-experiment?experimentId=${encodeURIComponent(experimentId ?? '')}`)
       const data = await res.json()
       setExportState({ status: res.ok ? 'done' : 'error', result: data })
     } catch (e) {
@@ -31,7 +69,7 @@ export default function Home() {
   }
 
   async function handleCreate(hasAgent: boolean) {
-    setCreating(hasAgent ? "human-agent" : "human-human")
+    setCreating(hasAgent ? 'human-agent' : 'human-human')
     setCreateState({ status: 'loading', result: null })
     try {
       const res = await fetch('/api/create-experiment', {
@@ -49,23 +87,138 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen bg-neutral-950 text-neutral-100 p-8">
-      <div className="w-full max-w-xl space-y-8">
+    <div className="h-screen flex flex-col lg:flex-row overflow-hidden bg-neutral-950 text-neutral-100">
 
-        <div>
-          <h1 className="text-3xl font-semibold tracking-tight">Mediator Toolkit</h1>
-          <p className="text-base text-neutral-500 mt-1">Manage your deliberate lab experiments.</p>
+      {/* Left column — configuration */}
+      <div className="flex-1 overflow-y-auto p-8">
+        <div className="w-full max-w-xl space-y-8">
+
+          {/* Header */}
+          <div>
+            <h1 className="text-3xl font-semibold tracking-tight">Mediator Toolkit</h1>
+            <p className="text-base text-neutral-500 mt-1">Manage your deliberate lab experiments.</p>
+          </div>
+
+          {/* Experiment configuration */}
+          <div className="space-y-4">
+            <div className="border-b border-neutral-800 pb-3">
+              <h2 className="text-lg font-semibold tracking-tight">Experiment Configuration</h2>
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium text-neutral-400">Topic</label>
+              <select
+                value={topicId}
+                onChange={e => {
+                  const id = Number(e.target.value)
+                  setTopicId(id)
+                  setMediatorData(prev => {
+                    try {
+                      const data = JSON.parse(prev ?? '')
+                      data.topic = TOPICS[id].topic
+                      return JSON.stringify(data, null, 2)
+                    } catch { return prev }
+                  })
+                }}
+                className="ml-3 rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm text-neutral-200 focus:outline-none focus:border-neutral-500 cursor-pointer"
+              >
+                {Object.values(TOPICS).map(t => (
+                  <option key={t.id} value={t.id}>{t.topic}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+          
+          {/* Mediator configuration */}
+          <div className="space-y-6">
+            <div className="border-b border-neutral-800 pb-3">
+              <h2 className="text-lg font-semibold tracking-tight">Mediator Configuration</h2>
+            </div>
+            <MediatorSection
+              title="Persona"
+              mediatorParsed={mediatorParsed}
+              onUpdate={updateMediatorField}
+              fields={[
+                { label: 'Name', path: ['persona', 'name'], type: 'text' },
+                { label: 'Avatar', path: ['persona', 'avatar'], type: 'emoji' },
+              ]}
+            />
+            <MediatorSection
+              title="Model"
+              mediatorParsed={mediatorParsed}
+              onUpdate={updateMediatorField}
+              fields={[
+                { label: 'API Type', path: ['model', 'apiType'], type: 'select', options: Object.values(ApiKeyType).map(t => ({ value: t, label: API_KEY_TYPE_LABELS[t] })) },
+                { label: 'Model Name', path: ['model', 'modelName'], type: 'text' },
+              ]}
+            />
+            <MediatorSection
+              title="Generation"
+              mediatorParsed={mediatorParsed}
+              onUpdate={updateMediatorField}
+              fields={[
+                { label: 'Temperature', path: ['generation', 'temperature'], type: 'number', min: 0, max: 2, step: 0.1 },
+                { label: 'Reasoning Level', path: ['generation', 'reasoning_level'], type: 'select', options: REASONING_LEVEL_OPTIONS },
+                { label: 'Include Reasoning', path: ['generation', 'include_reasoning'], type: 'checkbox' },
+              ]}
+            />
+            <MediatorSection
+              title="Chat Settings"
+              mediatorParsed={mediatorParsed}
+              onUpdate={updateMediatorField}
+              fields={[
+                { label: 'Words Per Minute', path: ['chat_settings', 'words_per_minute'], type: 'number', min: 1, max: 2000, step: 1 },
+                { label: 'Min User Messages Before Responding', path: ['min_participant_messages_before_responding'], type: 'number', min: 0, max: 20, step: 1 },
+                { label: 'Can Self Trigger Calls', path: ['chat_settings', 'can_self_trigger_calls'], type: 'checkbox' },
+              ]}
+            />
+            <StructuredPromptEditor
+              label="Response Editor"
+              prompt={(mediatorParsed?.prompt as PromptItem[]) ?? []}
+              stageId=""
+              onUpdate={updateMediatorPrompt}
+            />
+          </div>
+
         </div>
+      </div>
 
-        <div>
-          Mediator Configuration: <textarea value={mediatorData ?? ''} onChange={(e) => setMediatorData(e.target.value)} className="w-full h-96 p-2 rounded-lg border border-neutral-700 bg-neutral-900 text-base text-neutral-200 resize-y" />
-        </div>
-
-        <div>
-          Experiment ID (for export): <input type="text" value={experimentId ?? ''} onChange={(e) => setExperimentId(e.target.value)} placeholder="Experiment ID" className="w-full p-2 rounded-lg border border-neutral-700 bg-neutral-900 text-base text-neutral-200" />
+      {/* Right column — preview & actions */}
+      <div className="flex-1 overflow-y-auto p-8 space-y-6 border-t border-neutral-800 lg:border-t-0 lg:border-l">
+        
+        {/* YAML preview */}
+        <div className="space-y-2">
+          <label className="flex items-center gap-2 cursor-pointer w-fit">
+            <input
+              type="checkbox"
+              checked={showAsYaml}
+              onChange={e => setShowAsYaml(e.target.checked)}
+              className="accent-neutral-400"
+            />
+            <span className="text-sm text-neutral-400">Show as YAML</span>
+          </label>
+          <textarea
+            disabled
+            value={showAsYaml
+              ? (() => { try { return yaml.dump(JSON.parse(mediatorData ?? '')) } catch { return mediatorData ?? '' } })()
+              : mediatorData ?? ''}
+            className="w-full h-96 p-2 rounded-lg border border-neutral-700 bg-neutral-900 text-sm text-neutral-200 resize-y font-mono"
+          />
         </div>
         
-        <div className="flex gap-3">
+        {/* Experiment ID input */}
+        <div className="space-y-1.5">
+          <label className="text-sm font-medium text-neutral-400">Experiment ID (for export)</label>
+          <input
+            type="text"
+            value={experimentId ?? ''}
+            onChange={e => setExperimentId(e.target.value)}
+            placeholder="Experiment ID"
+            className="w-full p-2 rounded-lg border border-neutral-700 bg-neutral-900 text-sm text-neutral-200"
+          />
+        </div>
+        
+        {/* Actions */}
+        <div className="flex flex-wrap gap-3">
           <ActionButton
             label="Export Experiment"
             loadingLabel="Exporting…"
@@ -73,25 +226,23 @@ export default function Home() {
             disabled={busy}
             onClick={handleExport}
           />
-
           <ActionButton
-            label="Create Experiment (human-human)"
+            label="Create (human-human)"
             loadingLabel="Creating…"
             loading={creating === 'human-human'}
             disabled={busy}
             onClick={() => handleCreate(false)}
           />
-
           <ActionButton
-            label="Create Experiment (human-agent)"
+            label="Create (human-agent)"
             loadingLabel="Creating…"
             loading={creating === 'human-agent'}
             disabled={busy}
             onClick={() => handleCreate(true)}
           />
-
         </div>
-
+        
+        {/* Action results */}
         {exportState.result !== null && (
           <ResultBox title="Export" state={exportState} />
         )}
@@ -107,62 +258,7 @@ export default function Home() {
             }
           />
         )}
-      </div>
-    </div>
-  )
-}
 
-function ActionButton({ label, loadingLabel, loading, disabled, onClick }: {
-  label: string
-  loadingLabel: string
-  loading: boolean
-  disabled?: boolean
-  onClick: () => void
-}) {
-  return (
-    <button
-      onClick={onClick}
-      disabled={loading || disabled}
-      className="px-5 py-2.5 rounded-lg border border-neutral-700 bg-neutral-900 text-base font-medium text-neutral-200 hover:bg-neutral-800 hover:border-neutral-600 active:scale-[0.98] transition-all duration-150 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
-    >
-      {loading ? loadingLabel : label}
-    </button>
-  )
-}
-
-function ResultBox({ title, state, links }: {
-  title: string
-  state: ActionState
-  links?: Record<string, string>
-}) {
-  const isError = state.status === 'error'
-
-  return (
-    <div className="rounded-lg border border-neutral-800 bg-neutral-900 overflow-hidden">
-      <div className="flex items-center gap-2 px-4 py-2.5 border-b border-neutral-800">
-        <span className={`w-1.5 h-1.5 rounded-full ${isError ? 'bg-red-500' : 'bg-emerald-500'}`} />
-        <span className="text-sm font-medium text-neutral-400 uppercase tracking-wider">{title}</span>
-      </div>
-
-      <div className="p-4 space-y-3">
-        {links?.experimentLink && (
-          <div className="flex flex-col gap-1">
-            <a href={links.experimentLink} target="_blank" rel="noreferrer"
-               className="text-base text-neutral-300 hover:text-white underline underline-offset-2 transition-colors break-all">
-              Experiment ↗
-            </a>
-            <a href={links.cohortLink} target="_blank" rel="noreferrer"
-               className="text-base text-neutral-300 hover:text-white underline underline-offset-2 transition-colors break-all">
-              Cohort ↗
-            </a>
-          </div>
-        )}
-
-        <div className="text-sm text-neutral-400 space-y-3">
-          <pre className="overflow-auto leading-relaxed whitespace-pre-wrap break-words">
-            {JSON.stringify(state.result, null, 2)}
-          </pre>
-        </div>
       </div>
     </div>
   )
