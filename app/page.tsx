@@ -87,10 +87,10 @@ export default function Home() {
   }
 
   return (
-    <div className="h-screen flex flex-col lg:flex-row overflow-hidden bg-neutral-950 text-neutral-100">
+    <div className="flex flex-col lg:flex-row lg:h-screen lg:overflow-hidden bg-neutral-950 text-neutral-100">
 
       {/* Left column — configuration */}
-      <div className="flex-1 overflow-y-auto p-8">
+      <div className="lg:flex-1 lg:overflow-y-auto p-8">
         <div className="w-full max-w-xl space-y-8">
 
           {/* Header */}
@@ -184,7 +184,7 @@ export default function Home() {
       </div>
 
       {/* Right column — preview & actions */}
-      <div className="flex-1 overflow-y-auto p-8 space-y-6 border-t border-neutral-800 lg:border-t-0 lg:border-l">
+      <div className="lg:flex-1 lg:overflow-y-auto p-8 space-y-6 border-t border-neutral-800 lg:border-t-0 lg:border-l">
         
         {/* YAML preview */}
         <div className="space-y-2">
