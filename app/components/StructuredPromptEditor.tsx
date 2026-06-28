@@ -1,6 +1,6 @@
 'use client'
 
-import React, { createContext, useContext, useState, useRef, useEffect } from 'react'
+import { createContext, useContext, useState, useRef, useEffect } from 'react'
 
 // ============================================================
 // Types
@@ -55,24 +55,16 @@ function treeMoveIn(root: PromptItem[], targetArr: PromptItem[], index: number, 
   return copy
 }
 
-function treeMoveFromTo(root: PromptItem[], targetArr: PromptItem[], from: number, to: number): PromptItem[] {
-  if (from === to || root !== targetArr) return root
-  const copy = [...root]
-  const [item] = copy.splice(from, 1)
-  copy.splice(to, 0, item)
-  return copy
-}
-
 // ============================================================
 // Editor context
 // ============================================================
 
 interface EditorCtx {
+  locked: boolean
   updateItem: (item: PromptItem, updates: PromptItemUpdate) => void
   addItem: (targetArr: PromptItem[], newItem: PromptItem) => void
   deleteItem: (targetArr: PromptItem[], index: number) => void
   moveItem: (targetArr: PromptItem[], index: number, dir: number) => void
-  reorderItems: (targetArr: PromptItem[], from: number, to: number) => void
 }
 
 const EditorContext = createContext<EditorCtx | null>(null)
@@ -109,7 +101,8 @@ function IconButton({ icon, title, onClick }: {
 }
 
 function AddMenu({ targetArr }: { targetArr: PromptItem[] }) {
-  const { addItem } = useEditorCtx()
+  const { addItem, locked } = useEditorCtx()
+  if (locked) return null
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
 
@@ -153,9 +146,19 @@ function AddMenu({ targetArr }: { targetArr: PromptItem[] }) {
 
 function TextItemEditor({ item }: { item: TextPromptItem }) {
   const { updateItem } = useEditorCtx()
+  const ref = useRef<HTMLTextAreaElement>(null)
+
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    el.style.height = 'auto'
+    el.style.height = el.scrollHeight + 'px'
+  }, [item.text])
+
   return (
     <textarea
-      className="w-full min-h-[72px] p-2 rounded-md border border-neutral-600/60 bg-neutral-900 text-sm text-neutral-200 placeholder-neutral-600 resize-y focus:outline-none focus:border-neutral-500 focus:ring-1 focus:ring-neutral-500/30"
+      ref={ref}
+      className="w-full min-h-[72px] p-2 rounded-md border border-neutral-600/60 bg-neutral-900 text-sm text-neutral-200 placeholder-neutral-600 resize-none overflow-hidden focus:outline-none focus:border-neutral-500 focus:ring-1 focus:ring-neutral-500/30"
       placeholder="Add freeform text here…"
       value={item.text}
       onChange={e => updateItem(item, { text: e.target.value })}
@@ -183,9 +186,7 @@ function ItemEditor({ item }: { item: PromptItem }) {
 // ============================================================
 
 function PromptItemList({ items, isNested = false }: { items: PromptItem[]; isNested?: boolean }) {
-  const { deleteItem, moveItem, reorderItems } = useEditorCtx()
-  const [dragIndex, setDragIndex] = useState<number | null>(null)
-  const [dropIndex, setDropIndex] = useState<number | null>(null)
+  const { deleteItem, moveItem, locked } = useEditorCtx()
 
   if (items.length === 0) {
     return (
@@ -195,72 +196,27 @@ function PromptItemList({ items, isNested = false }: { items: PromptItem[]; isNe
     )
   }
 
-  const handleDragStart = (e: React.DragEvent, index: number) => {
-    setDragIndex(index)
-    e.dataTransfer.effectAllowed = 'move'
-    e.dataTransfer.setData('text/plain', String(index))
-  }
-
-  const handleDragOver = (e: React.DragEvent, index: number) => {
-    e.preventDefault()
-    e.dataTransfer.dropEffect = 'move'
-    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
-    setDropIndex(e.clientY < rect.top + rect.height / 2 ? index : index + 1)
-  }
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault()
-    if (dragIndex !== null && dropIndex !== null) {
-      const to = dropIndex > dragIndex ? dropIndex - 1 : dropIndex
-      reorderItems(items, dragIndex, to)
-    }
-    setDragIndex(null)
-    setDropIndex(null)
-  }
-
-  const handleDragLeave = (e: React.DragEvent) => {
-    if (!(e.currentTarget as HTMLElement).contains(e.relatedTarget as Node)) setDropIndex(null)
-  }
-
-  const isNoOp = (drop: number) => drop === dragIndex || drop === dragIndex! + 1
-
   return (
-    <div className="flex flex-col gap-1.5" onDragLeave={handleDragLeave}>
-      {items.map((item, index) => {
-        const isDragging = dragIndex === index
-        const showLineBefore = dropIndex === index && dragIndex !== null && !isNoOp(index)
-
-        return (
-          <div key={index}>
-            {showLineBefore && <div className="h-0.5 rounded-full bg-blue-500 mx-1" />}
-            <div
-              draggable
-              onDragStart={e => handleDragStart(e, index)}
-              onDragOver={e => handleDragOver(e, index)}
-              onDrop={handleDrop}
-              onDragEnd={() => { setDragIndex(null); setDropIndex(null) }}
-              className={`group rounded-lg border border-neutral-700 bg-neutral-800 transition-opacity ${isDragging ? 'opacity-30' : ''}`}
-            >
-              <div className="flex items-start gap-2 p-2.5">
-                <div className="mt-0.5 shrink-0 cursor-grab select-none text-neutral-600 hover:text-neutral-400 active:cursor-grabbing transition-colors" title="Drag to reorder">
-                  ⠿
-                </div>
-                <div className="min-w-0 flex-1">
-                  <ItemEditor item={item} />
-                </div>
-                <div className="flex shrink-0 items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <IconButton icon="arrow_upward" onClick={() => moveItem(items, index, -1)} />
-                  <IconButton icon="arrow_downward" onClick={() => moveItem(items, index, 1)} />
-                  <IconButton icon="close" onClick={() => deleteItem(items, index)} />
-                </div>
-              </div>
+    <div className="flex flex-col gap-1.5">
+      {items.map((item, index) => (
+        <div
+          key={index}
+          className="group rounded-lg border border-neutral-700 bg-neutral-800"
+        >
+          <div className="flex items-start gap-2 p-2.5">
+            <div className="min-w-0 flex-1">
+              <ItemEditor item={item} />
             </div>
+            {!locked && (
+              <div className="flex shrink-0 items-center gap-0.5 ">
+                <IconButton icon="arrow_upward" onClick={() => moveItem(items, index, -1)} />
+                <IconButton icon="arrow_downward" onClick={() => moveItem(items, index, 1)} />
+                <IconButton icon="close" onClick={() => deleteItem(items, index)} />
+              </div>
+            )}
           </div>
-        )
-      })}
-      {dropIndex === items.length && dragIndex !== null && !isNoOp(items.length) && (
-        <div className="h-0.5 rounded-full bg-blue-500 mx-1" />
-      )}
+        </div>
+      ))}
     </div>
   )
 }
@@ -274,19 +230,21 @@ export interface StructuredPromptEditorProps {
   stageId?: string
   onUpdate: (prompt: PromptItem[]) => void
   label?: string
+  locked?: boolean
 }
 
 export function StructuredPromptEditor({
   prompt,
   onUpdate,
   label = 'Prompt editor',
+  locked = false,
 }: StructuredPromptEditorProps) {
   const ctx: EditorCtx = {
+    locked,
     updateItem: (item, updates) => onUpdate(treeUpdateItem(prompt, item, updates)),
     addItem: (targetArr, newItem) => onUpdate(treeAddTo(prompt, targetArr, newItem)),
     deleteItem: (targetArr, index) => onUpdate(treeRemoveFrom(prompt, targetArr, index)),
     moveItem: (targetArr, index, dir) => onUpdate(treeMoveIn(prompt, targetArr, index, dir)),
-    reorderItems: (targetArr, from, to) => onUpdate(treeMoveFromTo(prompt, targetArr, from, to)),
   }
 
   return (

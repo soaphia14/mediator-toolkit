@@ -2,11 +2,11 @@
 
 import { useState, useEffect, useMemo } from 'react'
 import * as yaml from 'js-yaml'
-import { TOPICS } from './lib/topics'
-import { ApiKeyType, API_KEY_TYPE_LABELS, REASONING_LEVEL_OPTIONS } from './lib/types'
-import { StructuredPromptEditor, type PromptItem } from './components/StructuredPromptEditor'
-import { MediatorSection } from './components/MediatorSection'
-import { ActionButton, ResultBox, type ActionState } from './components/ExperimentActions'
+import { TOPICS } from '../lib/topics'
+import { ApiKeyType, API_KEY_TYPE_LABELS, REASONING_LEVEL_OPTIONS } from '../lib/types'
+import { StructuredPromptEditor, PromptItemType, type PromptItem, type TextPromptItem } from '../components/StructuredPromptEditor'
+import { MediatorSection } from '../components/MediatorSection'
+import { ActionButton, ResultBox, type ActionState } from '../components/ExperimentActions'
 
 const idle: ActionState = { status: 'idle', result: null }
 
@@ -28,11 +28,31 @@ export default function Home() {
   const [createState, setCreateState] = useState<ActionState>(idle)
   const [creating, setCreating] = useState<'human-human' | 'human-agent' | null>(null)
   const [showAsYaml, setShowAsYaml] = useState(true)
+  const [activeSection, setActiveSection] = useState(0)
+  const sectionTitles = ['Persona', 'Model', 'Generation', 'Chat Settings']
   const busy = creating !== null || exportState.status === 'loading'
 
   const mediatorParsed = useMemo(() => {
     try { return JSON.parse(mediatorData ?? '') } catch { return null }
   }, [mediatorData])
+
+  const shouldRespondPrompt: PromptItem[] = useMemo(() => {
+    const text = typeof mediatorParsed?.should_respond_prompt === 'string'
+      ? mediatorParsed.should_respond_prompt
+      : ''
+    return [{ type: PromptItemType.TEXT, text } as TextPromptItem]
+  }, [mediatorParsed?.should_respond_prompt])
+
+  const updateShouldRespondPrompt = (prompt: PromptItem[]) => {
+    const text = (prompt[0] as TextPromptItem | undefined)?.text ?? ''
+    setMediatorData(prev => {
+      try {
+        const data = JSON.parse(prev ?? '')
+        data.should_respond_prompt = text
+        return JSON.stringify(data, null, 2)
+      } catch { return prev }
+    })
+  }
 
   const updateMediatorPrompt = (prompt: PromptItem[]) => {
     const reindexed = prompt.map((item, i) => ({ ...item, id: i }))
@@ -129,54 +149,90 @@ export default function Home() {
           </div>
           
           {/* Mediator configuration */}
-          <div className="space-y-6">
+          <div className="space-y-4">
             <div className="border-b border-neutral-800 pb-3">
               <h2 className="text-lg font-semibold tracking-tight">Mediator Configuration</h2>
             </div>
-            <MediatorSection
-              title="Persona"
-              mediatorParsed={mediatorParsed}
-              onUpdate={updateMediatorField}
-              fields={[
-                { label: 'Name', path: ['persona', 'name'], type: 'text' },
-                { label: 'Avatar', path: ['persona', 'avatar'], type: 'emoji' },
-              ]}
-            />
-            <MediatorSection
-              title="Model"
-              mediatorParsed={mediatorParsed}
-              onUpdate={updateMediatorField}
-              fields={[
-                { label: 'API Type', path: ['model', 'apiType'], type: 'select', options: Object.values(ApiKeyType).map(t => ({ value: t, label: API_KEY_TYPE_LABELS[t] })) },
-                { label: 'Model Name', path: ['model', 'modelName'], type: 'text' },
-              ]}
-            />
-            <MediatorSection
-              title="Generation"
-              mediatorParsed={mediatorParsed}
-              onUpdate={updateMediatorField}
-              fields={[
-                { label: 'Temperature', path: ['generation', 'temperature'], type: 'number', min: 0, max: 2, step: 0.1 },
-                { label: 'Reasoning Level', path: ['generation', 'reasoning_level'], type: 'select', options: REASONING_LEVEL_OPTIONS },
-                { label: 'Include Reasoning', path: ['generation', 'include_reasoning'], type: 'checkbox' },
-              ]}
-            />
-            <MediatorSection
-              title="Chat Settings"
-              mediatorParsed={mediatorParsed}
-              onUpdate={updateMediatorField}
-              fields={[
-                { label: 'Words Per Minute', path: ['chat_settings', 'words_per_minute'], type: 'number', min: 1, max: 2000, step: 1 },
-                { label: 'Min User Messages Before Responding', path: ['min_participant_messages_before_responding'], type: 'number', min: 0, max: 20, step: 1 },
-                { label: 'Context', path: ['context'], type: 'select', options: [{ value: 'all', label: 'All' }, { value: 'current', label: 'Current' }] },
-                { label: 'Can Self Trigger Calls', path: ['chat_settings', 'can_self_trigger_calls'], type: 'checkbox' },
-              ]}
-            />
+
+            {/* Section tabs */}
+            <p className="text-sm font-semibold uppercase tracking-widest text-neutral-400">Mediator Settings</p>
+            <div className="flex gap-0.5 rounded-lg bg-neutral-900 p-1 border border-neutral-800">
+              {sectionTitles.map((title, i) => (
+                <button
+                  key={title}
+                  onClick={() => setActiveSection(i)}
+                  className={`flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition-colors cursor-pointer ${
+                    activeSection === i
+                      ? 'bg-neutral-700 text-neutral-100'
+                      : 'text-neutral-500 hover:text-neutral-300'
+                  }`}
+                >
+                  {title}
+                </button>
+              ))}
+            </div>
+
+            {activeSection === 0 && (
+              <MediatorSection
+                title="Persona"
+                mediatorParsed={mediatorParsed}
+                onUpdate={updateMediatorField}
+                fields={[
+                  { label: 'Name', path: ['persona', 'name'], type: 'text' },
+                  { label: 'Avatar', path: ['persona', 'avatar'], type: 'emoji' },
+                ]}
+              />
+            )}
+            {activeSection === 1 && (
+              <MediatorSection
+                title="Model"
+                mediatorParsed={mediatorParsed}
+                onUpdate={updateMediatorField}
+                fields={[
+                  { label: 'API Type', path: ['model', 'apiType'], type: 'select', options: Object.values(ApiKeyType).map(t => ({ value: t, label: API_KEY_TYPE_LABELS[t] })) },
+                  { label: 'Model Name', path: ['model', 'modelName'], type: 'text' },
+                ]}
+              />
+            )}
+            {activeSection === 2 && (
+              <MediatorSection
+                title="Generation"
+                mediatorParsed={mediatorParsed}
+                onUpdate={updateMediatorField}
+                fields={[
+                  { label: 'Temperature', path: ['generation', 'temperature'], type: 'number', min: 0, max: 2, step: 0.1 },
+                  { label: 'Reasoning Level', path: ['generation', 'reasoning_level'], type: 'select', options: REASONING_LEVEL_OPTIONS },
+                  { label: 'Include Reasoning', path: ['generation', 'include_reasoning'], type: 'checkbox' },
+                ]}
+              />
+            )}
+            {activeSection === 3 && (
+              <MediatorSection
+                title="Chat Settings"
+                mediatorParsed={mediatorParsed}
+                onUpdate={updateMediatorField}
+                fields={[
+                  { label: 'Words Per Minute', path: ['chat_settings', 'words_per_minute'], type: 'number', min: 1, max: 2000, step: 1 },
+                  { label: 'Min User Messages Before Responding', path: ['min_participant_messages_before_responding'], type: 'number', min: 0, max: 20, step: 1 },
+                  { label: 'Context', path: ['context'], type: 'select', options: [{ value: 'all', label: 'All' }, { value: 'current', label: 'Current' }] },
+                  { label: 'Initial Message', path: ['chat_settings', 'initial_message'], type: 'text' },
+                  { label: 'Can Self Trigger Calls', path: ['chat_settings', 'can_self_trigger_calls'], type: 'checkbox' },
+                ]}
+              />
+            )}
+
+            <p className="mt-5 text-sm font-semibold uppercase tracking-widest text-neutral-400">Prompt Editors</p>
             <StructuredPromptEditor
               label="Response Editor"
               prompt={(mediatorParsed?.prompt as PromptItem[]) ?? []}
               stageId=""
               onUpdate={updateMediatorPrompt}
+            />
+            <StructuredPromptEditor
+              label="Should Respond Editor"
+              prompt={shouldRespondPrompt}
+              onUpdate={updateShouldRespondPrompt}
+              locked
             />
           </div>
 
