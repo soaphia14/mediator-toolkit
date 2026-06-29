@@ -1,21 +1,40 @@
 import path from 'path'
-import { BASE_URL, API_KEY, FRONTEND_BASE, STAGE_R1, TopicInfo } from './config'
-import { parseMediatorTemplate, buildMediator } from './mediator_parser'
-import { buildAgent, loadAgentTemplate } from './agent_parser'
-import { buildStages } from './stages'
-import { resolveTopic, fillAgentStance, agentConfig, createParticipant } from './utils'
+import { BASE_URL, API_KEY, FRONTEND_BASE, STAGE_R1, AGENT_DEFAULT, EXPERIMENT_DEFAULT } from './config'
+import { parseMediatorTemplate, buildMediator } from './parsers/mediator'
+import { buildAgent } from './parsers/agent'
+import type { AgentParticipantTemplate } from './parsers/agent'
+import { buildTopic, buildStages, buildExperiment } from './parsers/experiment'
+import { loadTemplate, replaceDefaults, fillAgentStance, agentConfig, createParticipant, excludeNone } from './utils'
 
-export async function generate(participantId: string, mediatorTemplateContent: string, hasAgent = false) {
-  const mediatorTemplate = parseMediatorTemplate(mediatorTemplateContent)
-  const topicName = mediatorTemplate.topic as string
+export async function generate(p1: string, p2: string, mediatorTemplateContent: string, topic: string, hasAgent = false) {
+  const experimentTemplate = replaceDefaults(
+    loadTemplate(path.join(process.cwd(), 'public', 'templates', 'topics', topic, 'experiment.yaml')),
+    loadTemplate(EXPERIMENT_DEFAULT),
+  )
+  const topicInfo = buildTopic(experimentTemplate.topic)
 
-  const topicInfo = resolveTopic(topicName) as TopicInfo
-  const stages = buildStages(topicInfo.decision_prompt)
+  const stages = buildStages(experimentTemplate, topicInfo)
   const stageIdsInOrder = stages.map((s) => s.id)
-  const mediatorR1 = buildMediator(STAGE_R1, mediatorTemplate, stageIdsInOrder)
 
-  const agentTpl = hasAgent ? fillAgentStance(loadAgentTemplate(path.join(process.cwd(), 'public', 'agent-example.yaml')), topicInfo) : null
-  const agentR1 = agentTpl ? buildAgent(STAGE_R1, agentTpl, stageIdsInOrder) : null
+  // here use the first available chat stage id - currently we only support one mediator and one chat
+  // TODO: make it more flexible to support multiple chat stages and multiple mediators in the future
+  const chatStageId = stages.find((s) => s.kind === 'chat')?.id ?? STAGE_R1
+
+  const mediatorTemplate = parseMediatorTemplate(mediatorTemplateContent)
+  const mediatorR1 = buildMediator(chatStageId, mediatorTemplate, stageIdsInOrder)
+
+  let agentR1: AgentParticipantTemplate | null = null
+  let agentStance: Record<string, any> | null = null
+  if (hasAgent) {
+    const [agentTpl, stance] = fillAgentStance(
+      loadTemplate(AGENT_DEFAULT),
+      topicInfo,
+    )
+    agentStance = stance
+    agentR1 = buildAgent(chatStageId, agentTpl, stageIdsInOrder)
+  }
+
+  const [template, cohortAlias] = buildExperiment(experimentTemplate, topicInfo, stages, stageIdsInOrder, mediatorR1, agentR1)
 
   const authHeaders = {
     Authorization: `Bearer ${API_KEY}`,
@@ -25,56 +44,36 @@ export async function generate(participantId: string, mediatorTemplateContent: s
   const expRes = await fetch(`${BASE_URL}/experiments`, {
     method: 'POST',
     headers: authHeaders,
-    body: JSON.stringify({
-      name: hasAgent ? `[human-agent] T${topicInfo.id}` : `[human-human] T${topicInfo.id}`,
-      description: `Debate (${topicInfo.topic}). topic="${topicInfo.decision_prompt}"; `,
-      stages,
-      agentMediators: [mediatorR1],
-      agentParticipants: hasAgent ? [agentR1] : [],
-    }),
+    body: JSON.stringify({ template: excludeNone(template) }),
   })
-  if (!expRes.ok) {
-    const err = await expRes.text()
-    throw new Error(`create_experiment failed: ${err}`)
-  }
-  const expData = await expRes.json()
-  const expId: string = expData.experiment?.id ?? expData.id
+  if (!expRes.ok) throw new Error(`create_experiment failed: ${await expRes.text()}`)
+  const result = await expRes.json()
+  const expId: string = result.experiment.id
 
-  const cohortRes = await fetch(`${BASE_URL}/experiments/${expId}/cohorts`, {
-    method: 'POST',
-    headers: authHeaders,
-    body: JSON.stringify({
-      name: `[toolkit] T${topicInfo.id}`,
-      description: `Test link for ${topicInfo.topic}.`,
-      participantConfig: {
-        minParticipantsPerCohort: 2,
-        maxParticipantsPerCohort: 2,
-        includeAllParticipantsInCohortCount: true,
-        botProtection: true,
-      },
-    }),
-  })
-  if (!cohortRes.ok) {
-    const err = await cohortRes.text()
-    throw new Error(`create_cohort failed: ${err}`)
-  }
-  const cohortData = await cohortRes.json()
-  const cohortId: string = cohortData.cohort?.id ?? cohortData.id
+  const exportRes = await fetch(`${BASE_URL}/experiments/${expId}/export`, { method: 'GET', headers: authHeaders })
+  if (!exportRes.ok) throw new Error(`export_experiment failed: ${await exportRes.text()}`)
+  const expData = await exportRes.json()
+  const generated: Record<string, string> = {}
+  for (const c of expData.experiment.cohortDefinitions) generated[c.alias] = c.generatedCohortId
+  const genCohortId = generated[cohortAlias]
 
-  if (hasAgent && agentR1) {
-    await createParticipant(expId, cohortId, agentConfig(agentR1))
+  if (agentR1) {
+    await createParticipant(expId, genCohortId, agentConfig(agentR1))
   }
 
-  const baseUrl = `${FRONTEND_BASE}/#/e/${expId}/c/${cohortId}`
+  const baseUrl = `${FRONTEND_BASE}/#/e/${expId}/c/${genCohortId}`
+  const p1Url = `${baseUrl}?PROLIFIC_PID=${p1}`
+  const p2Url = !agentR1 ? `${baseUrl}?PROLIFIC_PID=${p2}` : '' // only provide p2_url if there is no agent
 
   return {
-    participant: participantId,
-    topic: topicInfo.topic,
-    experimentId: expId,
-    cohortId,
+    participant_1: p1,
+    participant_2: agentR1 ? 'agent' : p2,
+    topic: topicInfo.name,
+    experiment_id: expId,
+    cohort_id: genCohortId,
     url: baseUrl,
-    participantUrl: `${baseUrl}?PROLIFIC_PID=${participantId}`,
-    cohortLink: baseUrl,
-    experimentLink: `${FRONTEND_BASE}/#/e/${expId}`,
+    p1_url: p1Url,
+    p2_url: p2Url,
+    agent_stance: agentStance,
   }
 }

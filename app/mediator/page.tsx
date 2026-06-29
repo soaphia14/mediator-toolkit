@@ -10,19 +10,22 @@ import { ActionButton, ResultBox, type ActionState } from '../components/Experim
 
 const idle: ActionState = { status: 'idle', result: null }
 
+const topicMap = (name: string) => name.toLowerCase().replaceAll(' ', '_')
+
 export default function Home() {
   const [mediatorData, setMediatorData] = useState<string | null>(null)
+  const [topicId, setTopicId] = useState<number>(Number(Object.keys(TOPICS)[0]))
 
   useEffect(() => {
-    fetch('/mediator-example.yaml')
-      .then(res => res.text())
-      .then(text => {
-        const parsed = yaml.load(text)
-        setMediatorData(JSON.stringify(parsed, null, 2))
-      })
-  }, [])
-
-  const [topicId, setTopicId] = useState<number>(Object.keys(TOPICS)[0] as unknown as number)
+    const topic = topicMap(TOPICS[topicId].topic)
+    Promise.all([
+      fetch('/templates/defaults/mediator.yaml').then(res => res.text()),
+      fetch(`/templates/topics/${topic}/mediator.yaml`).then(res => res.text()),
+    ]).then(([defaultsText, topicText]) => {
+      const merged = { ...(yaml.load(defaultsText) as object), ...(yaml.load(topicText) as object) }
+      setMediatorData(JSON.stringify(merged, null, 2))
+    })
+  }, [topicId])
   const [experimentId, setExperimentId] = useState<string | null>('1686b432-b09a-4d52-956a-3decec0ab813')
   const [exportState, setExportState] = useState<ActionState>(idle)
   const [createState, setCreateState] = useState<ActionState>(idle)
@@ -95,7 +98,7 @@ export default function Home() {
       const res = await fetch('/api/create-experiment', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ mediatorTemplate: mediatorData, hasAgent }),
+        body: JSON.stringify({ mediatorTemplate: mediatorData, hasAgent, topic: topicMap(TOPICS[topicId].topic) }),
       })
       const data = await res.json()
       setCreateState({ status: res.ok ? 'done' : 'error', result: data })
@@ -128,17 +131,7 @@ export default function Home() {
               <label className="text-sm font-medium text-neutral-400">Topic</label>
               <select
                 value={topicId}
-                onChange={e => {
-                  const id = Number(e.target.value)
-                  setTopicId(id)
-                  setMediatorData(prev => {
-                    try {
-                      const data = JSON.parse(prev ?? '')
-                      data.topic = TOPICS[id].topic
-                      return JSON.stringify(data, null, 2)
-                    } catch { return prev }
-                  })
-                }}
+                onChange={e => setTopicId(Number(e.target.value))}
                 className="ml-3 rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm text-neutral-200 focus:outline-none focus:border-neutral-500 cursor-pointer"
               >
                 {Object.values(TOPICS).map(t => (
