@@ -1,40 +1,21 @@
+import path from 'path'
 import { BASE_URL, API_KEY, FRONTEND_BASE, STAGE_R1, TopicInfo } from './config'
-import { parseMediatorTemplate, buildMediator } from './parser'
+import { parseMediatorTemplate, buildMediator } from './mediator_parser'
+import { buildAgent, loadAgentTemplate } from './agent_parser'
 import { buildStages } from './stages'
-import { resolveTopic, makeRandomPromptContext } from './utils'
-
-async function addAgentPersona(
-  experimentId: string,
-  agentId: string,
-  promptContext = '',
-  modelName = 'gemini-2.5-flash',
-  apiType = 'GEMINI',
-) {
-  const res = await fetch('https://us-central1-traust-491612.cloudfunctions.net/addAgentPersona', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      data: {
-        experimentId,
-        agentId,
-        promptContext,
-        defaultModelSettings: { apiType, modelName },
-      },
-    }),
-  })
-  const body = await res.json()
-  if (!res.ok || body.error) throw new Error(`addAgentPersona failed: ${body.error ?? res.status}`)
-  return body.result ?? body
-}
+import { resolveTopic, fillAgentStance, agentConfig, createParticipant } from './utils'
 
 export async function generate(participantId: string, mediatorTemplateContent: string, hasAgent = false) {
   const mediatorTemplate = parseMediatorTemplate(mediatorTemplateContent)
   const topicName = mediatorTemplate.topic as string
 
   const topicInfo = resolveTopic(topicName) as TopicInfo
-  const stages = buildStages(topicInfo.decision_prompt, participantId, hasAgent)
+  const stages = buildStages(topicInfo.decision_prompt)
   const stageIdsInOrder = stages.map((s) => s.id)
   const mediatorR1 = buildMediator(STAGE_R1, mediatorTemplate, stageIdsInOrder)
+
+  const agentTpl = hasAgent ? fillAgentStance(loadAgentTemplate(path.join(process.cwd(), 'public', 'agent-example.yaml')), topicInfo) : null
+  const agentR1 = agentTpl ? buildAgent(STAGE_R1, agentTpl, stageIdsInOrder) : null
 
   const authHeaders = {
     Authorization: `Bearer ${API_KEY}`,
@@ -45,11 +26,11 @@ export async function generate(participantId: string, mediatorTemplateContent: s
     method: 'POST',
     headers: authHeaders,
     body: JSON.stringify({
-      name: `[human-human] T${topicInfo.id}`,
+      name: hasAgent ? `[human-agent] T${topicInfo.id}` : `[human-human] T${topicInfo.id}`,
       description: `Debate (${topicInfo.topic}). topic="${topicInfo.decision_prompt}"; `,
       stages,
       agentMediators: [mediatorR1],
-      agentParticipants: [],
+      agentParticipants: hasAgent ? [agentR1] : [],
     }),
   })
   if (!expRes.ok) {
@@ -80,8 +61,8 @@ export async function generate(participantId: string, mediatorTemplateContent: s
   const cohortData = await cohortRes.json()
   const cohortId: string = cohortData.cohort?.id ?? cohortData.id
 
-  if (hasAgent) {
-    await addAgentPersona(expId, 'partner-agent-A', makeRandomPromptContext(topicInfo))
+  if (hasAgent && agentR1) {
+    await createParticipant(expId, cohortId, agentConfig(agentR1))
   }
 
   const baseUrl = `${FRONTEND_BASE}/#/e/${expId}/c/${cohortId}`

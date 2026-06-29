@@ -1,4 +1,4 @@
-import { pidToAgentId, wrapChars } from './utils'
+import { wrapChars } from './utils'
 import { POSITION_PHRASES, STAGE_R1, POSITION_STATEMENTS } from './config'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -17,7 +17,6 @@ interface Progress {
   agentJoinTimeMs?: number
   lockCohortAtTwoParticipants?: boolean
   waitStageHasTimer?: boolean
-  pIdToAgentId?: Record<string, string>
 }
 
 interface ScaleQuestion {
@@ -84,33 +83,32 @@ export type StageConfig = ChatStageConfig | SurveyStageConfig | ProfileStageConf
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function _chatStage(stageId: string, roundLabel: string, decisionPrompt: string, p1: string, hasAgent = false): ChatStageConfig {
+function _chatStage(stageId: string, decisionPrompt: string): ChatStageConfig {
   return {
     id: stageId,
     kind: 'chat',
-    name: `Debate (${roundLabel})`,
+    name: 'Debate',
     descriptions: {
-      primaryText: `${roundLabel}: discuss the topic "${decisionPrompt}"`,
+      primaryText: `Statement: "${decisionPrompt}"`,
       infoText: '',
       helpText: '',
     },
     progress: {
-      minParticipants: hasAgent ? 2 : 1,
+      minParticipants: 2,
       waitForAllParticipants: false,
       showParticipantProgress: true,
       maxWaitTimeMs: 210000,
       agentJoinTimeMs: 130000,
       lockCohortAtTwoParticipants: false,
-      waitStageHasTimer: hasAgent,
-      pIdToAgentId: pidToAgentId(p1),
+      waitStageHasTimer: false,
     },
     discussions: [],
-    timeLimitInMinutes: 2,
+    timeLimitInMinutes: 9,
     requireFullTime: true,
   }
 }
 
-function _presurveyStage(stageId: string, topicLabel: string, decisionPrompt: string, suffix: string, againstStmt: string, supportStmt: string, p1: string): SurveyStageConfig {
+function _presurveyStage(stageId: string, topicLabel: string, decisionPrompt: string, suffix: string, againstStmt: string, supportStmt: string): SurveyStageConfig {
   return {
     id: stageId,
     kind: 'survey',
@@ -124,7 +122,6 @@ function _presurveyStage(stageId: string, topicLabel: string, decisionPrompt: st
       agentJoinTimeMs: 5000,
       lockCohortAtTwoParticipants: false,
       waitStageHasTimer: false,
-      pIdToAgentId: pidToAgentId(p1),
     },
     questions: [
       {
@@ -234,7 +231,7 @@ function _mediatorBlock(suffix: string, disagreePhrase: string, agreePhrase: str
   ]
 }
 
-function _postsurveyStage(stageId: string, topicLabel: string, decisionPrompt: string, _roundLabel: string, suffix: string, againstStmt: string, supportStmt: string, p1: string): SurveyStageConfig {
+function _postsurveyStage(stageId: string, topicLabel: string, decisionPrompt: string, suffix: string, againstStmt: string, supportStmt: string): SurveyStageConfig {
   const [disagreePhrase, agreePhrase] = POSITION_PHRASES[decisionPrompt]
   return {
     id: stageId,
@@ -249,7 +246,6 @@ function _postsurveyStage(stageId: string, topicLabel: string, decisionPrompt: s
       agentJoinTimeMs: 5000,
       lockCohortAtTwoParticipants: false,
       waitStageHasTimer: false,
-      pIdToAgentId: pidToAgentId(p1),
     },
     questions: [
       ..._roundOpinionBlock(decisionPrompt, suffix, againstStmt, supportStmt),
@@ -263,7 +259,7 @@ function _postsurveyStage(stageId: string, topicLabel: string, decisionPrompt: s
 
 // ── Public ────────────────────────────────────────────────────────────────────
 
-export function buildStages(decisionPromptR1: string, p1: string, hasAgent = false): StageConfig[] {
+export function buildStages(decisionPromptR1: string): StageConfig[] {
   const [againstR1, supportR1] = POSITION_STATEMENTS[decisionPromptR1]
 
   return [
@@ -280,13 +276,12 @@ export function buildStages(decisionPromptR1: string, p1: string, hasAgent = fal
         agentJoinTimeMs: 5000,
         lockCohortAtTwoParticipants: false,
         waitStageHasTimer: false,
-        pIdToAgentId: pidToAgentId(p1),
       },
       profileType: 'ANONYMOUS_ANIMAL',
     },
-    _presurveyStage('pre-survey', 'Topic 1', decisionPromptR1, 'a', againstR1, supportR1, p1),
-    _chatStage(STAGE_R1, 'Round 1', decisionPromptR1, p1, hasAgent),
-    _postsurveyStage('post-survey', 'Topic 1', decisionPromptR1, 'Round 1', 'a', againstR1, supportR1, p1),
+    _presurveyStage('pre-survey', 'Topic 1', decisionPromptR1, 'a', againstR1, supportR1),
+    _chatStage(STAGE_R1, decisionPromptR1),
+    _postsurveyStage('post-survey', 'Topic 1', decisionPromptR1, 'a', againstR1, supportR1),
 
     // dl.InfoStageConfig({
     //   id: 'debriefing',
