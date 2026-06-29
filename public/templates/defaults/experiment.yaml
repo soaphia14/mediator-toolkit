@@ -1,0 +1,175 @@
+experiment:
+  metadata:
+    publicName: "{name} debate"
+    description: 'Debate ({name}). topic="{statement}"; '
+    tags:
+      - toolkit
+  permissions:
+    visibility: public
+  defaultCohortConfig:
+    minParticipantsPerCohort: 2
+    maxParticipantsPerCohort: 2
+    includeAllParticipantsInCohortCount: true
+    botProtection: true
+  prolificConfig:
+    enableProlificIntegration: false
+    defaultRedirectCode: ""
+    attentionFailRedirectCode: ""
+    bootedRedirectCode: ""
+  unlockTimeMs: null
+  unlockDurationMs: null
+
+stageConfigs:
+  - id: profile
+    kind: profile
+    name: "Profile Setup"
+    descriptions:
+      primaryText: "Set up your profile"
+      infoText: ""
+      helpText: ""
+    progress:
+      minParticipants: 1
+      waitForAllParticipants: false
+      showParticipantProgress: false
+      maxWaitTimeMs: 10000
+      agentJoinTimeMs: 5000
+      lockCohortAtTwoParticipants: false
+      waitStageHasTimer: false
+    profileType: ANONYMOUS_ANIMAL
+
+  - id: pre-survey
+    kind: survey
+    name: "Pre-Discussion Survey (Topic 1)"
+    descriptions:
+      primaryText: "Answer a few questions before the discussion"
+      infoText: ""
+      helpText: ""
+    progress:
+      minParticipants: 1
+      waitForAllParticipants: false
+      showParticipantProgress: true
+      maxWaitTimeMs: 10000
+      agentJoinTimeMs: 5000
+      lockCohortAtTwoParticipants: false
+      waitStageHasTimer: false
+    questions:
+      - kind: scale
+        id: pre_q1_a
+        questionTitle: "Please rate your view on the following statement.\n\n\"{statement}\""
+        lowerValue: 1
+        lowerText: "{scale_low}"
+        upperValue: 7
+        upperText: "{scale_high}"
+      - kind: text
+        id: pre_q1_a.5
+        questionTitle: "Briefly describe the main reasons behind your view."
+
+  - id: chat-round-1
+    kind: chat
+    name: "Debate"
+    descriptions:
+      primaryText: 'Statement: "{statement}"'
+      infoText: ""
+      helpText: ""
+    progress:
+      minParticipants: 2
+      waitForAllParticipants: false
+      showParticipantProgress: true
+      maxWaitTimeMs: 210000
+      agentJoinTimeMs: 130000
+      lockCohortAtTwoParticipants: false
+      waitStageHasTimer: false
+    discussions: []
+    timeLimitInMinutes: 9
+    requireFullTime: true
+
+  - id: post-survey
+    kind: survey
+    name: "Post-Discussion Survey"
+    descriptions:
+      primaryText: 'Answer a few questions about the discussion on "{statement}"'
+      infoText: ""
+      helpText: ""
+    progress:
+      minParticipants: 1
+      waitForAllParticipants: false
+      showParticipantProgress: true
+      maxWaitTimeMs: 10000
+      agentJoinTimeMs: 5000
+      lockCohortAtTwoParticipants: false
+      waitStageHasTimer: false
+    questions:
+      - kind: mc
+        id: q1_a
+        questionTitle: "Did the discussion in this round change the way you thought about the original statement?"
+        options:
+          - id: "no"
+            imageId: ""
+            text: "Not at all. I did not change my view."
+          - id: "maybe"
+            imageId: ""
+            text: "Somewhat. My view changed a little, but I am still leaning the same way."
+          - id: "yes"
+            imageId: ""
+            text: "Very much so. My view changed a lot."
+      - kind: text
+        id: q2_a
+        questionTitle: "If your view shifted after this discussion, how did it shift? If not, what kept it the same?"
+      - kind: scale
+        id: q2.5_a
+        questionTitle: "Please re-rate your view on the following statement now.\n\n\"{statement}\""
+        lowerValue: 1
+        lowerText: "{scale_low}"
+        upperValue: 7
+        upperText: "{scale_high}"
+      - kind: scale
+        id: q3_a
+        questionTitle: "How informative was this round's discussion for you?"
+        lowerValue: 1
+        lowerText: "Not informative\n(I learned nothing new)"
+        upperValue: 7
+        upperText: "Very informative\n(I learned a lot)"
+      - kind: scale
+        id: q4_a
+        questionTitle: "Overall, how willing was the other person you spoke with to engage in meaningful conversation?"
+        lowerValue: 1
+        lowerText: "Not at all (did not\nlisten to my perspective)"
+        upperValue: 7
+        upperText: "Very willing (consistently\nacknowledged my perspective)"
+      - kind: scale
+        id: q5_a
+        questionTitle: "How impactful was the information provided by the mediator?"
+        lowerValue: 1
+        lowerText: "Not at all (It did not\nimpact the conversation)"
+        upperValue: 7
+        upperText: "Very helpful (It greatly\nimpacted the conversation)"
+      - kind: mc
+        id: q6_a
+        questionTitle: "Did the mediator favor any side?"
+        options:
+          - id: "yes"
+            imageId: ""
+            text: "Yes"
+          - id: "no"
+            imageId: ""
+            text: "No"
+      - kind: mc
+        id: q7_a
+        questionTitle: "If so, which side did the mediator favor?"
+        options:
+          - id: "no"
+            imageId: ""
+            text: "No. It did not seem to favor any side overall."
+          - id: "yes_agree"
+            imageId: ""
+            text: "Yes. It definitely favored: {favor_agree}."
+          - id: "yes_disagree"
+            imageId: ""
+            text: "Yes. It definitely favored: {favor_disagree}."
+      - kind: scale
+        id: q8_a
+        questionTitle: "How biased did the mediator seem to you overall?"
+        lowerValue: 1
+        lowerText: "Not at all biased"
+        upperValue: 7
+        upperText: "Extremely biased"

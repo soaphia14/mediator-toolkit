@@ -1,0 +1,7 @@
+topic:
+  name: "Unilateralism"
+  statement: "I support the United States using a unilateralism approach to foreign issues - a foreign-policy approach where the United States acts independently rather than waiting for agreement from international partners."
+  scale_low: "Strongly disagree"
+  scale_high: "Strongly agree"
+  favor_disagree: "the U.S. not using a unilateralism approach"
+  favor_agree: "the U.S. using a unilateralism approach"

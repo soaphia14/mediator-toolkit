@@ -1,0 +1,7 @@
+topic:
+  name: "Covenant Marriage"
+  statement: "I support all states in the United States offering covenant marriage - a marriage license option that requires premarital counseling and makes divorce more difficult than under a standard marriage license."
+  scale_low: "Strongly disagree"
+  scale_high: "Strongly agree"
+  favor_disagree: "states not offering covenant marriage"
+  favor_agree: "all states offering covenant marriage"

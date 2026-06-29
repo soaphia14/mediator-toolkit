@@ -1,0 +1,7 @@
+topic:
+  name: "Occupational Licensing Reciprocity"
+  statement: 'I support allowing workers licensed in one state to work in another state without obtaining a new local license - a policy allowing workers licensed in one state to work in another state without completing a new licensing process.'
+  scale_low: "Strongly disagree"
+  scale_high: "Strongly agree"
+  favor_disagree: "not allowing workers to work across states without a new license"
+  favor_agree: "allowing workers to work across states without a new license"

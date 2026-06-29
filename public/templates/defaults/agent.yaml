@@ -1,7 +1,6 @@
 persona:
   id: partner-agent
   name: Agent
-  avatar: "👤"
   pronouns: "they/them"
 model:
   apiType: GEMINI
@@ -43,6 +42,8 @@ concede_strength: 0
 should_concede_prompt: ""
 
 thought_prompt: ""
+
+context: "all"
 
 prompt:
   - id: 0

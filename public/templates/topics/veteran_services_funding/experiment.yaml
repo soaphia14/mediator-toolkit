@@ -1,0 +1,7 @@
+topic:
+  name: "Veteran Services Funding"
+  statement: "I support increasing government funding for veteran services - public programs supporting military veterans, including healthcare, housing, mental-health care, job placement, and disability services."
+  scale_low: "Strongly disagree"
+  scale_high: "Strongly agree"
+  favor_disagree: "not increasing funding for veteran services"
+  favor_agree: "increasing funding for veteran services"
