@@ -12,6 +12,9 @@ const idle: ActionState = { status: 'idle', result: null }
 
 const topicMap = (name: string) => name.toLowerCase().replaceAll(' ', '_')
 
+const POLL_INTERVAL_MS = 10_000
+const MAX_POLLS = 180 // poll every 10s for 30 minutes
+
 export default function Home() {
   const [mediatorData, setMediatorData] = useState<string | null>(null)
   const [topicId, setTopicId] = useState<number>(Number(Object.keys(TOPICS)[0]))
@@ -29,11 +32,12 @@ export default function Home() {
   const [experimentId, setExperimentId] = useState<string | null>('1686b432-b09a-4d52-956a-3decec0ab813')
   const [exportState, setExportState] = useState<ActionState>(idle)
   const [createState, setCreateState] = useState<ActionState>(idle)
-  const [creating, setCreating] = useState<'human-human' | 'human-agent' | null>(null)
+  const [simState, setSimState] = useState<ActionState>(idle)
+  const [creating, setCreating] = useState<'human-human' | 'human-agent' | 'agent-agent' | null>(null)
   const [showAsYaml, setShowAsYaml] = useState(true)
   const [activeSection, setActiveSection] = useState(0)
   const sectionTitles = ['Persona', 'Model', 'Generation', 'Chat Settings']
-  const busy = creating !== null || exportState.status === 'loading'
+  const busy = creating !== null || exportState.status === 'loading' || simState.status === 'loading'
 
   const mediatorParsed = useMemo(() => {
     try { return JSON.parse(mediatorData ?? '') } catch { return null }
@@ -91,22 +95,65 @@ export default function Home() {
     }
   }
 
-  async function handleCreate(hasAgent: boolean) {
-    setCreating(hasAgent ? 'human-agent' : 'human-human')
+  function downloadMediator() {
+    let text: string
+    try { text = yaml.dump(JSON.parse(mediatorData ?? '')) } catch { text = mediatorData ?? '' }
+    const url = URL.createObjectURL(new Blob([text], { type: 'text/yaml' }))
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'mediator.yaml'
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  function loadMediatorFile(file: File) {
+    const reader = new FileReader()
+    reader.onload = () => {
+      try { setMediatorData(JSON.stringify(yaml.load(String(reader.result)), null, 2)) } catch { /* ignore invalid yaml */ }
+    }
+    reader.readAsText(file)
+  }
+
+  async function handleCreate(mode: 'human-human' | 'human-agent' | 'agent-agent') {
+    setCreating(mode)
     setCreateState({ status: 'loading', result: null })
     try {
       const res = await fetch('/api/create-experiment', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ mediatorTemplate: mediatorData, hasAgent, topic: topicMap(TOPICS[topicId].topic) }),
+        body: JSON.stringify({ mediatorTemplate: mediatorData, mode, topic: topicMap(TOPICS[topicId].topic) }),
       })
       const data = await res.json()
       setCreateState({ status: res.ok ? 'done' : 'error', result: data })
+      return res.ok ? data : null
     } catch (e) {
       setCreateState({ status: 'error', result: String(e) })
+      return null
     } finally {
       setCreating(null)
     }
+  }
+
+  // sent to simulation + polling its status
+  async function handleCreateSim() {
+    const data = await handleCreate('agent-agent')
+    const experimentId: string | undefined = data?.experiment_id
+    if (!data?.is_sim || !experimentId) return
+
+    setSimState({ status: 'loading', result: { message: 'Simulation running — waiting for agents to finish' } })
+    for (let i = 0; i < MAX_POLLS; i++) {
+      await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS))
+      try {
+        const res = await fetch(`/api/simulation-status?experimentId=${encodeURIComponent(experimentId)}`)
+        const status = await res.json()
+        if (!res.ok) { setSimState({ status: 'error', result: status }); return }
+        if (status.completed) { setSimState({ status: 'done', result: status.export }); return }
+        setSimState({ status: 'loading', result: { message: 'Simulation running', statuses: status.statuses } })
+      } catch (e) {
+        setSimState({ status: 'error', result: String(e) }); return
+      }
+    }
+    setSimState({ status: 'error', result: 'Timed out waiting for the simulation to complete.' })
   }
 
   return (
@@ -237,15 +284,32 @@ export default function Home() {
         
         {/* YAML preview */}
         <div className="space-y-2">
-          <label className="flex items-center gap-2 cursor-pointer w-fit">
-            <input
-              type="checkbox"
-              checked={showAsYaml}
-              onChange={e => setShowAsYaml(e.target.checked)}
-              className="accent-neutral-400"
-            />
-            <span className="text-sm text-neutral-400">Show as YAML</span>
-          </label>
+          <div className="flex items-center gap-3">
+            <label className="flex items-center gap-2 cursor-pointer w-fit">
+              <input
+                type="checkbox"
+                checked={showAsYaml}
+                onChange={e => setShowAsYaml(e.target.checked)}
+                className="accent-neutral-400"
+              />
+              <span className="text-sm text-neutral-400">Show as YAML</span>
+            </label>
+            <button
+              onClick={downloadMediator}
+              className="text-sm px-3 py-1 rounded-lg border border-neutral-700 bg-neutral-900 text-neutral-300 hover:bg-neutral-800 cursor-pointer"
+            >
+              Download
+            </button>
+            <label className="text-sm px-3 py-1 rounded-lg border border-neutral-700 bg-neutral-900 text-neutral-300 hover:bg-neutral-800 cursor-pointer">
+              Upload
+              <input
+                type="file"
+                accept=".yaml,.yml"
+                className="hidden"
+                onChange={e => { const f = e.target.files?.[0]; if (f) loadMediatorFile(f); e.target.value = '' }}
+              />
+            </label>
+          </div>
           <textarea
             disabled
             value={showAsYaml
@@ -255,41 +319,51 @@ export default function Home() {
           />
         </div>
         
-        {/* Experiment ID input */}
-        <div className="space-y-1.5">
-          <label className="text-sm font-medium text-neutral-400">Experiment ID (for export)</label>
-          <input
-            type="text"
-            value={experimentId ?? ''}
-            onChange={e => setExperimentId(e.target.value)}
-            placeholder="Experiment ID"
-            className="w-full p-2 rounded-lg border border-neutral-700 bg-neutral-900 text-sm text-neutral-200"
-          />
-        </div>
-        
-        {/* Actions */}
-        <div className="flex flex-wrap gap-3">
-          <ActionButton
-            label="Export Experiment"
-            loadingLabel="Exporting…"
-            loading={exportState.status === 'loading'}
-            disabled={busy}
-            onClick={handleExport}
-          />
-          <ActionButton
-            label="Create (human-human)"
-            loadingLabel="Creating…"
-            loading={creating === 'human-human'}
-            disabled={busy}
-            onClick={() => handleCreate(false)}
-          />
-          <ActionButton
-            label="Create (human-agent)"
-            loadingLabel="Creating…"
-            loading={creating === 'human-agent'}
-            disabled={busy}
-            onClick={() => handleCreate(true)}
-          />
+        {/* Actions: create buttons, then experiment id + export */}
+        <div className="space-y-3">
+          {/* 3 create buttons on one row */}
+          <div className="flex flex-wrap gap-3">
+            <ActionButton
+              label="Create (human-human)"
+              loadingLabel="Creating…"
+              loading={creating === 'human-human'}
+              disabled={busy}
+              onClick={() => handleCreate('human-human')}
+            />
+            <ActionButton
+              label="Create (human-agent)"
+              loadingLabel="Creating…"
+              loading={creating === 'human-agent'}
+              disabled={busy}
+              onClick={() => handleCreate('human-agent')}
+            />
+            <ActionButton
+              label="Create (agent-agent)"
+              loadingLabel="Simulating…"
+              loading={creating === 'agent-agent' || simState.status === 'loading'}
+              disabled={busy}
+              onClick={handleCreateSim}
+            />
+          </div>
+
+          {/* Experiment ID + Export, below the create buttons */}
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-neutral-400">Experiment ID (for export)</label>
+            <input
+              type="text"
+              value={experimentId ?? ''}
+              onChange={e => setExperimentId(e.target.value)}
+              placeholder="Experiment ID"
+              className="w-full p-2 rounded-lg border border-neutral-700 bg-neutral-900 text-sm text-neutral-200"
+            />
+            <ActionButton
+              label="Export Experiment"
+              loadingLabel="Exporting…"
+              loading={exportState.status === 'loading'}
+              disabled={busy}
+              onClick={handleExport}
+            />
+          </div>
         </div>
         
         {/* Action results */}
@@ -307,6 +381,10 @@ export default function Home() {
                 : undefined
             }
           />
+        )}
+
+        {simState.result !== null && (
+          <ResultBox title="Simulation" state={simState} />
         )}
 
       </div>
