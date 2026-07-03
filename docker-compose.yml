@@ -1,0 +1,20 @@
+services:
+  web:
+    build: .
+    ports:
+      - "127.0.0.1:3000:3000"          # only localhost; a tunnel/proxy fronts this
+    environment:
+      - CONVOKIT_SERVICE_URL=http://convokit:8080
+    depends_on:
+      convokit:
+        condition: service_healthy
+    restart: unless-stopped
+
+  convokit:
+    build: ./convokit-service
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped

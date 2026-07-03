@@ -49,7 +49,7 @@ function participantSlotsFor(mode: Mode): ParticipantSlot[] {
   ]
 }
 
-export async function generate(p1: string, p2: string, experimentTemplatePath: string, mediatorTemplateContent: string, mode: Mode) {
+export async function generate(p1: string, p2: string, experimentTemplatePath: string, mediatorTemplateContent: string, mode: Mode, numCohorts?: number) {
   const experimentTemplate = replaceDefaults(
     loadTemplate(experimentTemplatePath),
     loadTemplate(EXPERIMENT_DEFAULT),
@@ -114,11 +114,13 @@ export async function generate(p1: string, p2: string, experimentTemplatePath: s
   }
 
   let expId: string
-  let genCohortId: string
+  let cohortIds: string[]
 
   if (isSim) {
     // create_simulation = create the experiment, then batch-create its cohort(s)
     const cfg = exp.defaultCohortConfig ?? {}
+    // number of cohorts: UI field wins, then the YAML `num_cohorts`, then 1
+    const n = numCohorts && numCohorts >= 1 ? numCohorts : (Number(exp.num_cohorts) || 1)
     const expRes = await fetch(`${BASE_URL}/experiments`, {
       method: 'POST',
       headers: authHeaders,
@@ -132,24 +134,21 @@ export async function generate(p1: string, p2: string, experimentTemplatePath: s
       method: 'POST',
       headers: authHeaders,
       body: JSON.stringify({
-        cohorts: [
-          {
-            name: `[toolkit-sim] ${topicInfo.name}`,
-            description: `Simulation for ${topicInfo.name}.`,
-            participantConfig: {
-              minParticipantsPerCohort: cfg.minParticipantsPerCohort ?? 2,
-              maxParticipantsPerCohort: cfg.maxParticipantsPerCohort ?? 2,
-              includeAllParticipantsInCohortCount: cfg.includeAllParticipantsInCohortCount ?? true,
-              botProtection: cfg.botProtection ?? true,
-            },
+        cohorts: Array.from({ length: n }, (_, i) => ({
+          name: `[toolkit-sim] ${topicInfo.name} #${i + 1}`,
+          description: `Simulation for ${topicInfo.name}.`,
+          participantConfig: {
+            minParticipantsPerCohort: cfg.minParticipantsPerCohort ?? 2,
+            maxParticipantsPerCohort: cfg.maxParticipantsPerCohort ?? 2,
+            includeAllParticipantsInCohortCount: cfg.includeAllParticipantsInCohortCount ?? true,
+            botProtection: cfg.botProtection ?? true,
           },
-        ],
+        })),
       }),
     })
     if (!cohortRes.ok) throw new Error(`create_simulation (cohorts/batch) failed: ${await cohortRes.text()}`)
     const cohortJson = await cohortRes.json()
-    const c0 = cohortJson.cohorts[0]
-    genCohortId = (c0.cohort ?? c0).id
+    cohortIds = cohortJson.cohorts.map((c: any) => (c.cohort ?? c).id)
   } else {
     const expRes = await fetch(`${BASE_URL}/experiments`, {
       method: 'POST',
@@ -165,14 +164,19 @@ export async function generate(p1: string, p2: string, experimentTemplatePath: s
     const expData = await exportRes.json()
     const generated: Record<string, string> = {}
     for (const c of expData.experiment.cohortDefinitions) generated[c.alias] = c.generatedCohortId
-    genCohortId = generated[cohortAlias]
+    cohortIds = [generated[cohortAlias]]
   }
 
-  for (const agent of agents) {
-    await createParticipant(expId, genCohortId, agentConfig(agent))
+  // seat the agent pair into every cohort (identical stances for now)
+  for (const cid of cohortIds) {
+    for (const agent of agents) {
+      await createParticipant(expId, cid, agentConfig(agent))
+    }
   }
 
-  const baseUrl = `${FRONTEND_BASE}/#/e/${expId}/c/${genCohortId}`
+  const experimentUrl = `${FRONTEND_BASE}/#/e/${expId}`
+  const urls = cohortIds.map((cid) => `${FRONTEND_BASE}/#/e/${expId}/c/${cid}`)
+  const baseUrl = urls[0]
   const humanUrls: Record<string, string> = {}
   for (const [slot, pid] of Object.entries(humanSlots)) {
     humanUrls[slot] = `${baseUrl}?PROLIFIC_PID=${pid}`
@@ -182,8 +186,9 @@ export async function generate(p1: string, p2: string, experimentTemplatePath: s
     mode,
     topic: topicInfo.name,
     experiment_id: expId,
-    cohort_id: genCohortId,
-    url: baseUrl,
+    cohort_ids: cohortIds,
+    experiment_url: experimentUrl,
+    cohort_urls: urls,
     human_urls: humanUrls,
     agent_stances: agentStance,
     is_sim: isSim,

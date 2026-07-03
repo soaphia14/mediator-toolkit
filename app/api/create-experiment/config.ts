@@ -6,7 +6,7 @@ export const BASE_URL = 'https://us-central1-traust-491612.cloudfunctions.net/ap
 export const CREATE_PARTICIPANT_URL = 'https://us-central1-traust-491612.cloudfunctions.net/createParticipant'
 export const FRONTEND_BASE = 'https://traust.infosci.cornell.edu'
 
-export const API_KEY = process.env.DL_API_KEY ?? ''
+export const API_KEY = 'dlb_live_ttWLOHIFIpzTj7XJKg85Mwk4RtxAELtWfL1hu5dTuCg' //process.env.DL_API_KEY ?? ''
 
 export const PROJECT_ROOT = process.cwd()
 

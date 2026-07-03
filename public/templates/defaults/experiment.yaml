@@ -1,4 +1,24 @@
 experiment:
+  participants:
+    - slot: p1
+      type: agent
+      template: templates/defaults/agent-1.yaml
+    - slot: p2
+      type: agent
+      template: templates/defaults/agent-2.yaml
+
+    # - slot: p1
+    #   type: agent
+    #   template: templates/defaults/agent-1.yaml
+    # - slot: p2
+    #   type: human
+    
+    # - slot: p1
+    #   type: human
+    # - slot: p2
+    #   type: human
+
+  num_cohorts: 2 # leave it as a placeholder, the actual number of cohorts will be determined by the input value on the frontend
   metadata:
     publicName: "{name} debate"
     description: 'Debate ({name}). topic="{statement}"; '
@@ -82,7 +102,7 @@ stageConfigs:
     discussions: []
     timeLimitInMinutes: 9
     requireFullTime: true
-    numUtterances: 20
+    numUtterances: 5
 
   - id: post-survey
     kind: survey

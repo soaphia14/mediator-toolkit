@@ -29,11 +29,14 @@ export default function Home() {
       setMediatorData(JSON.stringify(merged, null, 2))
     })
   }, [topicId])
-  const [experimentId, setExperimentId] = useState<string | null>('1686b432-b09a-4d52-956a-3decec0ab813')
+  const [experimentId, setExperimentId] = useState<string | null>('')
   const [exportState, setExportState] = useState<ActionState>(idle)
   const [createState, setCreateState] = useState<ActionState>(idle)
   const [simState, setSimState] = useState<ActionState>(idle)
+  const [simExport, setSimExport] = useState<unknown>(null)
+  const [convokitLoading, setConvokitLoading] = useState(false)
   const [creating, setCreating] = useState<'human-human' | 'human-agent' | 'agent-agent' | null>(null)
+  const [numCohorts, setNumCohorts] = useState('5')
   const [showAsYaml, setShowAsYaml] = useState(true)
   const [activeSection, setActiveSection] = useState(0)
   const sectionTitles = ['Persona', 'Model', 'Generation', 'Chat Settings']
@@ -106,6 +109,43 @@ export default function Home() {
     URL.revokeObjectURL(url)
   }
 
+  function downloadJson(data: unknown, filename: string) {
+    const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }))
+    const a = document.createElement('a')
+    a.href = url
+    a.download = filename
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  async function downloadConvokit() {
+    if (simExport === null) return
+    setConvokitLoading(true)
+    try {
+      const res = await fetch('/api/convokit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(simExport),
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        alert(`ConvoKit conversion failed: ${err.error ?? res.statusText}`)
+        return
+      }
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `convokit-${(simExport as { experiment?: { id?: string } })?.experiment?.id ?? 'export'}.zip`
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch (e) {
+      alert(`ConvoKit conversion error: ${String(e)}`)
+    } finally {
+      setConvokitLoading(false)
+    }
+  }
+
   function loadMediatorFile(file: File) {
     const reader = new FileReader()
     reader.onload = () => {
@@ -121,7 +161,7 @@ export default function Home() {
       const res = await fetch('/api/create-experiment', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ mediatorTemplate: mediatorData, mode, topic: topicMap(TOPICS[topicId].topic) }),
+        body: JSON.stringify({ mediatorTemplate: mediatorData, mode, topic: topicMap(TOPICS[topicId].topic), numCohorts }),
       })
       const data = await res.json()
       setCreateState({ status: res.ok ? 'done' : 'error', result: data })
@@ -140,6 +180,7 @@ export default function Home() {
     const experimentId: string | undefined = data?.experiment_id
     if (!data?.is_sim || !experimentId) return
 
+    setSimExport(null)
     setSimState({ status: 'loading', result: { message: 'Simulation running — waiting for agents to finish' } })
     for (let i = 0; i < MAX_POLLS; i++) {
       await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS))
@@ -147,7 +188,11 @@ export default function Home() {
         const res = await fetch(`/api/simulation-status?experimentId=${encodeURIComponent(experimentId)}`)
         const status = await res.json()
         if (!res.ok) { setSimState({ status: 'error', result: status }); return }
-        if (status.completed) { setSimState({ status: 'done', result: status.export }); return }
+        if (status.completed) {
+          setSimExport(status.export)
+          setSimState({ status: 'done', result: { message: 'Simulation complete', experiment_id: experimentId, statuses: status.statuses } })
+          return
+        }
         setSimState({ status: 'loading', result: { message: 'Simulation running', statuses: status.statuses } })
       } catch (e) {
         setSimState({ status: 'error', result: String(e) }); return
@@ -321,7 +366,7 @@ export default function Home() {
         
         {/* Actions: create buttons, then experiment id + export */}
         <div className="space-y-3">
-          {/* 3 create buttons on one row */}
+          {/* human create buttons on one row */}
           <div className="flex flex-wrap gap-3">
             <ActionButton
               label="Create (human-human)"
@@ -337,12 +382,24 @@ export default function Home() {
               disabled={busy}
               onClick={() => handleCreate('human-agent')}
             />
+          </div>
+
+          {/* agent-agent (simulation) on its own row, with cohort count */}
+          <div className="flex flex-wrap items-center gap-3">
             <ActionButton
               label="Create (agent-agent)"
               loadingLabel="Simulating…"
               loading={creating === 'agent-agent' || simState.status === 'loading'}
               disabled={busy}
               onClick={handleCreateSim}
+            />
+            <label className="text-sm text-neutral-400">Cohorts</label>
+            <input
+              type="text"
+              value={numCohorts}
+              onChange={e => setNumCohorts(e.target.value)}
+              disabled={busy}
+              className="w-16 p-2 rounded-lg border border-neutral-700 bg-neutral-900 text-sm text-neutral-200"
             />
           </div>
 
@@ -385,6 +442,23 @@ export default function Home() {
 
         {simState.result !== null && (
           <ResultBox title="Simulation" state={simState} />
+        )}
+
+        {simState.status === 'done' && simExport !== null && (
+          <div className="flex flex-wrap gap-3">
+            <ActionButton
+              label="Download simulation export (JSON)"
+              loadingLabel="…"
+              loading={false}
+              onClick={() => downloadJson(simExport, `simulation-${(simExport as { experiment?: { id?: string } })?.experiment?.id ?? 'export'}.json`)}
+            />
+            <ActionButton
+              label="Download ConvoKit corpus (zip)"
+              loadingLabel="Converting…"
+              loading={convokitLoading}
+              onClick={downloadConvokit}
+            />
+          </div>
         )}
 
       </div>
