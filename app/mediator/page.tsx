@@ -10,27 +10,37 @@ import { ActionButton, ResultBox, type ActionState } from '../components/Experim
 
 const idle: ActionState = { status: 'idle', result: null }
 
+const topicMap = (name: string) => name.toLowerCase().replaceAll(' ', '_')
+
+const POLL_INTERVAL_MS = 10_000
+const MAX_POLLS = 180 // poll every 10s for 30 minutes
+
 export default function Home() {
   const [mediatorData, setMediatorData] = useState<string | null>(null)
+  const [topicId, setTopicId] = useState<number>(Number(Object.keys(TOPICS)[0]))
 
   useEffect(() => {
-    fetch('/mediator-example.yaml')
-      .then(res => res.text())
-      .then(text => {
-        const parsed = yaml.load(text)
-        setMediatorData(JSON.stringify(parsed, null, 2))
-      })
-  }, [])
-
-  const [topicId, setTopicId] = useState<number>(Object.keys(TOPICS)[0] as unknown as number)
-  const [experimentId, setExperimentId] = useState<string | null>('1686b432-b09a-4d52-956a-3decec0ab813')
+    const topic = topicMap(TOPICS[topicId].topic)
+    Promise.all([
+      fetch('/templates/defaults/mediator.yaml').then(res => res.text()),
+      fetch(`/templates/topics/${topic}/mediator.yaml`).then(res => res.text()),
+    ]).then(([defaultsText, topicText]) => {
+      const merged = { ...(yaml.load(defaultsText) as object), ...(yaml.load(topicText) as object) }
+      setMediatorData(JSON.stringify(merged, null, 2))
+    })
+  }, [topicId])
+  const [experimentId, setExperimentId] = useState<string | null>('')
   const [exportState, setExportState] = useState<ActionState>(idle)
   const [createState, setCreateState] = useState<ActionState>(idle)
-  const [creating, setCreating] = useState<'human-human' | 'human-agent' | null>(null)
+  const [simState, setSimState] = useState<ActionState>(idle)
+  const [simExport, setSimExport] = useState<unknown>(null)
+  const [convokitLoading, setConvokitLoading] = useState(false)
+  const [creating, setCreating] = useState<'human-human' | 'human-agent' | 'agent-agent' | null>(null)
+  const [numCohorts, setNumCohorts] = useState('5')
   const [showAsYaml, setShowAsYaml] = useState(true)
   const [activeSection, setActiveSection] = useState(0)
   const sectionTitles = ['Persona', 'Model', 'Generation', 'Chat Settings']
-  const busy = creating !== null || exportState.status === 'loading'
+  const busy = creating !== null || exportState.status === 'loading' || simState.status === 'loading'
 
   const mediatorParsed = useMemo(() => {
     try { return JSON.parse(mediatorData ?? '') } catch { return null }
@@ -88,22 +98,107 @@ export default function Home() {
     }
   }
 
-  async function handleCreate(hasAgent: boolean) {
-    setCreating(hasAgent ? 'human-agent' : 'human-human')
+  function downloadMediator() {
+    let text: string
+    try { text = yaml.dump(JSON.parse(mediatorData ?? '')) } catch { text = mediatorData ?? '' }
+    const url = URL.createObjectURL(new Blob([text], { type: 'text/yaml' }))
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'mediator.yaml'
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  function downloadJson(data: unknown, filename: string) {
+    const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }))
+    const a = document.createElement('a')
+    a.href = url
+    a.download = filename
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  async function downloadConvokit() {
+    if (simExport === null) return
+    setConvokitLoading(true)
+    try {
+      const res = await fetch('/api/convokit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(simExport),
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        alert(`ConvoKit conversion failed: ${err.error ?? res.statusText}`)
+        return
+      }
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `convokit-${(simExport as { experiment?: { id?: string } })?.experiment?.id ?? 'export'}.zip`
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch (e) {
+      alert(`ConvoKit conversion error: ${String(e)}`)
+    } finally {
+      setConvokitLoading(false)
+    }
+  }
+
+  function loadMediatorFile(file: File) {
+    const reader = new FileReader()
+    reader.onload = () => {
+      try { setMediatorData(JSON.stringify(yaml.load(String(reader.result)), null, 2)) } catch { /* ignore invalid yaml */ }
+    }
+    reader.readAsText(file)
+  }
+
+  async function handleCreate(mode: 'human-human' | 'human-agent' | 'agent-agent') {
+    setCreating(mode)
     setCreateState({ status: 'loading', result: null })
     try {
       const res = await fetch('/api/create-experiment', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ mediatorTemplate: mediatorData, hasAgent }),
+        body: JSON.stringify({ mediatorTemplate: mediatorData, mode, topic: topicMap(TOPICS[topicId].topic), numCohorts }),
       })
       const data = await res.json()
       setCreateState({ status: res.ok ? 'done' : 'error', result: data })
+      return res.ok ? data : null
     } catch (e) {
       setCreateState({ status: 'error', result: String(e) })
+      return null
     } finally {
       setCreating(null)
     }
+  }
+
+  // sent to simulation + polling its status
+  async function handleCreateSim() {
+    const data = await handleCreate('agent-agent')
+    const experimentId: string | undefined = data?.experiment_id
+    if (!data?.is_sim || !experimentId) return
+
+    setSimExport(null)
+    setSimState({ status: 'loading', result: { message: 'Simulation running — waiting for agents to finish' } })
+    for (let i = 0; i < MAX_POLLS; i++) {
+      await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS))
+      try {
+        const res = await fetch(`/api/simulation-status?experimentId=${encodeURIComponent(experimentId)}`)
+        const status = await res.json()
+        if (!res.ok) { setSimState({ status: 'error', result: status }); return }
+        if (status.completed) {
+          setSimExport(status.export)
+          setSimState({ status: 'done', result: { message: 'Simulation complete', experiment_id: experimentId, statuses: status.statuses } })
+          return
+        }
+        setSimState({ status: 'loading', result: { message: 'Simulation running', statuses: status.statuses } })
+      } catch (e) {
+        setSimState({ status: 'error', result: String(e) }); return
+      }
+    }
+    setSimState({ status: 'error', result: 'Timed out waiting for the simulation to complete.' })
   }
 
   return (
@@ -128,17 +223,7 @@ export default function Home() {
               <label className="text-sm font-medium text-neutral-400">Topic</label>
               <select
                 value={topicId}
-                onChange={e => {
-                  const id = Number(e.target.value)
-                  setTopicId(id)
-                  setMediatorData(prev => {
-                    try {
-                      const data = JSON.parse(prev ?? '')
-                      data.topic = TOPICS[id].topic
-                      return JSON.stringify(data, null, 2)
-                    } catch { return prev }
-                  })
-                }}
+                onChange={e => setTopicId(Number(e.target.value))}
                 className="ml-3 rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm text-neutral-200 focus:outline-none focus:border-neutral-500 cursor-pointer"
               >
                 {Object.values(TOPICS).map(t => (
@@ -244,15 +329,32 @@ export default function Home() {
         
         {/* YAML preview */}
         <div className="space-y-2">
-          <label className="flex items-center gap-2 cursor-pointer w-fit">
-            <input
-              type="checkbox"
-              checked={showAsYaml}
-              onChange={e => setShowAsYaml(e.target.checked)}
-              className="accent-neutral-400"
-            />
-            <span className="text-sm text-neutral-400">Show as YAML</span>
-          </label>
+          <div className="flex items-center gap-3">
+            <label className="flex items-center gap-2 cursor-pointer w-fit">
+              <input
+                type="checkbox"
+                checked={showAsYaml}
+                onChange={e => setShowAsYaml(e.target.checked)}
+                className="accent-neutral-400"
+              />
+              <span className="text-sm text-neutral-400">Show as YAML</span>
+            </label>
+            <button
+              onClick={downloadMediator}
+              className="text-sm px-3 py-1 rounded-lg border border-neutral-700 bg-neutral-900 text-neutral-300 hover:bg-neutral-800 cursor-pointer"
+            >
+              Download
+            </button>
+            <label className="text-sm px-3 py-1 rounded-lg border border-neutral-700 bg-neutral-900 text-neutral-300 hover:bg-neutral-800 cursor-pointer">
+              Upload
+              <input
+                type="file"
+                accept=".yaml,.yml"
+                className="hidden"
+                onChange={e => { const f = e.target.files?.[0]; if (f) loadMediatorFile(f); e.target.value = '' }}
+              />
+            </label>
+          </div>
           <textarea
             disabled
             value={showAsYaml
@@ -262,41 +364,63 @@ export default function Home() {
           />
         </div>
         
-        {/* Experiment ID input */}
-        <div className="space-y-1.5">
-          <label className="text-sm font-medium text-neutral-400">Experiment ID (for export)</label>
-          <input
-            type="text"
-            value={experimentId ?? ''}
-            onChange={e => setExperimentId(e.target.value)}
-            placeholder="Experiment ID"
-            className="w-full p-2 rounded-lg border border-neutral-700 bg-neutral-900 text-sm text-neutral-200"
-          />
-        </div>
-        
-        {/* Actions */}
-        <div className="flex flex-wrap gap-3">
-          <ActionButton
-            label="Export Experiment"
-            loadingLabel="Exporting…"
-            loading={exportState.status === 'loading'}
-            disabled={busy}
-            onClick={handleExport}
-          />
-          <ActionButton
-            label="Create (human-human)"
-            loadingLabel="Creating…"
-            loading={creating === 'human-human'}
-            disabled={busy}
-            onClick={() => handleCreate(false)}
-          />
-          <ActionButton
-            label="Create (human-agent)"
-            loadingLabel="Creating…"
-            loading={creating === 'human-agent'}
-            disabled={busy}
-            onClick={() => handleCreate(true)}
-          />
+        {/* Actions: create buttons, then experiment id + export */}
+        <div className="space-y-3">
+          {/* human create buttons on one row */}
+          <div className="flex flex-wrap gap-3">
+            <ActionButton
+              label="Create (human-human)"
+              loadingLabel="Creating…"
+              loading={creating === 'human-human'}
+              disabled={busy}
+              onClick={() => handleCreate('human-human')}
+            />
+            <ActionButton
+              label="Create (human-agent)"
+              loadingLabel="Creating…"
+              loading={creating === 'human-agent'}
+              disabled={busy}
+              onClick={() => handleCreate('human-agent')}
+            />
+          </div>
+
+          {/* agent-agent (simulation) on its own row, with cohort count */}
+          <div className="flex flex-wrap items-center gap-3">
+            <ActionButton
+              label="Create (agent-agent)"
+              loadingLabel="Simulating…"
+              loading={creating === 'agent-agent' || simState.status === 'loading'}
+              disabled={busy}
+              onClick={handleCreateSim}
+            />
+            <label className="text-sm text-neutral-400">Cohorts</label>
+            <input
+              type="text"
+              value={numCohorts}
+              onChange={e => setNumCohorts(e.target.value)}
+              disabled={busy}
+              className="w-16 p-2 rounded-lg border border-neutral-700 bg-neutral-900 text-sm text-neutral-200"
+            />
+          </div>
+
+          {/* Experiment ID + Export, below the create buttons */}
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-neutral-400">Experiment ID (for export)</label>
+            <input
+              type="text"
+              value={experimentId ?? ''}
+              onChange={e => setExperimentId(e.target.value)}
+              placeholder="Experiment ID"
+              className="w-full p-2 rounded-lg border border-neutral-700 bg-neutral-900 text-sm text-neutral-200"
+            />
+            <ActionButton
+              label="Export Experiment"
+              loadingLabel="Exporting…"
+              loading={exportState.status === 'loading'}
+              disabled={busy}
+              onClick={handleExport}
+            />
+          </div>
         </div>
         
         {/* Action results */}
@@ -314,6 +438,27 @@ export default function Home() {
                 : undefined
             }
           />
+        )}
+
+        {simState.result !== null && (
+          <ResultBox title="Simulation" state={simState} />
+        )}
+
+        {simState.status === 'done' && simExport !== null && (
+          <div className="flex flex-wrap gap-3">
+            <ActionButton
+              label="Download simulation export (JSON)"
+              loadingLabel="…"
+              loading={false}
+              onClick={() => downloadJson(simExport, `simulation-${(simExport as { experiment?: { id?: string } })?.experiment?.id ?? 'export'}.json`)}
+            />
+            <ActionButton
+              label="Download ConvoKit corpus (zip)"
+              loadingLabel="Converting…"
+              loading={convokitLoading}
+              onClick={downloadConvokit}
+            />
+          </div>
         )}
 
       </div>

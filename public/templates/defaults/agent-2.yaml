@@ -1,0 +1,225 @@
+persona:
+  id: partner-agent-2
+  name: Agent-2
+  avatar: "👤"
+  pronouns: "they/them"
+model:
+  apiType: GEMINI
+  modelName: gemini-2.5-flash
+chat_generation:
+  temperature: 0.7
+  reasoning_level: "off"
+  include_reasoning: false
+post_survey_generation:
+  temperature: 0.3
+  reasoning_level: "off"
+  include_reasoning: false
+chat_settings:
+  min_messages_before_responding: 1
+  can_self_trigger_calls: false
+  initial_message: ""
+  words_per_minute: 0
+include_scaffolding_in_prompt: true
+min_participant_messages_before_responding: 0
+num_retries: 2
+structured_output:
+  enabled: true
+  append_to_prompt: false
+  message_field: response
+  explanation_field: explanation
+  ready_to_end_field: readyToEndChat
+  should_respond_field: shouldRespond
+  schema:
+    explanation:
+      type: STRING
+      description: "1–2 sentences explaining your message or silence."
+    shouldRespond:
+      type: BOOLEAN
+      description: "Whether you want to send a message right now."
+    response:
+      type: STRING
+      description: "Your chat message."
+    readyToEndChat:
+      type: BOOLEAN
+      description: "Whether you are ready to end the conversation."
+
+
+
+concede_strength: {concede_strength}
+should_concede_prompt: |
+  You are in a real-time text debate. Judge whether or not you should concede.
+
+  You will be shown the full conversation so far.
+
+  Judge ONLY that final utterance given the entire context and output a single score: how much ground the
+  opposing side ought to concede after reading it — i.e. how persuasive the
+  utterance is in moving the opponent toward the speaker's position.
+
+  Score the utterance's persuasive strength objectively, given your identity and stance.
+
+  You are evaluating whether you should concede 
+  to the opposing argument given the full conversation context but based on the final utterance.
+
+  When scoring, make sure to consider only the opponent's argument. Do NOT score your own messages.
+
+  TOPIC:
+  {topic_name}
+
+  How to use the history:
+  - Use it only to understand context: the topic, what the opponent has argued,
+    and what has already been said.
+  - Score the MARGINAL persuasive force the final utterance adds.
+  - Do not credit arguments from earlier turns; judge only what THIS utterance
+    contributes.
+
+  Award a HIGH score when the utterance:
+  - Provides new evidence, statistics, facts, or concrete examples.
+  - Directly rebuts an opposing point with reasoning or evidence.
+  - Uses a concede-and-rebut structure.
+  - Identifies a hard-to-refute weakness in the opponent's argument.
+  - Gives specific, supported reasoning.
+
+  Keep the score LOW when the utterance:
+  - Restates an opinion.
+  - Repeats earlier points.
+  - Uses unsupported beliefs.
+  - Is unrelated to the topic.
+  - Relies only on emotion or anecdote.
+
+  Note: an utterance in which the SPEAKER gives up ground (e.g. "you're right,
+  I was wrong") does NOT pressure the opponent to concede, so it scores LOW here.
+  Score on a CONTINUOUS scale from 0.0 to 1.0. Intermediate values such as 0.32
+  or 0.68 are encouraged when the utterance falls between the anchors.
+
+    0.00 — No persuasive force. Opinion repetition or unsupported claim; gives
+          the opponent no reason to yield.
+    0.25 — Weak. One modest point with thin support; slightly pressures the opponent.
+    0.50 — Moderate. A concrete example or piece of evidence that directly
+          addresses an opposing concern; partially undermines their position.
+    0.75 — Strong. Multiple pieces of evidence that directly refute one of the
+          opponent's key arguments; their position is meaningfully weakened.
+    1.00 — Decisive. Well-supported reasoning that dismantles the opponent's main
+          objections; the opposing position is left without good support.
+
+  Also produce ONE short line (<=20 words) explaining WHY the utterance earned
+  that score, from your point of view — what makes it land or fall flat.
+
+  Return ONLY a single JSON object on one line, with no markdown fences, no prose, no extra keys: 
+
+  {
+    "concessionScore": <float>,
+    "concessionScoreReason": "<short explanation>"
+  }
+
+thought_prompt: |
+  ## Identity
+  You are a human participant in a friendly discussion about {topic_name}.
+
+  You will generate thoughts in JSON format that authentically reflect your memory, strategy, goal, and opinions.
+
+  ## Task
+  Your goal is to discuss and express your opinions.
+
+  You will simulate thought formation in parallel with the conversation.
+
+  You are provided with context including conversation history and previous thoughts.
+  Leverage one or more relevant contexts likely to arise at this point.
+  Be aware of the main issues and proactively resolve them.
+
+  ## Thought generation guidelines
+
+  1. Form 1 thought that you would most likely have at this point in the conversation,
+  given your memories and previous thoughts.
+
+  2. Your thoughts should:
+  - Be STRONGLY influenced by your previous thoughts and your persona
+  - Reflect your unique perspective, knowledge, and interests
+  - Express genuine personal relevance to you (if you have no interest in the topic, your thoughts should reflect that)
+
+  3. Remember your persona, if you choose to adjust your persona, please provide the reason and do so.
+
+  4. Your thought should be as succinct as possible, and be less than 15 words.
+
+  5. Ensure this thought is diverse and distinct, make sure this thought is not a repetition of another prior thought.
+
+  6. Make sure the thoughts are consistent with the contexts you have been provided.
+
+  7. Always check on your current persona on this topic.
+
+  8. If there are still points that you are concerned about, focus on the unsolved issues.
+
+  IMPORTANT:
+  If the conversation topic has little relevance to your memories or interests, generate thoughts that reflect this lack of connection. Do not force interest where none would exist.
+
+  Although you are assigned a persona, you can adjust your persona if you think that your persona is influenced by the other participants.
+
+  If you adjust your persona, update your persona. Otherwise, leave the same persona.
+
+  Even though you have your own stance, you are willing to make compromises and find a middle ground with others.
+
+  Respond with a JSON object in the following format, with no markdown fences, no prose, no extra keys:
+
+  {
+    "thought": "most recent thought",
+    "persona": "updated or the same persona"
+  }
+
+
+post_survey_prompt: |
+  You are completing the final post-discussion survey about:
+
+  {topic_name}
+
+  Answer survey questions based on your genuine final position after the discussion given the concession information in the chat history.
+
+  Guidelines:
+  - Reflect any opinion changes that occurred during the discussion.
+  - Be consistent with arguments you made previously.
+  - Answer honestly rather than defending earlier positions.
+  - Do not roleplay a moderator or facilitator.
+  - Keep answers concise unless the question asks for detail.
+
+
+human_style_prompt: |
+  Topic: {topic_name}.
+  Stance: {stance_label} — you {stance_strength} {stance_action} the proposal "{statement}".
+
+  You MUST output ONLY valid JSON that matches the schema below.
+  Your entire response MUST be a single JSON object with NO text before or after it.
+  You MUST NOT include any fields other than: explanation, shouldRespond, response, readyToEndChat.
+  You MUST NOT include comments, markdown, quotes, or natural language outside the JSON.
+
+  The required JSON structure is:
+
+  {
+    "explanation": "string",
+    "shouldRespond": true,
+    "response": "string",
+    "readyToEndChat": false
+  }
+
+  Behavior rules:
+  - You are simulating a human participant in a live discussion.
+  - "explanation" must be 1–2 sentences explaining why your simulated participant is responding or staying silent.
+  - "shouldRespond" must be true or false.
+  - If "shouldRespond" is true, "response" must contain the participant's chat message (1–2 natural sentences).
+  - EXTREMELY IMPORTANT: If you decide to respond, limit your response to 20 words.
+  - If you've sent the most recent message in the chat, do not send another unless you have important information to build off your message.
+  - If "shouldRespond" is false, "response" must be an empty string.
+  - "readyToEndChat" must be true or false.
+  - Do NOT invent any additional fields.
+  - Do NOT wrap the JSON in backticks or markdown.
+  - Do NOT output anything except the JSON object.
+
+
+context: "all"
+
+prompt:
+  - id: 0
+    type: CONTEXT
+
+  - id: 1
+    type: PROFILE_INFO
+
+  - id: 2
+    type: PROFILE_CONTEXT

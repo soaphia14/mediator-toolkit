@@ -1,10 +1,38 @@
-// These must be defined in a config.ts file in this directory
-import { RATING_LABELS, TOPIC_BY_NAME, CREATE_PARTICIPANT_URL } from './config'
-import type { AgentParticipantTemplate } from './agent_parser'
+import fs from 'fs'
+import yaml from 'js-yaml'
+import { CREATE_PARTICIPANT_URL } from './config'
+import type { AgentParticipantTemplate } from './parsers/agent'
 
-export interface TopicInfo {
-  topic: string
-  decision_prompt: string
+export function loadTemplate(templatePath: string): Record<string, any> {
+  return yaml.load(fs.readFileSync(templatePath, 'utf8')) as Record<string, any>
+}
+
+// replace missing values by defaults
+export function replaceDefaults(template: Record<string, any>, defaults: Record<string, any>): Record<string, any> {
+  const merged: Record<string, any> = { ...defaults }
+  for (const [key, value] of Object.entries(template)) {
+    const d = defaults[key]
+    if (value && typeof value === 'object' && !Array.isArray(value) && d && typeof d === 'object' && !Array.isArray(d)) {
+      merged[key] = replaceDefaults(value, d)
+    } else {
+      merged[key] = value
+    }
+  }
+  return merged
+}
+
+// drop null/undefined fields recursively (mirrors pydantic model_dump(exclude_none=True))
+export function excludeNone(obj: any): any {
+  if (Array.isArray(obj)) return obj.map(excludeNone)
+  if (obj && typeof obj === 'object') {
+    const out: Record<string, any> = {}
+    for (const [k, v] of Object.entries(obj)) {
+      if (v === null || v === undefined) continue
+      out[k] = excludeNone(v)
+    }
+    return out
+  }
+  return obj
 }
 
 function _stanceFromRating(rating: number): [string, string] {
@@ -18,14 +46,19 @@ function _stanceFromRating(rating: number): [string, string] {
   return [side, strength]
 }
 
-export function fillAgentStance(agentTemplate: Record<string, any>, topicInfo: TopicInfo): Record<string, any> {
-  const rating = Math.floor(Math.random() * 7) + 1
+export function fillAgentStance(
+  agentTemplate: Record<string, any>,
+  topicInfo: Record<string, any>,
+  rating: number, 
+  concede_strength: number
+): [Record<string, any>, Record<string, any>] {
   const [side, strength] = _stanceFromRating(rating)
   const [label, action] = side === 'support' ? ['AGREEMENT', 'support'] : ['DISAGREEMENT', 'oppose']
 
+  agentTemplate["concede_strength"] = concede_strength
   const substitutions: Record<string, string> = {
-    '{topic_name}': topicInfo.topic,
-    '{statement}': topicInfo.decision_prompt,
+    '{topic_name}': topicInfo.name,
+    '{statement}': topicInfo.statement,
     '{stance_label}': label,
     '{stance_action}': action,
     '{stance_strength}': strength,
@@ -37,28 +70,17 @@ export function fillAgentStance(agentTemplate: Record<string, any>, topicInfo: T
       }
     }
   }
-  return agentTemplate
-}
 
-export function formatRating(value: number): string {
-  const label = RATING_LABELS[value]
-  return label ? `${value} - ${label}` : String(value)
-}
-
-export function resolveTopic(topicName: string): TopicInfo {
-  const byNameLower: Record<string, TopicInfo> = Object.fromEntries(
-    Object.entries(TOPIC_BY_NAME).map(([name, t]) => [name.toLowerCase(), t]),
-  )
-  if (!topicName || !(topicName.toLowerCase() in byNameLower)) {
-    const known = Object.keys(TOPIC_BY_NAME).sort().join(', ')
-    throw new Error(`Unknown topic name ${JSON.stringify(topicName)}. Known topics: ${known}`)
+  for (const key of ['human_style_prompt', 'should_concede_prompt', 'thought_prompt', 'post_survey_prompt']) {
+    if (key in agentTemplate) {
+      for (const [token, value] of Object.entries(substitutions)) {
+        agentTemplate[key] = agentTemplate[key].replaceAll(token, value)
+      }
+    }
   }
-  return byNameLower[topicName.toLowerCase()]
-}
 
-export function parseSlotToMs(slot: string): [Date, number] {
-  const dt = new Date(slot)
-  return [dt, dt.getTime()]
+  const agentStance = { side: label, strength, rating, concede_strength }
+  return [agentTemplate, agentStance]
 }
 
 export function wrapChars(statement: string, charsPerLine = 30): string {
@@ -77,22 +99,26 @@ export function wrapChars(statement: string, charsPerLine = 30): string {
   return lines.join('\n') || statement
 }
 
-export function agentConfig(template: AgentParticipantTemplate): Record<string, any> {
+export function agentConfig(template: AgentParticipantTemplate, promptContext = ''): Record<string, any> {
   const model = template.persona.defaultModelSettings
   return {
     agentId: template.persona.id,
-    promptContext: '',
+    promptContext,
     modelSettings: { apiType: model.apiType, modelName: model.modelName },
   }
 }
 
 export async function createParticipant(experimentId: string, cohortId: string, agentConfig: Record<string, any>) {
+  const payload = {
+    experimentId,
+    cohortId,
+    isAnonymous: true,
+    agentConfig,
+  }
   const res = await fetch(CREATE_PARTICIPANT_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      data: { experimentId, cohortId, isAnonymous: true, agentConfig },
-    }),
+    body: JSON.stringify({ data: payload }),
   })
   const body = await res.json()
   if (!res.ok || body.error) throw new Error(`createParticipant failed: ${body.error ?? res.status}`)
