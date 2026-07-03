@@ -387,7 +387,7 @@ export default function Home() {
           {/* agent-agent (simulation) on its own row, with cohort count */}
           <div className="flex flex-wrap items-center gap-3">
             <ActionButton
-              label="Create (agent-agent)"
+              label="Simulate (agent-agent)"
               loadingLabel="Simulating…"
               loading={creating === 'agent-agent' || simState.status === 'loading'}
               disabled={busy}
