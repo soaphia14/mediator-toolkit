@@ -14,13 +14,16 @@ chat_settings:
   min_messages_before_responding: 0
   can_self_trigger_calls: true
   initial_message: ""
-  words_per_minute: 1000
+  words_per_minute: 0
 include_scaffolding_in_prompt: true
 min_participant_messages_before_responding: 3
+concede_strength: 0
 num_retries: 2
+context: "all"
 structured_output:
   enabled: true
   append_to_prompt: false
+  should_respond_field: null
   message_field: response
   explanation_field: explanation
   ready_to_end_field: readyToEndChat
@@ -34,8 +37,6 @@ structured_output:
     readyToEndChat:
       type: BOOLEAN
       description: "Whether you are ready to end the conversation."
-
-
 should_respond_prompt: |
   You are a mediator in a live discussion. Decide whether you should intervene now.
   Reply YES if:
@@ -45,6 +46,3 @@ should_respond_prompt: |
   - Participants are going back and forth without progress
   - The conversation has become stale
   Reply with ONLY YES or NO.
-
-
-context: "all"

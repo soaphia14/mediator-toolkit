@@ -82,6 +82,7 @@ stageConfigs:
     discussions: []
     timeLimitInMinutes: 9
     requireFullTime: true
+    numUtterances: 20
 
   - id: post-survey
     kind: survey
