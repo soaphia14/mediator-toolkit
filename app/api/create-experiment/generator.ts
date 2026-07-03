@@ -1,14 +1,57 @@
 import path from 'path'
-import { BASE_URL, API_KEY, FRONTEND_BASE, STAGE_R1, AGENT_DEFAULT, EXPERIMENT_DEFAULT } from './config'
+import {
+  BASE_URL, API_KEY, FRONTEND_BASE,
+  STAGE_R1, POST_SURVEY_STAGE_ID, EXPERIMENT_DEFAULT,
+} from './config'
 import { parseMediatorTemplate, buildMediator } from './parsers/mediator'
 import { buildAgent } from './parsers/agent'
 import type { AgentParticipantTemplate } from './parsers/agent'
 import { buildTopic, buildStages, buildExperiment } from './parsers/experiment'
 import { loadTemplate, replaceDefaults, fillAgentStance, agentConfig, createParticipant, excludeNone } from './utils'
 
-export async function generate(p1: string, p2: string, mediatorTemplateContent: string, topic: string, hasAgent = false) {
+export type Mode = 'human-human' | 'human-agent' | 'agent-agent'
+type ParticipantSlot = { slot: string; type: 'human' | 'agent'; template?: string }
+
+const randint = (a: number, b: number) => Math.floor(Math.random() * (b - a + 1)) + a
+
+function shuffle<T>(arr: T[]): T[] {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    const tmp = arr[i]
+    arr[i] = arr[j]
+    arr[j] = tmp
+  }
+  return arr
+}
+
+// The toolkit picks the mode via the request/button, so we build the participant
+// slots from `mode`. The agent template path is data here (mirrors the `participants`
+// block generator.py reads from YAML: `template: templates/defaults/agent-N.yaml`),
+// resolved like the topic experiment.yaml path below.
+const defaultTemplate = (file: string) => path.join(process.cwd(), 'public', 'templates', 'defaults', file)
+
+function participantSlotsFor(mode: Mode): ParticipantSlot[] {
+  if (mode === 'agent-agent') {
+    return [
+      { slot: 'p1', type: 'agent', template: defaultTemplate('agent-1.yaml') },
+      { slot: 'p2', type: 'agent', template: defaultTemplate('agent-2.yaml') },
+    ]
+  }
+  if (mode === 'human-agent') {
+    return [
+      { slot: 'p1', type: 'human' },
+      { slot: 'p2', type: 'agent', template: defaultTemplate('agent-1.yaml') },
+    ]
+  }
+  return [
+    { slot: 'p1', type: 'human' },
+    { slot: 'p2', type: 'human' },
+  ]
+}
+
+export async function generate(p1: string, p2: string, experimentTemplatePath: string, mediatorTemplateContent: string, mode: Mode) {
   const experimentTemplate = replaceDefaults(
-    loadTemplate(path.join(process.cwd(), 'public', 'templates', 'topics', topic, 'experiment.yaml')),
+    loadTemplate(experimentTemplatePath),
     loadTemplate(EXPERIMENT_DEFAULT),
   )
   const topicInfo = buildTopic(experimentTemplate.topic)
@@ -16,64 +59,133 @@ export async function generate(p1: string, p2: string, mediatorTemplateContent: 
   const stages = buildStages(experimentTemplate, topicInfo)
   const stageIdsInOrder = stages.map((s) => s.id)
 
-  // here use the first available chat stage id - currently we only support one mediator and one chat
-  // TODO: make it more flexible to support multiple chat stages and multiple mediators in the future
+  // one mediator + one chat supported for now
   const chatStageId = stages.find((s) => s.kind === 'chat')?.id ?? STAGE_R1
+  const postSurveyStageId = [...stages].reverse().find((s) => s.kind === 'survey')?.id ?? POST_SURVEY_STAGE_ID
 
   const mediatorTemplate = parseMediatorTemplate(mediatorTemplateContent)
   const mediatorR1 = buildMediator(chatStageId, mediatorTemplate, stageIdsInOrder)
 
-  let agentR1: AgentParticipantTemplate | null = null
-  let agentStance: Record<string, any> | null = null
-  if (hasAgent) {
-    const [agentTpl, stance] = fillAgentStance(
-      loadTemplate(AGENT_DEFAULT),
-      topicInfo,
-    )
-    agentStance = stance
-    agentR1 = buildAgent(chatStageId, agentTpl, stageIdsInOrder)
+  const exp = experimentTemplate.experiment ?? {}
+  const participantSlots = participantSlotsFor(mode)
+  const slotToPid: Record<string, string> = { p1, p2 }
+
+  const agentSlots = participantSlots.filter((s) => s.type === 'agent').map((s) => s.slot)
+
+  // mode-specific stance ratings + chat pacing (mutates the chat stage object in place)
+  const chatStage = stages.find((s) => s.kind === 'chat')
+  let ratings: number[]
+  if (mode === 'agent-agent') {
+    ratings = shuffle([randint(5, 7), randint(1, 3)])
+    if (chatStage) {
+      chatStage.timeLimitInMinutes = null
+      chatStage.requireFullTime = false
+    }
+  } else {
+    ratings = agentSlots.map(() => randint(1, 7))
+    if (chatStage) chatStage.numUtterances = null
+  }
+  const agentStance: Record<string, any> = {}
+  agentSlots.forEach((slot, i) => {
+    agentStance[slot] = { rating: ratings[i], concede_strength: randint(1, 7) }
+  })
+
+  const agents: AgentParticipantTemplate[] = []
+  const humanSlots: Record<string, string> = {}
+  for (const pSlot of participantSlots) {
+    const slot = pSlot.slot
+    if (pSlot.type === 'agent') {
+      const s = agentStance[slot]
+      const [tpl, stance] = fillAgentStance(loadTemplate(pSlot.template!), topicInfo, s.rating, s.concede_strength)
+      agentStance[slot] = stance
+      agents.push(buildAgent(chatStageId, postSurveyStageId, tpl, stageIdsInOrder))
+    } else {
+      humanSlots[slot] = slotToPid[slot] ?? slot
+    }
   }
 
-  const [template, cohortAlias] = buildExperiment(experimentTemplate, topicInfo, stages, stageIdsInOrder, mediatorR1, agentR1)
+  const isSim = agents.length === 2
+
+  const [template, cohortAlias] = buildExperiment(experimentTemplate, topicInfo, stages, stageIdsInOrder, mediatorR1, agents, mode, isSim)
 
   const authHeaders = {
     Authorization: `Bearer ${API_KEY}`,
     'Content-Type': 'application/json',
   }
 
-  const expRes = await fetch(`${BASE_URL}/experiments`, {
-    method: 'POST',
-    headers: authHeaders,
-    body: JSON.stringify({ template: excludeNone(template) }),
-  })
-  if (!expRes.ok) throw new Error(`create_experiment failed: ${await expRes.text()}`)
-  const result = await expRes.json()
-  const expId: string = result.experiment.id
+  let expId: string
+  let genCohortId: string
 
-  const exportRes = await fetch(`${BASE_URL}/experiments/${expId}/export`, { method: 'GET', headers: authHeaders })
-  if (!exportRes.ok) throw new Error(`export_experiment failed: ${await exportRes.text()}`)
-  const expData = await exportRes.json()
-  const generated: Record<string, string> = {}
-  for (const c of expData.experiment.cohortDefinitions) generated[c.alias] = c.generatedCohortId
-  const genCohortId = generated[cohortAlias]
+  if (isSim) {
+    // create_simulation = create the experiment, then batch-create its cohort(s)
+    const cfg = exp.defaultCohortConfig ?? {}
+    const expRes = await fetch(`${BASE_URL}/experiments`, {
+      method: 'POST',
+      headers: authHeaders,
+      body: JSON.stringify({ template: excludeNone(template) }),
+    })
+    if (!expRes.ok) throw new Error(`create_simulation (experiment) failed: ${await expRes.text()}`)
+    const expJson = await expRes.json()
+    expId = expJson.experiment.id
 
-  if (agentR1) {
-    await createParticipant(expId, genCohortId, agentConfig(agentR1))
+    const cohortRes = await fetch(`${BASE_URL}/experiments/${expId}/cohorts/batch`, {
+      method: 'POST',
+      headers: authHeaders,
+      body: JSON.stringify({
+        cohorts: [
+          {
+            name: `[toolkit-sim] ${topicInfo.name}`,
+            description: `Simulation for ${topicInfo.name}.`,
+            participantConfig: {
+              minParticipantsPerCohort: cfg.minParticipantsPerCohort ?? 2,
+              maxParticipantsPerCohort: cfg.maxParticipantsPerCohort ?? 2,
+              includeAllParticipantsInCohortCount: cfg.includeAllParticipantsInCohortCount ?? true,
+              botProtection: cfg.botProtection ?? true,
+            },
+          },
+        ],
+      }),
+    })
+    if (!cohortRes.ok) throw new Error(`create_simulation (cohorts/batch) failed: ${await cohortRes.text()}`)
+    const cohortJson = await cohortRes.json()
+    const c0 = cohortJson.cohorts[0]
+    genCohortId = (c0.cohort ?? c0).id
+  } else {
+    const expRes = await fetch(`${BASE_URL}/experiments`, {
+      method: 'POST',
+      headers: authHeaders,
+      body: JSON.stringify({ template: excludeNone(template) }),
+    })
+    if (!expRes.ok) throw new Error(`create_experiment failed: ${await expRes.text()}`)
+    const result = await expRes.json()
+    expId = result.experiment.id
+
+    const exportRes = await fetch(`${BASE_URL}/experiments/${expId}/export`, { method: 'GET', headers: authHeaders })
+    if (!exportRes.ok) throw new Error(`export_experiment failed: ${await exportRes.text()}`)
+    const expData = await exportRes.json()
+    const generated: Record<string, string> = {}
+    for (const c of expData.experiment.cohortDefinitions) generated[c.alias] = c.generatedCohortId
+    genCohortId = generated[cohortAlias]
+  }
+
+  for (const agent of agents) {
+    await createParticipant(expId, genCohortId, agentConfig(agent))
   }
 
   const baseUrl = `${FRONTEND_BASE}/#/e/${expId}/c/${genCohortId}`
-  const p1Url = `${baseUrl}?PROLIFIC_PID=${p1}`
-  const p2Url = !agentR1 ? `${baseUrl}?PROLIFIC_PID=${p2}` : '' // only provide p2_url if there is no agent
+  const humanUrls: Record<string, string> = {}
+  for (const [slot, pid] of Object.entries(humanSlots)) {
+    humanUrls[slot] = `${baseUrl}?PROLIFIC_PID=${pid}`
+  }
 
   return {
-    participant_1: p1,
-    participant_2: agentR1 ? 'agent' : p2,
+    mode,
     topic: topicInfo.name,
     experiment_id: expId,
     cohort_id: genCohortId,
     url: baseUrl,
-    p1_url: p1Url,
-    p2_url: p2Url,
-    agent_stance: agentStance,
+    human_urls: humanUrls,
+    agent_stances: agentStance,
+    is_sim: isSim,
   }
 }

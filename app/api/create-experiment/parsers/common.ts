@@ -88,7 +88,7 @@ export function buildContextItems(stageId: string, stageIdsInOrder: string[], co
   }))
 }
 
-export function buildPromptItems(tpl: Record<string, any>, stageId: string, stageIdsInOrder: string[]): PromptItem[] {
+export function buildPromptItems(tpl: Record<string, any>, stageId: string, stageIdsInOrder: string[], stageSpecificPrompts: PromptItem[] = []): PromptItem[] {
   const context: string = tpl.context
   const prompts: any[] = [...(tpl.prompt ?? [])].sort((a, b) => (a.id ?? 0) - (b.id ?? 0))
 
@@ -107,7 +107,7 @@ export function buildPromptItems(tpl: Record<string, any>, stageId: string, stag
       throw new Error(`Unknown prompt item type ${kind}. Must be 'CONTEXT', 'PROFILE_INFO', 'PROFILE_CONTEXT', or 'TEXT'.`)
     }
   }
-  return items
+  return [...items, ...stageSpecificPrompts]
 }
 
 export function buildPersona(tpl: Record<string, any>): Persona {
@@ -129,8 +129,8 @@ export function buildPersona(tpl: Record<string, any>): Persona {
   }
 }
 
-export function buildGeneration(tpl: Record<string, any>): GenerationConfig {
-  const generation = tpl.generation
+export function buildGeneration(tpl: Record<string, any>, genKey: string): GenerationConfig {
+  const generation = tpl[genKey]
   return {
     temperature: generation.temperature,
     reasoningLevel: generation.reasoning_level,

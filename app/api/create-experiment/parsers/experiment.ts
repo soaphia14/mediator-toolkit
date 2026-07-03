@@ -48,8 +48,11 @@ export function buildExperiment(
   stages: Record<string, any>[],
   stageIdsInOrder: string[],
   mediator: AgentMediatorTemplate,
-  agent: AgentParticipantTemplate | null = null,
+  agents: AgentParticipantTemplate[] | null,
+  mode: string,
+  sim: boolean
 ): [Record<string, any>, string] {
+
   const subs: Record<string, string> = { '{name}': topicInfo.name, '{statement}': topicInfo.statement }
   const exp = _substituteTokens(experimentTemplate.experiment, subs)
   const meta = exp.metadata ?? {}
@@ -63,13 +66,34 @@ export function buildExperiment(
   const publicEid = 'exp-' + timeHash.slice(0, 16)
   const cohortAlias = `cohort-${eid}`
 
+  let cohortDefinitions: Record<string, any>[]
+  let cohortLockMap: Record<string, boolean>
+  if (sim) {
+    // config is taken care when creating the simulation, ignore them here.
+    cohortDefinitions = []
+    cohortLockMap = {}
+  } else {
+    cohortDefinitions = [
+        {
+          id: cohortAlias,
+          alias: cohortAlias,
+          name: `[toolkit] ${alias}`,
+          description: `Test link for ${topicInfo.name}.`,
+          maxParticipantsPerCohort: cohort.maxParticipantsPerCohort ?? 2,
+        }
+  
+    ]
+    cohortLockMap = { [cohortAlias]: false }
+
+  }
+
   const template = {
     id: `template-${eid}`,
     experiment: {
       id: publicEid,
       versionId: 0,
       metadata: {
-        name: agent ? `[human-agent] ${alias}` : `[human-human] ${alias}`,
+        name: `[${mode}] ${alias}`,
         publicName: meta.publicName ?? `${topicInfo.name} debate`,
         description: meta.description ?? '',
         tags: meta.tags ?? ['toolkit'],
@@ -88,22 +112,14 @@ export function buildExperiment(
         bootedRedirectCode: prolific.bootedRedirectCode ?? '',
       },
       stageIds: stageIdsInOrder,
-      cohortLockMap: { [cohortAlias]: false },
-      cohortDefinitions: [
-        {
-          id: cohortAlias,
-          alias: cohortAlias,
-          name: `[toolkit] ${alias}`,
-          description: `Test link for ${topicInfo.name}.`,
-          maxParticipantsPerCohort: cohort.maxParticipantsPerCohort ?? 2,
-        },
-      ],
+      cohortLockMap: cohortLockMap,
+      cohortDefinitions: cohortDefinitions,
       unlockTimeMs: exp.unlockTimeMs ?? null,
       unlockDurationMs: exp.unlockDurationMs ?? null,
     },
     stageConfigs: stages,
     agentMediators: [mediator],
-    agentParticipants: agent ? [agent] : [],
+    agentParticipants: agents ?? [],
   }
   return [template, cohortAlias]
 }

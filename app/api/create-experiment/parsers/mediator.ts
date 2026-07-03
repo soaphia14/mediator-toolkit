@@ -24,7 +24,7 @@ interface ChatPromptConfig {
   prompt: PromptItem[]
   shouldRespondPrompt: PromptItem[]
   minParticipantMessagesBeforeResponding: number
-  concedeStrength: number
+  concedeStrength: number | null
   structuredOutputConfig: StructuredOutputConfig
   generationConfig: GenerationConfig
   chatSettings: ChatSettings
@@ -62,9 +62,9 @@ function _chatPrompt(tpl: Record<string, any>, stageId: string, stageIdsInOrder:
     prompt: buildPromptItems(tpl, stageId, stageIdsInOrder),
     shouldRespondPrompt: _shouldRespondPrompt(tpl, stageId),
     minParticipantMessagesBeforeResponding: tpl.min_participant_messages_before_responding,
-    concedeStrength: tpl.concede_strength,
+    concedeStrength: null,
     structuredOutputConfig: buildStructuredOutput(tpl),
-    generationConfig: buildGeneration(tpl),
+    generationConfig: buildGeneration(tpl, "generation"),
     chatSettings: buildChatSettings(tpl),
     numRetries: tpl.num_retries,
   }

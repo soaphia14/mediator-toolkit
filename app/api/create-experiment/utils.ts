@@ -49,11 +49,13 @@ function _stanceFromRating(rating: number): [string, string] {
 export function fillAgentStance(
   agentTemplate: Record<string, any>,
   topicInfo: Record<string, any>,
+  rating: number, 
+  concede_strength: number
 ): [Record<string, any>, Record<string, any>] {
-  const rating = Math.floor(Math.random() * 7) + 1
   const [side, strength] = _stanceFromRating(rating)
   const [label, action] = side === 'support' ? ['AGREEMENT', 'support'] : ['DISAGREEMENT', 'oppose']
 
+  agentTemplate["concede_strength"] = concede_strength
   const substitutions: Record<string, string> = {
     '{topic_name}': topicInfo.name,
     '{statement}': topicInfo.statement,
@@ -69,7 +71,15 @@ export function fillAgentStance(
     }
   }
 
-  const agentStance = { side: label, strength, rating }
+  for (const key of ['human_style_prompt', 'should_concede_prompt', 'thought_prompt', 'post_survey_prompt']) {
+    if (key in agentTemplate) {
+      for (const [token, value] of Object.entries(substitutions)) {
+        agentTemplate[key] = agentTemplate[key].replaceAll(token, value)
+      }
+    }
+  }
+
+  const agentStance = { side: label, strength, rating, concede_strength }
   return [agentTemplate, agentStance]
 }
 
