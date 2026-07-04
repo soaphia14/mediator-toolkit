@@ -40,7 +40,7 @@ export function ResultBox({ title, state, links }: {
             return (
               <>
                 {urls.map((url, i) => (
-                  <a href={url} target="_blank" rel="noreferrer"
+                  <a key={i} href={url} target="_blank" rel="noreferrer"
                     className="text-base text-neutral-300 hover:text-white underline underline-offset-2 transition-colors break-all">
                     Cohort {i+1} ↗
                   </a>
