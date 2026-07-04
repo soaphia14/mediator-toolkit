@@ -49,7 +49,7 @@ function participantSlotsFor(mode: Mode): ParticipantSlot[] {
   ]
 }
 
-export async function generate(p1: string, p2: string, experimentTemplatePath: string, mediatorTemplateContent: string, mode: Mode, numCohorts?: number) {
+export async function generate(p1: string, p2: string, experimentTemplatePath: string, mediatorTemplateContent: string, mode: Mode, numCohorts?: number, numUtterances?: number) {
   const experimentTemplate = replaceDefaults(
     loadTemplate(experimentTemplatePath),
     loadTemplate(EXPERIMENT_DEFAULT),
@@ -80,6 +80,7 @@ export async function generate(p1: string, p2: string, experimentTemplatePath: s
     if (chatStage) {
       chatStage.timeLimitInMinutes = null
       chatStage.requireFullTime = false
+      if (numUtterances != null) chatStage.numUtterances = numUtterances
     }
   } else {
     ratings = agentSlots.map(() => randint(1, 7))
@@ -117,9 +118,7 @@ export async function generate(p1: string, p2: string, experimentTemplatePath: s
   let cohortIds: string[]
 
   if (isSim) {
-    // create_simulation = create the experiment, then batch-create its cohort(s)
     const cfg = exp.defaultCohortConfig ?? {}
-    // number of cohorts: UI field wins, then the YAML `num_cohorts`, then 1
     const n = numCohorts && numCohorts >= 1 ? numCohorts : (Number(exp.num_cohorts) || 1)
     const expRes = await fetch(`${BASE_URL}/experiments`, {
       method: 'POST',
