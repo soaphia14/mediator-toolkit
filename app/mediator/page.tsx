@@ -37,6 +37,7 @@ export default function Home() {
   const [convokitLoading, setConvokitLoading] = useState(false)
   const [creating, setCreating] = useState<'human-human' | 'human-agent' | 'agent-agent' | null>(null)
   const [numCohorts, setNumCohorts] = useState('5')
+  const [numUtterances, setNumUtterances] = useState('15')
   const [showAsYaml, setShowAsYaml] = useState(true)
   const [activeSection, setActiveSection] = useState(0)
   const sectionTitles = ['Persona', 'Model', 'Generation', 'Chat Settings']
@@ -161,7 +162,7 @@ export default function Home() {
       const res = await fetch('/api/create-experiment', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ mediatorTemplate: mediatorData, mode, topic: topicMap(TOPICS[topicId].topic), numCohorts }),
+        body: JSON.stringify({ mediatorTemplate: mediatorData, mode, topic: topicMap(TOPICS[topicId].topic), numCohorts, numUtterances }),
       })
       const data = await res.json()
       setCreateState({ status: res.ok ? 'done' : 'error', result: data })
@@ -393,11 +394,31 @@ export default function Home() {
               disabled={busy}
               onClick={handleCreateSim}
             />
-            <label className="text-sm text-neutral-400">Cohorts</label>
+            <label className="text-sm text-neutral-400">Cohorts (1-100)</label>
             <input
               type="text"
               value={numCohorts}
-              onChange={e => setNumCohorts(e.target.value)}
+              onChange={e => {
+                const v = e.target.value
+                if (v === '') return setNumCohorts('')
+                const n = Math.floor(Number(v))
+                if (Number.isFinite(n)) setNumCohorts(String(Math.min(100, Math.max(1, n))))
+              }}
+              disabled={busy}
+              className="w-16 p-2 rounded-lg border border-neutral-700 bg-neutral-900 text-sm text-neutral-200"
+            />
+            <label className="text-sm text-neutral-400">Utterances (1-20)</label>
+            <input
+              type="number"
+              min={1}
+              max={20}
+              value={numUtterances}
+              onChange={e => {
+                const v = e.target.value
+                if (v === '') return setNumUtterances('')
+                const n = Math.floor(Number(v))
+                if (Number.isFinite(n)) setNumUtterances(String(Math.min(20, Math.max(1, n))))
+              }}
               disabled={busy}
               className="w-16 p-2 rounded-lg border border-neutral-700 bg-neutral-900 text-sm text-neutral-200"
             />
