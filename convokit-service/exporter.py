@@ -1,3 +1,7 @@
+"""Convert a simulation-output experiment export into an in-memory convokit Corpus.
+
+Requires convokit:  pip install convokit
+"""
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -26,7 +30,7 @@ def experiment_to_convobuilder(exp_json, corpus_builder):
             if stage not in corpus_builder.corpus_meta["stage_to_qids"].keys():
                 corpus_builder.corpus_meta["stage_to_qids"][stage] = []
             for q in exp_json["stageMap"][stage]["questions"]:
-                qid = q.pop("id")
+                qid = stage.split("-")[0]+q.pop("id")
                 corpus_builder.corpus_meta["stage_to_qids"][stage].append(qid)
                 corpus_builder.corpus_meta["question_map"][qid] = q
 
@@ -77,7 +81,8 @@ def experiment_to_convobuilder(exp_json, corpus_builder):
             stage_info = exp_json["cohortMap"][cid]["dataMap"][stage]
             if stage_info["kind"] == "survey":
                 for sid, response in stage_info["participantAnswerMap"].items():
-                    corpus_builder.convo_meta[cid]["agent_meta"][sid] = {"exp_survey_response": dict()}
+                    if sid not in corpus_builder.convo_meta[cid]["agent_meta"]:
+                        corpus_builder.convo_meta[cid]["agent_meta"][sid] = {"exp_survey_response": dict()}
                     for qid, answer_data in response.items():
                         if answer_data["kind"] == "text":
                             a = answer_data["answer"]
@@ -85,7 +90,7 @@ def experiment_to_convobuilder(exp_json, corpus_builder):
                             a = answer_data["value"]
                         else:
                             a = answer_data["choiceId"]
-                        corpus_builder.convo_meta[cid]["agent_meta"][sid]["exp_survey_response"][qid] = a
+                        corpus_builder.convo_meta[cid]["agent_meta"][sid]["exp_survey_response"][stage.split("-")[0]+qid] = a
 
     return corpus_builder
 
@@ -104,5 +109,5 @@ def to_convokit(exp_json):
 
     for k, v in corpus_builder.corpus_meta.items():
         corpus.add_meta(k, v)
-
+        
     return corpus
