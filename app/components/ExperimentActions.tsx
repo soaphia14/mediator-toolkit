@@ -34,18 +34,42 @@ export function ResultBox({ title, state, links }: {
         <span className="text-sm font-medium text-neutral-400 uppercase tracking-wider">{title}</span>
       </div>
       <div className="p-4 space-y-3">
-        {links?.experimentLink && (
-          <div className="flex flex-col gap-1">
-            <a href={links.experimentLink} target="_blank" rel="noreferrer"
-               className="text-base text-neutral-300 hover:text-white underline underline-offset-2 transition-colors break-all">
-              Experiment ↗
-            </a>
-            <a href={links.cohortLink} target="_blank" rel="noreferrer"
-               className="text-base text-neutral-300 hover:text-white underline underline-offset-2 transition-colors break-all">
-              Cohort ↗
-            </a>
-          </div>
-        )}
+        <div className="flex flex-col gap-1">
+          {links?.cohort_urls && (() => {
+            const urls = links.cohort_urls as unknown as string[]
+            return (
+              <>
+                {urls.map((url, i) => (
+                  <a key={i} href={url} target="_blank" rel="noreferrer"
+                    className="text-base text-neutral-300 hover:text-white underline underline-offset-2 transition-colors break-all">
+                    Cohort {i+1} ↗
+                  </a>
+                ))}
+              </>
+            )
+          })()}
+
+          {links?.human_urls && (() => {
+            const urls = links.human_urls as unknown as Record<string, string>
+            return (
+              <div className="flex flex-col gap-1">
+                {urls.p1 &&
+                  <a href={urls.p1} target="_blank" rel="noreferrer"
+                    className="text-base text-neutral-300 hover:text-white underline underline-offset-2 transition-colors break-all">
+                    Participant 1 ↗
+                  </a>
+                }
+                {urls.p2 &&
+                  <a href={urls.p2} target="_blank" rel="noreferrer"
+                    className="text-base text-neutral-300 hover:text-white underline underline-offset-2 transition-colors break-all">
+                    Participant 2 ↗
+                  </a>
+                }
+              </div>
+            )
+          })()}    
+        </div>
+      
         <div className="text-sm text-neutral-400 space-y-3">
           <pre className="overflow-auto leading-relaxed whitespace-pre-wrap break-words">
             {JSON.stringify(state.result, null, 2)}
