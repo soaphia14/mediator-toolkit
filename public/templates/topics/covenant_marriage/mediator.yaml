@@ -103,5 +103,6 @@ prompt:
     text: |
       Return only valid JSON matching this schema:
       {"explanation": "string", "response": "string", "readyToEndChat": boolean}
-      Set readyToEndChat=true when all other participants have completed their conversation.
+      Set readyToEndChat=true when all other participants have completed their conversation, 
+      or one of the participants has left the conversation, or if there has been a consensus to end the conversation. 
 
