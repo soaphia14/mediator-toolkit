@@ -11,7 +11,7 @@ const TERMINAL_STATUSES = new Set([
 ])
 
 export async function GET(request: Request) {
-  const apiKey = 'dlb_live_ttWLOHIFIpzTj7XJKg85Mwk4RtxAELtWfL1hu5dTuCg' //process.env.DL_API_KEY ?? ''
+  const apiKey = process.env.DL_API_KEY ?? ''
   if (!apiKey) return Response.json({ error: 'DL_API_KEY not set' }, { status: 500 })
 
   const expId = new URL(request.url).searchParams.get('experimentId')
