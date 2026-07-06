@@ -72,40 +72,55 @@ export async function generate(p1: string, p2: string, experimentTemplatePath: s
 
   const agentSlots = participantSlots.filter((s) => s.type === 'agent').map((s) => s.slot)
 
-  // mode-specific stance ratings + chat pacing (mutates the chat stage object in place)
+  const isSim = mode === 'agent-agent'
+
   const chatStage = stages.find((s) => s.kind === 'chat')
-  let ratings: number[]
-  if (mode === 'agent-agent') {
-    ratings = shuffle([randint(5, 7), randint(1, 3)])
-    if (chatStage) {
+  if (chatStage) {
+    if (isSim) {
       chatStage.timeLimitInMinutes = null
       chatStage.requireFullTime = false
-      if (numUtterances != null) chatStage.numUtterances = numUtterances
-    }
-  } else {
-    ratings = agentSlots.map(() => randint(1, 7))
-    if (chatStage) chatStage.numUtterances = null
-  }
-  const agentStance: Record<string, any> = {}
-  agentSlots.forEach((slot, i) => {
-    agentStance[slot] = { rating: ratings[i], concede_strength: randint(1, 7) }
-  })
-
-  const agents: AgentParticipantTemplate[] = []
-  const humanSlots: Record<string, string> = {}
-  for (const pSlot of participantSlots) {
-    const slot = pSlot.slot
-    if (pSlot.type === 'agent') {
-      const s = agentStance[slot]
-      const [tpl, stance] = fillAgentStance(loadTemplate(pSlot.template!), topicInfo, s.rating, s.concede_strength)
-      agentStance[slot] = stance
-      agents.push(buildAgent(chatStageId, postSurveyStageId, tpl, stageIdsInOrder))
+      if (numUtterances != null) chatStage.numUtterances = numUtterances  // else keep template default
     } else {
-      humanSlots[slot] = slotToPid[slot] ?? slot
+      chatStage.numUtterances = null
     }
   }
 
-  const isSim = agents.length === 2
+  const numCohortsResolved = isSim
+    ? (numCohorts && numCohorts >= 1 ? numCohorts : (Number(exp.num_cohorts) || 1))
+    : 1
+
+  // each cohort gets a randomized pair
+  const cohortAgents: AgentParticipantTemplate[][] = []
+  const agentStances: Record<string, any>[] = []
+  const humanSlots: Record<string, string> = {}
+  for (let ci = 0; ci < numCohortsResolved; ci++) {
+    const ratings = isSim
+      ? shuffle([randint(5, 7), randint(1, 3)])
+      : agentSlots.map(() => randint(1, 7))
+    const stance: Record<string, any> = {}
+    agentSlots.forEach((slot, i) => {
+      stance[slot] = { rating: ratings[i], concede_strength: randint(1, 7) }
+    })
+
+    const pair: AgentParticipantTemplate[] = []
+    for (const pSlot of participantSlots) {
+      const slot = pSlot.slot
+      if (pSlot.type === 'agent') {
+        const tpl = loadTemplate(pSlot.template!)
+        if (isSim) tpl.persona.id = `${tpl.persona.id}-c${ci}`
+        const s = stance[slot]
+        const [filled, finalStance] = fillAgentStance(tpl, topicInfo, s.rating, s.concede_strength)
+        stance[slot] = finalStance
+        pair.push(buildAgent(chatStageId, postSurveyStageId, filled, stageIdsInOrder))
+      } else {
+        humanSlots[slot] = slotToPid[slot] ?? slot
+      }
+    }
+    cohortAgents.push(pair)
+    agentStances.push(stance)
+  }
+
+  const agents = cohortAgents.flat() 
 
   const [template, cohortAlias] = buildExperiment(experimentTemplate, topicInfo, stages, stageIdsInOrder, mediatorR1, agents, mode, isSim)
 
@@ -119,7 +134,6 @@ export async function generate(p1: string, p2: string, experimentTemplatePath: s
 
   if (isSim) {
     const cfg = exp.defaultCohortConfig ?? {}
-    const n = numCohorts && numCohorts >= 1 ? numCohorts : (Number(exp.num_cohorts) || 1)
     const expRes = await fetch(`${BASE_URL}/experiments`, {
       method: 'POST',
       headers: authHeaders,
@@ -133,7 +147,7 @@ export async function generate(p1: string, p2: string, experimentTemplatePath: s
       method: 'POST',
       headers: authHeaders,
       body: JSON.stringify({
-        cohorts: Array.from({ length: n }, (_, i) => ({
+        cohorts: Array.from({ length: numCohortsResolved }, (_, i) => ({
           name: `[toolkit-sim] ${topicInfo.name} #${i + 1}`,
           description: `Simulation for ${topicInfo.name}.`,
           participantConfig: {
@@ -166,30 +180,34 @@ export async function generate(p1: string, p2: string, experimentTemplatePath: s
     cohortIds = [generated[cohortAlias]]
   }
 
-  // seat the agent pair into every cohort (identical stances for now)
-  for (const cid of cohortIds) {
-    for (const agent of agents) {
-      await createParticipant(expId, cid, agentConfig(agent))
+  for (let i = 0; i < cohortIds.length; i++) {
+    for (const agent of cohortAgents[i]) {
+      await createParticipant(expId, cohortIds[i], agentConfig(agent))
     }
   }
 
   const experimentUrl = `${FRONTEND_BASE}/#/e/${expId}`
-  const urls = cohortIds.map((cid) => `${FRONTEND_BASE}/#/e/${expId}/c/${cid}`)
-  const baseUrl = urls[0]
-  const humanUrls: Record<string, string> = {}
-  for (const [slot, pid] of Object.entries(humanSlots)) {
-    humanUrls[slot] = `${baseUrl}?PROLIFIC_PID=${pid}`
-  }
+  const cohorts = cohortIds.map((cid, i) => {
+    const url = `${FRONTEND_BASE}/#/e/${expId}/c/${cid}`
+    const human_urls: Record<string, string> = {}
+    for (const [slot, pid] of Object.entries(humanSlots)) {
+      human_urls[slot] = `${url}?PROLIFIC_PID=${pid}`
+    }
+    if (mode === 'human-human') {
+      return { cohort_id: cid, human_urls }
+    } 
+    else if (mode === 'human-agent') {
+      return { cohort_id: cid, url, human_urls, agent_stances: agentStances[i] }
+    }
+    return { cohort_id: cid, url, agent_stances: agentStances[i] }
+  })
 
   return {
     mode,
     topic: topicInfo.name,
     experiment_id: expId,
-    cohort_ids: cohortIds,
     experiment_url: experimentUrl,
-    cohort_urls: urls,
-    human_urls: humanUrls,
-    agent_stances: agentStance,
+    cohorts,
     is_sim: isSim,
   }
 }
