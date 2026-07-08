@@ -7,6 +7,7 @@ import { ApiKeyType, API_KEY_TYPE_LABELS, REASONING_LEVEL_OPTIONS } from '../lib
 import { StructuredPromptEditor, PromptItemType, type PromptItem, type TextPromptItem } from '../components/StructuredPromptEditor'
 import { MediatorSection } from '../components/MediatorSection'
 import { ActionButton, ResultBox, type ActionState } from '../components/ExperimentActions'
+import { create } from 'domain'
 
 const idle: ActionState = { status: 'idle', result: null }
 
@@ -33,6 +34,7 @@ export default function Home() {
   const [exportState, setExportState] = useState<ActionState>(idle)
   const [createState, setCreateState] = useState<ActionState>(idle)
   const [simState, setSimState] = useState<ActionState>(idle)
+  const [createAction, setCreateAction] = useState<'create' | 'simulate' | null>(null)
   const [simExport, setSimExport] = useState<unknown>(null)
   const [convokitLoading, setConvokitLoading] = useState(false)
   const [creating, setCreating] = useState<'human-human' | 'human-agent' | 'agent-agent' | null>(null)
@@ -155,14 +157,16 @@ export default function Home() {
     reader.readAsText(file)
   }
 
-  async function handleCreate(mode: 'human-human' | 'human-agent' | 'agent-agent') {
+  async function handleCreate(mode: 'human-human' | 'human-agent' | 'agent-agent', action: 'create' | 'simulate' = 'create') {
+    setSimState(idle)
     setCreating(mode)
-    setCreateState({ status: 'loading', result: null })
+    // setCreateState({ status: 'loading', result: null })
+    setCreateAction(action)
     try {
       const res = await fetch('/api/create-experiment', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ mediatorTemplate: mediatorData, mode, topic: topicMap(TOPICS[topicId].topic), numCohorts, numUtterances }),
+        body: JSON.stringify({ mediatorTemplate: mediatorData, mode, topic: topicMap(TOPICS[topicId].topic), numCohorts, numUtterances, action }),
       })
       const data = await res.json()
       setCreateState({ status: res.ok ? 'done' : 'error', result: data })
@@ -172,12 +176,13 @@ export default function Home() {
       return null
     } finally {
       setCreating(null)
+      setCreateAction(null)
     }
   }
 
   // sent to simulation + polling its status
   async function handleCreateSim() {
-    const data = await handleCreate('agent-agent')
+    const data = await handleCreate('agent-agent', 'simulate')
     const experimentId: string | undefined = data?.experiment_id
     if (!data?.is_sim || !experimentId) return
 
@@ -189,12 +194,20 @@ export default function Home() {
         const res = await fetch(`/api/simulation-status?experimentId=${encodeURIComponent(experimentId)}`)
         const status = await res.json()
         if (!res.ok) { setSimState({ status: 'error', result: status }); return }
+        
+        // count completed cohorts / total cohorts
+        let completedSim = 0
+        for (const cohortStatuses of Object.values(status.statuses ?? {}) as string[][]) {
+          if (cohortStatuses.length > 0 && cohortStatuses.every((s) => s === 'SUCCESS')) completedSim++
+        }
+        const totalSim = Object.keys(status.statuses ?? {}).length
+        
         if (status.completed) {
           setSimExport(status.export)
-          setSimState({ status: 'done', result: { message: 'Simulation complete', experiment_id: experimentId, statuses: status.statuses } })
+          setSimState({ status: 'done', result: { message: `Simulation complete (experiment_id: ${experimentId})` } })
           return
         }
-        setSimState({ status: 'loading', result: { message: 'Simulation running', statuses: status.statuses } })
+        setSimState({ status: 'loading', result: { message: `Simulation running: ${completedSim}/${totalSim} cohorts finished` } })
       } catch (e) {
         setSimState({ status: 'error', result: String(e) }); return
       }
@@ -367,7 +380,7 @@ export default function Home() {
         
         {/* Actions: create buttons, then experiment id + export */}
         <div className="space-y-3">
-          {/* human create buttons on one row */}
+          {/* create buttons on one row */}
           <div className="flex flex-wrap gap-3">
             <ActionButton
               label="Create (human-human)"
@@ -383,14 +396,21 @@ export default function Home() {
               disabled={busy}
               onClick={() => handleCreate('human-agent')}
             />
+            <ActionButton
+              label="Create (agent-agent)"
+              loadingLabel="Creating…"
+              loading={creating === 'agent-agent' && createAction === 'create'}
+              disabled={busy}
+              onClick={() => handleCreate('agent-agent', 'create')}
+            />
           </div>
 
           {/* agent-agent (simulation) on its own row, with cohort count */}
           <div className="flex flex-wrap items-center gap-3">
             <ActionButton
-              label="Simulate (agent-agent)"
+              label="Simulate"
               loadingLabel="Simulating…"
-              loading={creating === 'agent-agent' || simState.status === 'loading'}
+              loading={(creating === 'agent-agent' && createAction === 'simulate') || simState.status === 'loading'}
               disabled={busy}
               onClick={handleCreateSim}
             />

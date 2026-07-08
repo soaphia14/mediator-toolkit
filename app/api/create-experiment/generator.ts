@@ -8,6 +8,7 @@ import { buildAgent } from './parsers/agent'
 import type { AgentParticipantTemplate } from './parsers/agent'
 import { buildTopic, buildStages, buildExperiment } from './parsers/experiment'
 import { loadTemplate, replaceDefaults, fillAgentStance, agentConfig, createParticipant, excludeNone } from './utils'
+import { url } from 'inspector/promises'
 
 export type Mode = 'human-human' | 'human-agent' | 'agent-agent'
 type ParticipantSlot = { slot: string; type: 'human' | 'agent'; template?: string }
@@ -49,7 +50,8 @@ function participantSlotsFor(mode: Mode): ParticipantSlot[] {
   ]
 }
 
-export async function generate(p1: string, p2: string, experimentTemplatePath: string, mediatorTemplateContent: string, mode: Mode, numCohorts?: number, numUtterances?: number) {
+export async function generate(p1: string, p2: string, experimentTemplatePath: string, mediatorTemplateContent: string, 
+                          mode: Mode, numCohorts?: number, numUtterances?: number, action?: 'create' | 'simulate') {
   const experimentTemplate = replaceDefaults(
     loadTemplate(experimentTemplatePath),
     loadTemplate(EXPERIMENT_DEFAULT),
@@ -77,7 +79,8 @@ export async function generate(p1: string, p2: string, experimentTemplatePath: s
   const chatStage = stages.find((s) => s.kind === 'chat')
   if (chatStage) {
     if (isSim) {
-      chatStage.timeLimitInMinutes = null
+      // currently not removing the timer limit, in case simulation gets stuck in some cohorts, they can still finish within this time.
+      // chatStage.timeLimitInMinutes = null
       chatStage.requireFullTime = false
       if (numUtterances != null) chatStage.numUtterances = numUtterances  // else keep template default
     } else {
@@ -85,7 +88,7 @@ export async function generate(p1: string, p2: string, experimentTemplatePath: s
     }
   }
 
-  const numCohortsResolved = isSim
+  const numCohortsResolved = (mode === 'agent-agent' && action === 'simulate')
     ? (numCohorts && numCohorts >= 1 ? numCohorts : (Number(exp.num_cohorts) || 1))
     : 1
 
@@ -139,7 +142,7 @@ export async function generate(p1: string, p2: string, experimentTemplatePath: s
       headers: authHeaders,
       body: JSON.stringify({ template: excludeNone(template) }),
     })
-    if (!expRes.ok) throw new Error(`create_simulation (experiment) failed: ${await expRes.text()}`)
+    if (!expRes.ok) throw new Error(`create_simulation failed: ${await expRes.text()}`)
     const expJson = await expRes.json()
     expId = expJson.experiment.id
 
@@ -159,7 +162,7 @@ export async function generate(p1: string, p2: string, experimentTemplatePath: s
         })),
       }),
     })
-    if (!cohortRes.ok) throw new Error(`create_simulation (cohorts/batch) failed: ${await cohortRes.text()}`)
+    if (!cohortRes.ok) throw new Error(`create_simulation failed: ${await cohortRes.text()}`)
     const cohortJson = await cohortRes.json()
     cohortIds = cohortJson.cohorts.map((c: any) => (c.cohort ?? c).id)
   } else {
@@ -180,34 +183,47 @@ export async function generate(p1: string, p2: string, experimentTemplatePath: s
     cohortIds = [generated[cohortAlias]]
   }
 
+  const agentUrls: Record<string, string>[] = []
+
   for (let i = 0; i < cohortIds.length; i++) {
-    for (const agent of cohortAgents[i]) {
-      await createParticipant(expId, cohortIds[i], agentConfig(agent))
+    const urls: Record<string, string> = {}
+    for (let k = 0; k < cohortAgents[i].length; k++) {
+      const created = await createParticipant(expId, cohortIds[i], agentConfig(cohortAgents[i][k]))
+      urls[k] = `${FRONTEND_BASE}/#/e/${expId}/c/${cohortIds[i]}/p/${created.id}`
     }
+    agentUrls.push(urls)
   }
 
   const experimentUrl = `${FRONTEND_BASE}/#/e/${expId}`
   const cohorts = cohortIds.map((cid, i) => {
+
     const url = `${FRONTEND_BASE}/#/e/${expId}/c/${cid}`
-    const human_urls: Record<string, string> = {}
+
+    const humanUrls: Record<string, string> = {}
     for (const [slot, pid] of Object.entries(humanSlots)) {
-      human_urls[slot] = `${url}?PROLIFIC_PID=${pid}`
+      humanUrls[slot] = `${url}?PROLIFIC_PID=${pid}`
     }
+
     if (mode === 'human-human') {
-      return { cohort_id: cid, human_urls }
+      return { cohort_id: cid, human_urls: humanUrls }
     } 
     else if (mode === 'human-agent') {
-      return { cohort_id: cid, url, human_urls, agent_stances: agentStances[i] }
+      const human_url = `${url}?PROLIFIC_PID=${humanSlots.p1}`
+      return { cohort_id: cid, human_url: human_url, agent_stances: agentStances[i].p2 }
     }
-    return { cohort_id: cid, url, agent_stances: agentStances[i] }
+    else if (mode === 'agent-agent' && action === 'create') {
+      return { experiment_url: experimentUrl, agent_urls: agentUrls, agent_stances: agentStances[i] }
+    }
+    // simplify the return of simulations, hiding links, only show stances
+    return { agent_stances: agentStances[i] }
   })
 
   return {
     mode,
     topic: topicInfo.name,
     experiment_id: expId,
-    experiment_url: experimentUrl,
+    // experiment_url: experimentUrl,
     cohorts,
-    is_sim: isSim,
+    // is_sim: isSim,
   }
 }
