@@ -2,6 +2,7 @@ import path from 'path'
 import {
   BASE_URL, API_KEY, FRONTEND_BASE,
   STAGE_R1, POST_SURVEY_STAGE_ID, EXPERIMENT_DEFAULT,
+  PRE_SURVEY_STAGE_ID,
 } from './config'
 import { parseMediatorTemplate, buildMediator } from './parsers/mediator'
 import { buildAgent } from './parsers/agent'
@@ -63,6 +64,7 @@ export async function generate(p1: string, p2: string, experimentTemplatePath: s
 
   // one mediator + one chat supported for now
   const chatStageId = stages.find((s) => s.kind === 'chat')?.id ?? STAGE_R1
+  const preSurveyStageId = stages.find((s) => s.kind === 'survey' && s.id === PRE_SURVEY_STAGE_ID)?.id ?? PRE_SURVEY_STAGE_ID
   const postSurveyStageId = [...stages].reverse().find((s) => s.kind === 'survey')?.id ?? POST_SURVEY_STAGE_ID
 
   const mediatorTemplate = parseMediatorTemplate(mediatorTemplateContent)
@@ -102,7 +104,7 @@ export async function generate(p1: string, p2: string, experimentTemplatePath: s
       : agentSlots.map(() => randint(1, 7))
     const stance: Record<string, any> = {}
     agentSlots.forEach((slot, i) => {
-      stance[slot] = { rating: ratings[i], concede_strength: randint(1, 7) }
+      stance[slot] = { rating: ratings[i], }
     })
 
     const pair: AgentParticipantTemplate[] = []
@@ -112,9 +114,9 @@ export async function generate(p1: string, p2: string, experimentTemplatePath: s
         const tpl = loadTemplate(pSlot.template!)
         if (isSim) tpl.persona.id = `${tpl.persona.id}-c${ci}`
         const s = stance[slot]
-        const [filled, finalStance] = fillAgentStance(tpl, topicInfo, s.rating, s.concede_strength)
+        const [filled, finalStance] = fillAgentStance(tpl, topicInfo, s.rating, s.rating)
         stance[slot] = finalStance
-        pair.push(buildAgent(chatStageId, postSurveyStageId, filled, stageIdsInOrder))
+        pair.push(buildAgent(chatStageId, preSurveyStageId, postSurveyStageId, filled, stageIdsInOrder))
       } else {
         humanSlots[slot] = slotToPid[slot] ?? slot
       }
@@ -189,14 +191,13 @@ export async function generate(p1: string, p2: string, experimentTemplatePath: s
     const urls: Record<string, string> = {}
     for (let k = 0; k < cohortAgents[i].length; k++) {
       const created = await createParticipant(expId, cohortIds[i], agentConfig(cohortAgents[i][k]))
-      urls[k] = `${FRONTEND_BASE}/#/e/${expId}/p/${created.id}`
+      urls[agentSlots[k]] = `${FRONTEND_BASE}/#/e/${expId}/p/${created.id}`
     }
     agentUrls.push(urls)
   }
 
   const experimentUrl = `${FRONTEND_BASE}/#/e/${expId}`
   const cohorts = cohortIds.map((cid, i) => {
-
     const url = `${FRONTEND_BASE}/#/e/${expId}/c/${cid}`
 
     const humanUrls: Record<string, string> = {}
@@ -205,14 +206,26 @@ export async function generate(p1: string, p2: string, experimentTemplatePath: s
     }
 
     if (mode === 'human-human') {
-      return { cohort_id: cid, human_urls: humanUrls }
+      const participant_urls: Record<string, string>[] = []
+      for (const [slot, url] of Object.entries(humanUrls)) {
+        participant_urls.push({ url: url, type: 'human', })
+      }
+      return { cohort_id: cid, participant_urls: participant_urls }
     } 
     else if (mode === 'human-agent') {
-      const human_url = `${url}?PROLIFIC_PID=${humanSlots.p1}`
-      return { cohort_id: cid, human_url: human_url, agent_stances: agentStances[i].p2 }
+      const participant_urls: Record<string, string>[] = []
+      for (const [slot, url] of Object.entries(humanUrls)) {
+        const human_url = `${url}?PROLIFIC_PID=${humanSlots.p1}`
+        participant_urls.push({ url: human_url, type: 'human', })
+      }
+      return { cohort_id: cid, participant_urls: participant_urls, agent_stances: agentStances[i].p2 }
     }
     else if (mode === 'agent-agent' && action === 'create') {
-      return { experiment_url: experimentUrl, agent_urls: agentUrls, agent_stances: agentStances[i] }
+      const participant_urls: Record<string, string>[] = []
+      for (const [slot, url] of Object.entries(agentUrls[i])) {
+        participant_urls.push({ url: url, type: 'agent', })
+      }
+      return { participant_urls: participant_urls, agent_stances: agentStances[i] }
     }
     // simplify the return of simulations, hiding links, only show stances
     return { agent_stances: agentStances[i] }

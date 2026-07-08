@@ -14,6 +14,7 @@ export const MEDIATOR_DEFAULT = path.join(PROJECT_ROOT, 'public', 'templates', '
 export const EXPERIMENT_DEFAULT = path.join(PROJECT_ROOT, 'public', 'templates', 'defaults', 'experiment.yaml')
 
 export const STAGE_R1 = 'chat-round-1'
+export const PRE_SURVEY_STAGE_ID = "pre-survey"
 export const POST_SURVEY_STAGE_ID = "post-survey"
 
 export const COMPLETION_CODE = ''
