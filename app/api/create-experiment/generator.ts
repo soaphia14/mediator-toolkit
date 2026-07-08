@@ -189,7 +189,7 @@ export async function generate(p1: string, p2: string, experimentTemplatePath: s
     const urls: Record<string, string> = {}
     for (let k = 0; k < cohortAgents[i].length; k++) {
       const created = await createParticipant(expId, cohortIds[i], agentConfig(cohortAgents[i][k]))
-      urls[k] = `${FRONTEND_BASE}/#/e/${expId}/c/${cohortIds[i]}/p/${created.id}`
+      urls[k] = `${FRONTEND_BASE}/#/e/${expId}/p/${created.id}`
     }
     agentUrls.push(urls)
   }
