@@ -9,6 +9,7 @@ import { createContext, useContext, useState, useRef, useEffect } from 'react'
 export enum PromptItemType {
   TEXT = 'TEXT',
   CONTEXT = 'CONTEXT',
+  PROFILE_INFO = 'PROFILE_INFO',
 }
 
 export interface PromptItem {
@@ -22,6 +23,10 @@ export interface TextPromptItem extends PromptItem {
 
 export interface ContextPromptItem extends PromptItem {
   type: PromptItemType.CONTEXT
+}
+
+export interface ProfileInfoPromptItem extends PromptItem {
+  type: PromptItemType.PROFILE_INFO
 }
 
 export interface PromptItemUpdate {
@@ -134,6 +139,10 @@ function AddMenu({ targetArr }: { targetArr: PromptItem[] }) {
           <div className={itemClass} role="button" onClick={() => pick({ type: PromptItemType.CONTEXT } as ContextPromptItem)}>
             Context
           </div>
+          <div className="my-0.5 border-t border-neutral-700/60" />
+          <div className={itemClass} role="button" onClick={() => pick({ type: PromptItemType.PROFILE_INFO } as ProfileInfoPromptItem)}>
+            Profile info
+          </div>
         </div>
       )}
     </div>
@@ -172,8 +181,14 @@ function ItemEditor({ item }: { item: PromptItem }) {
       return <TextItemEditor item={item as TextPromptItem} />
     case PromptItemType.CONTEXT:
       return (
-        <div className="cursor-default rounded bg-blue-900/40 px-3 py-1.5 text-sm font-medium text-blue-200">
+        <div className="cursor-default rounded bg-[#dce1fd] px-3 py-1.5 text-sm font-medium text-neutral-900">
           Context
+        </div>
+      )
+    case PromptItemType.PROFILE_INFO:
+      return (
+        <div className="cursor-default rounded bg-[#f9d8f5] px-3 py-1.5 text-sm font-medium text-neutral-900">
+          Profile info
         </div>
       )
     default:

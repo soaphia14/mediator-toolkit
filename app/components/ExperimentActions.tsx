@@ -34,7 +34,7 @@ export function ResultBox({ title, state, links }: {
     <div className="rounded-lg border border-neutral-800 bg-neutral-900 overflow-hidden">
       <div className="flex items-center gap-2 px-4 py-2.5 border-b border-neutral-800">
         <span className={`w-1.5 h-1.5 rounded-full ${isError ? 'bg-red-500' : 'bg-emerald-500'}`} />
-        <span className="text-sm font-medium text-neutral-400 uppercase tracking-wider">{title} ({links?.mode})</span>
+        <span className="text-sm font-medium text-neutral-400 uppercase tracking-wider">{title} {links?.mode ? `(${links.mode})` : ''}</span>
       </div>
       <div className="p-4 space-y-3">
         {links?.cohorts && links.cohorts.map((cohort, cohortIdx) =>
