@@ -30,7 +30,7 @@ export async function POST(req: Request) {
     return Response.json({ error: `invalid or missing mode: ${mode}` }, { status: 400 })
   }
 
-  const experimentTemplatePath = path.join(process.cwd(), 'public', 'templates', 'topics', topic, 'experiment.yaml')
+  const experimentTemplatePath = path.join(process.cwd(), 'public', 'templates', 'competition', 'experiment.yaml')
 
   try {
     const result = await generate(p1, p2, experimentTemplatePath, mediatorTemplate, mode, cohortCount, utteranceCount, action)

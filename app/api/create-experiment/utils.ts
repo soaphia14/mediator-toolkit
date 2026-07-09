@@ -103,7 +103,7 @@ export function agentConfig(template: AgentParticipantTemplate, promptContext = 
   const model = template.persona.defaultModelSettings
   return {
     agentId: template.persona.id,
-    promptContext,
+    promptContext: "", //"\n\n ------- TEST CONTEXT ------- \n\n",
     modelSettings: { apiType: model.apiType, modelName: model.modelName },
   }
 }

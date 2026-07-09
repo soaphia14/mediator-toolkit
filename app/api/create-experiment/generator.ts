@@ -82,7 +82,7 @@ export async function generate(p1: string, p2: string, experimentTemplatePath: s
   if (chatStage) {
     if (isSim) {
       // currently not removing the timer limit, in case simulation gets stuck in some cohorts, they can still finish within this time.
-      // chatStage.timeLimitInMinutes = null
+      chatStage.timeLimitInMinutes = 2
       chatStage.requireFullTime = false
       if (numUtterances != null) chatStage.numUtterances = numUtterances  // else keep template default
     } else {
@@ -237,6 +237,6 @@ export async function generate(p1: string, p2: string, experimentTemplatePath: s
     experiment_id: expId,
     // experiment_url: experimentUrl,
     cohorts,
-    // is_sim: isSim,
+    // is_sim: (mode === 'agent-agent' && action === 'simulate'),
   }
 }

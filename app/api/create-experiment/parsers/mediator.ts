@@ -4,6 +4,7 @@ import { MEDIATOR_DEFAULT } from '../config'
 import { replaceDefaults } from '../utils'
 import {
   buildPromptItems,
+  // buildDefaultMediatorPrompt,
   buildPersona,
   buildGeneration,
   buildChatSettings,
@@ -38,21 +39,22 @@ export interface AgentMediatorTemplate {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function _shouldRespondPrompt(tpl: Record<string, any>, stageId: string): PromptItem[] {
-  return [
-    { type: 'TEXT', text: tpl.should_respond_prompt },
-    {
-      type: 'STAGE_CONTEXT',
-      stageId,
-      includePrimaryText: false,
-      includeInfoText: false,
-      includeHelpText: false,
-      includeStageDisplay: true,
-      includeParticipantAnswers: false,
-    },
-    { type: 'TEXT', text: 'Should you respond? Reply ONLY with YES or NO.' },
-  ]
-}
+// function _shouldRespondPrompt(tpl: Record<string, any>, stageId: string): PromptItem[] {
+//   return [
+//     { type: 'TEXT', text: tpl.should_respond_prompt },
+//     {
+//       type: 'STAGE_CONTEXT',
+//       stageId,
+//       includePrimaryText: false,
+//       includeInfoText: false,
+//       includeHelpText: false,
+//       includeStageDisplay: true,
+//       includeParticipantAnswers: false,
+//     },
+//     { type: 'TEXT', text: 'Should you respond? Reply ONLY with YES or NO.' },
+//   ]
+// }
+
 
 function _chatPrompt(tpl: Record<string, any>, stageId: string, stageIdsInOrder: string[]): ChatPromptConfig {
   return {
@@ -60,7 +62,7 @@ function _chatPrompt(tpl: Record<string, any>, stageId: string, stageIdsInOrder:
     type: 'chat',
     includeScaffoldingInPrompt: tpl.include_scaffolding_in_prompt,
     prompt: buildPromptItems(tpl, stageId, stageIdsInOrder),
-    shouldRespondPrompt: _shouldRespondPrompt(tpl, stageId),
+    shouldRespondPrompt: buildPromptItems({ ...tpl, prompt: tpl.should_respond_prompt, context: tpl.should_respond_context }, stageId, stageIdsInOrder),
     minParticipantMessagesBeforeResponding: tpl.min_participant_messages_before_responding,
     concedeStrength: null,
     structuredOutputConfig: buildStructuredOutput(tpl),

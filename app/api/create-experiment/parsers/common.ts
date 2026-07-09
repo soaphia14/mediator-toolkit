@@ -88,6 +88,8 @@ export function buildContextItems(stageId: string, stageIdsInOrder: string[], co
   }))
 }
 
+
+
 export function buildPromptItems(tpl: Record<string, any>, stageId: string, stageIdsInOrder: string[], stageSpecificPrompts: PromptItem[] = []): PromptItem[] {
   const context: string = tpl.context
   const prompts: any[] = [...(tpl.prompt ?? [])].sort((a, b) => (a.id ?? 0) - (b.id ?? 0))
@@ -150,6 +152,7 @@ export function buildChatSettings(tpl: Record<string, any>): ChatSettings {
 
 export function buildStructuredOutput(tpl: Record<string, any>): StructuredOutputConfig {
   const config = tpl.structured_output
+  // console.log('structured_output:', JSON.stringify(config, null, 2))
   const schema: Record<string, { type: string; description: string }> = config.schema
   const properties: StructuredOutputSchemaProperty[] = Object.entries(schema).map(([name, field]) => ({
     name,
