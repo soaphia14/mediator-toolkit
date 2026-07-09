@@ -25,7 +25,7 @@ export default function Home() {
     const topic = topicMap(TOPICS[topicId].topic)
     Promise.all([
       fetch('/templates/defaults/mediator.yaml').then(res => res.text()),
-      fetch(`/templates/topics/${topic}/mediator.yaml`).then(res => res.text()),
+      fetch(`/templates/competition/mediator.yaml`).then(res => res.text()),
     ]).then(([defaultsText, topicText]) => {
       const merged = { ...(yaml.load(defaultsText) as object), ...(yaml.load(topicText) as object) }
       setMediatorData(JSON.stringify(merged, null, 2))
@@ -43,38 +43,67 @@ export default function Home() {
   const [numUtterances, setNumUtterances] = useState('15')
   const [showAsYaml, setShowAsYaml] = useState(false)
   const [activePromptTab, setActivePromptTab] = useState<'response' | 'should-respond'>('response')
-  const [structuredOutputConfig, setStructuredOutputConfig] = useState<StructuredOutputConfig>({
-    schema: {
-      type: 'OBJECT',
-      properties: [
-        { name: 'message', schema: { type: 'STRING', description: 'Your chat message.' } },
-        { name: 'reasoning', schema: { type: 'STRING', description: '1-2 sentences explaining your message.' } },
-        { name: 'readyToEndChat', schema: { type: 'BOOLEAN', description: 'Whether you are ready to end the conversation.' } },
-      ],
-    },
-    messageField: 'message',
-    explanationField: 'reasoning',
-    descriptionOnly: true
-  })
+  // const [structuredOutputConfig, setStructuredOutputConfig] = useState<StructuredOutputConfig>({
+  //   schema: {
+  //     type: 'OBJECT',
+  //     properties: [
+  //       { name: 'message', schema: { type: 'STRING', description: 'Your chat message.' } },
+  //       { name: 'reasoning', schema: { type: 'STRING', description: '1-2 sentences explaining your message.' } },
+  //       { name: 'readyToEndChat', schema: { type: 'BOOLEAN', description: 'Whether you are ready to end the conversation.' } },
+  //     ],
+  //   },
+  //   messageField: 'message',
+  //   explanationField: 'reasoning',
+  //   descriptionOnly: true
+  // })
   const busy = creating !== null || exportState.status === 'loading' || simState.status === 'loading'
 
   const mediatorParsed = useMemo(() => {
     try { return JSON.parse(mediatorData ?? '') } catch { return null }
   }, [mediatorData])
 
-  const shouldRespondPrompt: PromptItem[] = useMemo(() => {
-    const text = typeof mediatorParsed?.should_respond_prompt === 'string'
-      ? mediatorParsed.should_respond_prompt
-      : ''
-    return [{ type: PromptItemType.TEXT, text } as TextPromptItem]
-  }, [mediatorParsed?.should_respond_prompt])
-
   const updateShouldRespondPrompt = (prompt: PromptItem[]) => {
-    const text = (prompt[0] as TextPromptItem | undefined)?.text ?? ''
+    const reindexed = prompt.map((item, i) => ({ ...item, id: i }))
     setMediatorData(prev => {
       try {
         const data = JSON.parse(prev ?? '')
-        data.should_respond_prompt = text
+        data.should_respond_prompt = reindexed
+        return JSON.stringify(data, null, 2)
+      } catch { return prev }
+    })
+  }
+
+  const structuredOutputConfig: StructuredOutputConfig = useMemo(() => {
+    const structuredOutput = mediatorParsed?.structured_output
+    const properties = Object.entries(structuredOutput?.schema ?? {}).map(([name, field]: [string, any]) => ({
+      name,
+      schema: { type: field.type, description: field.description },
+    }))
+    return {
+      schema: {
+        type: 'OBJECT',
+        properties,
+      },
+      messageField: structuredOutput?.message_field ?? '',
+      explanationField: structuredOutput?.explanation_field ?? '',
+      descriptionOnly: true,
+    }
+  }, [mediatorParsed?.structured_output])
+
+  const updateStructuredOutputConfig = (config: StructuredOutputConfig) => {
+    const schema: Record<string, { type: string; description: string }> = {}
+    for (const p of config.schema?.properties ?? []) {
+      schema[p.name] = { type: p.schema.type, description: p.schema.description }
+    }
+    setMediatorData(prev => {
+      try {
+        const data = JSON.parse(prev ?? '')
+        data.structured_output = {
+          ...(data.structured_output ?? {}),   // keep enabled, append_to_prompt, should_respond_field, ready_to_end_field
+          message_field: config.messageField,
+          explanation_field: config.explanationField,
+          schema,
+        }
         return JSON.stringify(data, null, 2)
       } catch { return prev }
     })
@@ -197,7 +226,7 @@ export default function Home() {
   async function handleCreateSim() {
     const data = await handleCreate('agent-agent', 'simulate')
     const experimentId: string | undefined = data?.experiment_id
-    if (!data?.is_sim || !experimentId) return
+    if (!experimentId) return
 
     setSimExport(null)
     setSimState({ status: 'loading', result: { message: 'Simulation running — waiting for agents to finish' } })
@@ -295,16 +324,27 @@ export default function Home() {
                     />
                     <StructuredOutputSchema
                       config={structuredOutputConfig}
-                      onUpdate={setStructuredOutputConfig}
+                      onUpdate={updateStructuredOutputConfig}
                     />
                   </div>
                 ) : (
-                  <StructuredPromptEditor
-                    label="Should Respond Editor"
-                    prompt={shouldRespondPrompt}
-                    onUpdate={updateShouldRespondPrompt}
-                    locked
-                  />
+                  <div className="space-y-4">
+                    <MediatorSection
+                      title="ShouldRespond Settings"
+                      mediatorParsed={mediatorParsed}
+                      onUpdate={updateMediatorField}
+                      fields={[
+                        { label: 'Context', description: "When the \"Context\" block is included in the prompt editor, it determines what experiment information is injected into the prompt. 'Current' includes only the active group chat; 'All' also includes participant responses from prior stages (e.g. pre-survey).", path: ['should_respond_context'], type: 'select', options: [{ value: 'all', label: 'All' }, { value: 'current', label: 'Current' }] },
+                      ]}
+                    />
+                    <StructuredPromptEditor
+                      label="Should Respond Editor"
+                      prompt={(mediatorParsed?.should_respond_prompt as PromptItem[]) ?? []}
+                      stageId=""
+                      onUpdate={updateShouldRespondPrompt}
+                    />
+               
+                  </div>
                 )}
               </div>
             </div>
