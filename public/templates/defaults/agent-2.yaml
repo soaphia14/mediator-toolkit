@@ -5,7 +5,7 @@ persona:
   pronouns: "they/them"
 model:
   apiType: GEMINI
-  modelName: gemini-2.5-flash
+  modelName: gemini-3-flash-preview
 chat_generation:
   temperature: 0.7
   reasoning_level: "off"

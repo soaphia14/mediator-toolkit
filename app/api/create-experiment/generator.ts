@@ -173,6 +173,7 @@ export async function generate(p1: string, p2: string, experimentTemplatePath: s
       headers: authHeaders,
       body: JSON.stringify({ template: excludeNone(template) }),
     })
+
     if (!expRes.ok) throw new Error(`create_experiment failed: ${await expRes.text()}`)
     const result = await expRes.json()
     expId = result.experiment.id

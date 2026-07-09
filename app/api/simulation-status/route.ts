@@ -1,4 +1,4 @@
-const BASE_URL = 'https://us-central1-traust-491612.cloudfunctions.net/api/v1'
+export const BASE_URL = 'http://127.0.0.1:5001/traust-491612/us-central1/api/v1'
 
 const TERMINAL_STATUSES = new Set([
   'SUCCESS',
