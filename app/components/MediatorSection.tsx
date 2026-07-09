@@ -7,11 +7,11 @@ import EmojiPicker, { type EmojiClickData } from 'emoji-picker-react'
 // ── Field types ──────────────────────────────────────────────────────────────
 
 export type FieldDef =
-  | { label: string; path: string[]; type: 'text' }
-  | { label: string; path: string[]; type: 'number'; min?: number; max?: number; step?: number }
-  | { label: string; path: string[]; type: 'emoji' }
-  | { label: string; path: string[]; type: 'checkbox' }
-  | { label: string; path: string[]; type: 'select'; options: { value: string; label: string }[] }
+  | { label: string; description: string; path: string[]; type: 'text'; placeholder?: string }
+  | { label: string; description: string; path: string[]; type: 'number'; min?: number; max?: number; step?: number }
+  | { label: string; description: string; path: string[]; type: 'emoji' }
+  | { label: string; description: string; path: string[]; type: 'checkbox' }
+  | { label: string; description: string; path: string[]; type: 'select'; options: { value: string; label: string }[] }
 
 // ── MediatorSection ──────────────────────────────────────────────────────────
 
@@ -41,17 +41,19 @@ export function MediatorSection({ title, fields, mediatorParsed, onUpdate }: {
       <div className="px-4 py-3 border-b border-neutral-800 bg-neutral-900/60">
         <h3 className="text-sm font-semibold text-neutral-300">{title}</h3>
       </div>
-      <div className="p-4 grid grid-cols-2 gap-3 bg-neutral-900/20">
+      <div className="p-4 space-y-3 gap-3 bg-neutral-900/20">
         {fields.map(field => {
           const key = field.path.join('.')
           return (
             <div key={key} className={field.type === 'checkbox' ? 'flex items-center gap-2' : 'space-y-1.5'}>
               {field.type !== 'checkbox' && <label className="text-sm font-medium text-neutral-400">{field.label}</label>}
+              <p className="text-sm text-neutral-500">{field.description}</p>
               {field.type === 'text' && (
                 <input
                   type="text"
                   value={str(field.path)}
                   onChange={e => onUpdate(field.path, e.target.value)}
+                  placeholder={field.placeholder ? (field?.placeholder) : ""}
                   className="w-full rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm text-neutral-200 focus:outline-none focus:border-neutral-500"
                 />
               )}

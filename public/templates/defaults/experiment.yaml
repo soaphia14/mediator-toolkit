@@ -59,7 +59,7 @@ stageConfigs:
 
   - id: pre-survey
     kind: survey
-    name: "Pre-Discussion Survey (Topic 1)"
+    name: "Pre-Discussion Survey"
     descriptions:
       primaryText: "Answer a few questions before the discussion"
       infoText: ""

@@ -71,7 +71,7 @@ export function fillAgentStance(
     }
   }
 
-  for (const key of ['human_style_prompt', 'should_concede_prompt', 'thought_prompt', 'post_survey_prompt']) {
+  for (const key of ['human_style_prompt', 'should_concede_prompt', 'thought_prompt', 'post_survey_prompt', 'pre_survey_prompt']) {
     if (key in agentTemplate) {
       for (const [token, value] of Object.entries(substitutions)) {
         agentTemplate[key] = agentTemplate[key].replaceAll(token, value)
@@ -103,7 +103,7 @@ export function agentConfig(template: AgentParticipantTemplate, promptContext = 
   const model = template.persona.defaultModelSettings
   return {
     agentId: template.persona.id,
-    promptContext,
+    promptContext: "", //"\n\n ------- TEST CONTEXT ------- \n\n",
     modelSettings: { apiType: model.apiType, modelName: model.modelName },
   }
 }

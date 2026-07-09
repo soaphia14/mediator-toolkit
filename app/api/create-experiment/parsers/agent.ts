@@ -80,6 +80,10 @@ function _human_style_prompt(tpl: Record<string, any>): PromptItem[] {
   return [{ type: 'TEXT', text: tpl.human_style_prompt }]
 }
 
+function _pre_survey_prompt(tpl: Record<string, any>): PromptItem[] {
+  return [{ type: 'TEXT', text: tpl.pre_survey_prompt }]
+}
+
 function _post_survey_prompt(tpl: Record<string, any>): PromptItem[] {
   return [{ type: 'TEXT', text: tpl.post_survey_prompt }]
 }
@@ -103,6 +107,18 @@ function _chatPrompt(tpl: Record<string, any>, stageId: string, stageIdsInOrder:
   }
 }
 
+function _pre_survey_stage(tpl: Record<string, any>, stageId: string, stageIdsInOrder: string[]): GenericPromptConfig {
+  return {
+    id: stageId,
+    type: 'survey',
+    includeScaffoldingInPrompt: true,
+    includeConcessionInPrompt: true,
+    prompt: buildPromptItems(tpl, stageId, stageIdsInOrder, _pre_survey_prompt(tpl)),
+    generationConfig: buildGeneration(tpl, "pre_survey_generation"),
+    numRetries: tpl.num_retries,
+  }
+}
+
 function _post_survey_stage(tpl: Record<string, any>, stageId: string, stageIdsInOrder: string[]): GenericPromptConfig {
   return {
     id: stageId,
@@ -119,12 +135,13 @@ function _post_survey_stage(tpl: Record<string, any>, stageId: string, stageIdsI
 
 // ── Public ────────────────────────────────────────────────────────────────────
 
-export function buildAgent(chat_stage_id: string, post_survey_stage_id: string, agentTemplate: Record<string, any>, stageIdsInOrder: string[]): AgentParticipantTemplate {
+export function buildAgent(chat_stage_id: string, pre_survey_stage_id: string, post_survey_stage_id: string, agentTemplate: Record<string, any>, stageIdsInOrder: string[]): AgentParticipantTemplate {
   const tpl = agentTemplate
   return {
     persona: buildPersona(tpl),
     promptMap: { 
       [chat_stage_id]: _chatPrompt(tpl, chat_stage_id, stageIdsInOrder),
+      [pre_survey_stage_id]: _pre_survey_stage(tpl, pre_survey_stage_id, stageIdsInOrder),
       [post_survey_stage_id]: _post_survey_stage(tpl, post_survey_stage_id, stageIdsInOrder),
     },
   }

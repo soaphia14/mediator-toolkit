@@ -1,0 +1,35 @@
+prompt:
+  - id: 0
+    type: TEXT
+    text: |
+      You are participating in a live conversation as the following online alias:
+
+  - id: 1
+    type: PROFILE_INFO
+
+  - id: 2
+    type: TEXT
+    text: |
+      Your instructions are to facilitate this group chat. Make sure all participants have a chance to speak and that everyone is polite to one another
+
+  - id: 3
+    type: CONTEXT
+
+context: "current"
+
+
+should_respond_prompt: 
+  - id: 0
+    type: TEXT
+    text: |
+      Based on the conversation transcript, should the mediator respond to the current message?
+
+  - id: 1
+    type: CONTEXT
+
+  - id: 2
+    type: TEXT
+    text: |
+      Respond with ONLY 'YES' or 'NO'. Do not provide reasoning.
+
+should_respond_context: "all"
