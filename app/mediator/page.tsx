@@ -160,7 +160,7 @@ export default function Home() {
   const [numCohorts, setNumCohorts] = useState('5')
   const [numUtterances, setNumUtterances] = useState('15')
   const [showAsYaml, setShowAsYaml] = useState(false)
-  const [activePromptTab, setActivePromptTab] = useState<'response' | 'should-respond'>('response')
+  const [activePromptTab, setActivePromptTab] = useState<'response' | 'should-respond' | 'preload'>('response')
   // const [structuredOutputConfig, setStructuredOutputConfig] = useState<StructuredOutputConfig>({
   //   schema: {
   //     type: 'OBJECT',
@@ -186,6 +186,17 @@ export default function Home() {
       try {
         const data = JSON.parse(prev ?? '')
         data.should_respond_prompt = reindexed
+        return JSON.stringify(data, null, 2)
+      } catch { return prev }
+    })
+  }
+
+  const updatePreloadContextPrompt = (prompt: PromptItem[]) => {
+    const reindexed = prompt.map((item, i) => ({ ...item, id: i }))
+    setMediatorData(prev => {
+      try {
+        const data = JSON.parse(prev ?? '')
+        data.preload_context_prompt = reindexed
         return JSON.stringify(data, null, 2)
       } catch { return prev }
     })
@@ -473,17 +484,17 @@ export default function Home() {
             <div className="border-b border-neutral-800 pb-3">
               <h2 className="text-lg font-semibold tracking-tight">Prompt Editors</h2>
             </div>
-            <p className="text-sm text-neutral-500">Edit the prompts to optimize the mediator's response. The <span className="text-neutral-400">Response Editor</span> controls what the mediator says; the <span className="text-neutral-400">Should Respond</span> editor prompts the LLM to return true/false on whether it should reply. <a href="https://www.promptingguide.ai/" className="underline hover:text-neutral-300">Learn more about prompt engineering.</a></p>
+            <p className="text-sm text-neutral-500">Edit the prompts to optimize the mediator's response. The <span className="text-neutral-400">Response Editor</span> controls what the mediator says; the <span className="text-neutral-400">Should Respond</span> editor prompts the LLM to return true/false on whether it should reply. The <span className="text-neutral-400">Information Bank</span> editor prompts the LLM to construct an information bank used in chats. <a href="https://www.promptingguide.ai/" className="underline hover:text-neutral-300">Learn more about prompt engineering.</a></p>
             
             <div className="rounded-lg border border-neutral-800 overflow-hidden">
               <div className="flex border-b border-neutral-800 bg-neutral-900/60">
-                {(['response', 'should-respond'] as const).map(tab => (
+                {(['response', 'should-respond', 'preload'] as const).map(tab => (
                   <button
                     key={tab}
                     onClick={() => setActivePromptTab(tab)}
                     className={`px-4 py-2.5 text-sm font-medium transition-colors ${activePromptTab === tab ? 'text-neutral-100 border-b-2 border-neutral-400 -mb-px' : 'text-neutral-500 hover:text-neutral-300'}`}
                   >
-                    {tab === 'response' ? 'Response Editor' : 'Should Respond Editor'}
+                    {tab === 'response' ? 'Response Editor' : tab === 'should-respond' ? 'Should Respond Editor' : 'Information Bank Editor'}
                   </button>
                 ))}
               </div>
@@ -509,7 +520,7 @@ export default function Home() {
                       onUpdate={updateStructuredOutputConfig}
                     />
                   </div>
-                ) : (
+                ) : activePromptTab === 'should-respond' ? (
                   <div className="space-y-4">
                     <MediatorSection
                       title="ShouldRespond Settings"
@@ -527,7 +538,17 @@ export default function Home() {
                     />
                
                   </div>
-                )}
+                ) : activePromptTab === 'preload' ? (
+                    <div className="space-y-4 pb-96">
+                    <StructuredPromptEditor
+                      label="Information Bank Editor"
+                      prompt={(mediatorParsed?.preload_context_prompt as PromptItem[]) ?? []}
+                      stageId=""
+                      onUpdate={updatePreloadContextPrompt}
+                      textOnly={true}
+                    />
+                  </div>
+                ) : null}
               </div>
             </div>
           </div>

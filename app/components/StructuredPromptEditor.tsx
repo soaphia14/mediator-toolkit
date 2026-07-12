@@ -10,6 +10,7 @@ export enum PromptItemType {
   TEXT = 'TEXT',
   CONTEXT = 'CONTEXT',
   PROFILE_INFO = 'PROFILE_INFO',
+  PRELOAD_CONTEXT = 'PRELOAD_CONTEXT',
 }
 
 export interface PromptItem {
@@ -27,6 +28,10 @@ export interface ContextPromptItem extends PromptItem {
 
 export interface ProfileInfoPromptItem extends PromptItem {
   type: PromptItemType.PROFILE_INFO
+}
+
+export interface PreloadedContextPromptItem extends PromptItem {
+  type: PromptItemType.PRELOAD_CONTEXT
 }
 
 export interface PromptItemUpdate {
@@ -105,7 +110,7 @@ function IconButton({ icon, title, onClick }: {
   )
 }
 
-function AddMenu({ targetArr }: { targetArr: PromptItem[] }) {
+function AddMenu({ targetArr, textOnly }: { targetArr: PromptItem[], textOnly?: boolean }) {
   const { addItem, locked } = useEditorCtx()
   if (locked) return null
   const [open, setOpen] = useState(false)
@@ -135,14 +140,22 @@ function AddMenu({ targetArr }: { targetArr: PromptItem[] }) {
           <div className={itemClass} role="button" onClick={() => pick({ type: PromptItemType.TEXT, text: '' } as TextPromptItem)}>
             Freeform text
           </div>
-          <div className="my-0.5 border-t border-neutral-700/60" />
-          <div className={itemClass} role="button" onClick={() => pick({ type: PromptItemType.CONTEXT } as ContextPromptItem)}>
-            Context
-          </div>
-          <div className="my-0.5 border-t border-neutral-700/60" />
-          <div className={itemClass} role="button" onClick={() => pick({ type: PromptItemType.PROFILE_INFO } as ProfileInfoPromptItem)}>
-            Profile info
-          </div>
+          {!textOnly && (
+            <>
+              <div className="my-0.5 border-t border-neutral-700/60" />
+              <div className={itemClass} role="button" onClick={() => pick({ type: PromptItemType.CONTEXT } as ContextPromptItem)}>
+                Context
+              </div>
+              <div className="my-0.5 border-t border-neutral-700/60" />
+              <div className={itemClass} role="button" onClick={() => pick({ type: PromptItemType.PROFILE_INFO } as ProfileInfoPromptItem)}>
+                Profile info
+              </div>
+              <div className="my-0.5 border-t border-neutral-700/60" />
+              <div className={itemClass} role="button" onClick={() => pick({ type: PromptItemType.PRELOAD_CONTEXT } as PreloadedContextPromptItem)}>
+                Information
+              </div>
+            </>
+          )}
         </div>
       )}
     </div>
@@ -189,6 +202,12 @@ function ItemEditor({ item }: { item: PromptItem }) {
       return (
         <div className="cursor-default rounded bg-[#f9d8f5] px-3 py-1.5 text-sm font-medium text-neutral-900">
           Profile info
+        </div>
+      )
+    case PromptItemType.PRELOAD_CONTEXT:
+      return (
+        <div className="cursor-default rounded bg-[#d8f9e0] px-3 py-1.5 text-sm font-medium text-neutral-900">
+          Information
         </div>
       )
     default:
@@ -246,6 +265,7 @@ export interface StructuredPromptEditorProps {
   onUpdate: (prompt: PromptItem[]) => void
   label?: string
   locked?: boolean
+  textOnly?: boolean
 }
 
 export function StructuredPromptEditor({
@@ -253,6 +273,7 @@ export function StructuredPromptEditor({
   onUpdate,
   label = 'Prompt editor',
   locked = false,
+  textOnly = false,
 }: StructuredPromptEditorProps) {
   const ctx: EditorCtx = {
     locked,
@@ -267,7 +288,7 @@ export function StructuredPromptEditor({
       <div className="rounded-lg border border-neutral-700 bg-neutral-900">
         <div className="flex items-center justify-between px-3 py-2 border-b border-neutral-700/60">
           <span className="text-xs font-semibold uppercase tracking-widest text-neutral-500">{label}</span>
-          <AddMenu targetArr={prompt} />
+          <AddMenu targetArr={prompt} textOnly={textOnly}/>
         </div>
         <div className="p-3">
           <PromptItemList items={prompt} />
