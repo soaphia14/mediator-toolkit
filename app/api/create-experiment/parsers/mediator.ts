@@ -63,7 +63,7 @@ function _chatPrompt(tpl: Record<string, any>, stageId: string, stageIdsInOrder:
     type: 'chat',
     includeScaffoldingInPrompt: tpl.include_scaffolding_in_prompt,
     prompt: buildPromptItems(tpl, stageId, stageIdsInOrder),
-    preloadContextPrompt: tpl.preload_context_prompt?.length ? buildPromptItems({ ...tpl, prompt: tpl.preload_context_prompt }, stageId, stageIdsInOrder) : undefined,
+    preloadContextPrompt: tpl.preload_context_prompt?.length ? buildPromptItems({ ...tpl, prompt: tpl.preload_context_prompt, context: tpl.preload_context_context }, stageId, stageIdsInOrder) : undefined,
     shouldRespondPrompt: buildPromptItems({ ...tpl, prompt: tpl.should_respond_prompt, context: tpl.should_respond_context }, stageId, stageIdsInOrder),
     minParticipantMessagesBeforeResponding: tpl.min_participant_messages_before_responding,
     concedeStrength: null,
