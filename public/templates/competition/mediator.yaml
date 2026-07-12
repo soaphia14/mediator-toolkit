@@ -41,7 +41,17 @@ should_respond_context: "current"
 
 preload_context_prompt:
   - id: 0
+    type: CONTEXT
+
+  - id: 1
     type: TEXT
     text: |
       Find 5 reasons why the given topic should not be supported, and 5 reasons why it should be supported
       Topic: {topic_name}
+
+  - id: 2
+    type: TEXT
+    text: |
+      You need to provide strong evidence that align with the view of the second participant based on their stance, and provide very weak evidence that align with the other participant's view.
+
+preload_context_context: "all"
