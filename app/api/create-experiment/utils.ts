@@ -7,6 +7,21 @@ export function loadTemplate(templatePath: string): Record<string, any> {
   return yaml.load(fs.readFileSync(templatePath, 'utf8')) as Record<string, any>
 }
 
+export function substituteTokens(obj: any, subs: Record<string, string>): any {
+  if (typeof obj === 'string') {
+    let s = obj
+    for (const [k, v] of Object.entries(subs)) s = s.replaceAll(k, v)
+    return s
+  }
+  if (Array.isArray(obj)) return obj.map((x) => substituteTokens(x, subs))
+  if (obj && typeof obj === 'object') {
+    const out: Record<string, any> = {}
+    for (const [k, v] of Object.entries(obj)) out[k] = substituteTokens(v, subs)
+    return out
+  }
+  return obj
+}
+
 // replace missing values by defaults
 export function replaceDefaults(template: Record<string, any>, defaults: Record<string, any>): Record<string, any> {
   const merged: Record<string, any> = { ...defaults }

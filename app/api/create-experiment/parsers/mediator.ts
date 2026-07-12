@@ -1,7 +1,7 @@
 import fs from 'fs'
 import yaml from 'js-yaml'
 import { MEDIATOR_DEFAULT } from '../config'
-import { replaceDefaults } from '../utils'
+import { replaceDefaults, substituteTokens } from '../utils'
 import {
   buildPromptItems,
   // buildDefaultMediatorPrompt,
@@ -85,8 +85,9 @@ export function parseMediatorTemplate(content: string): Record<string, any> {
   return yaml.load(content) as Record<string, any>
 }
 
-export function buildMediator(stageId: string, mediatorTemplate: Record<string, any>, stageIdsInOrder: string[]): AgentMediatorTemplate {
-  const tpl = replaceDefaults(mediatorTemplate, loadMediatorTemplate(MEDIATOR_DEFAULT))
+export function buildMediator(stageId: string, mediatorTemplate: Record<string, any>, stageIdsInOrder: string[], topicInfo: Record<string, any>): AgentMediatorTemplate {
+  let tpl = replaceDefaults(mediatorTemplate, loadMediatorTemplate(MEDIATOR_DEFAULT))
+  tpl = substituteTokens(tpl, { '{topic_name}': topicInfo.name,  })
   return {
     persona: buildPersona(tpl),
     promptMap: { [stageId]: _chatPrompt(tpl, stageId, stageIdsInOrder) },

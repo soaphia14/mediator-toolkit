@@ -68,7 +68,7 @@ export async function generate(p1: string, p2: string, experimentTemplatePath: s
   const postSurveyStageId = [...stages].reverse().find((s) => s.kind === 'survey')?.id ?? POST_SURVEY_STAGE_ID
 
   const mediatorTemplate = parseMediatorTemplate(mediatorTemplateContent)
-  const mediatorR1 = buildMediator(chatStageId, mediatorTemplate, stageIdsInOrder)
+  const mediatorR1 = buildMediator(chatStageId, mediatorTemplate, stageIdsInOrder, topicInfo)
 
   const exp = experimentTemplate.experiment ?? {}
   const participantSlots = participantSlotsFor(mode)
