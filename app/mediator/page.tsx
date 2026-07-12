@@ -26,6 +26,81 @@ export default function Home() {
   const [userEmail, setUserEmail] = useState<string | null>(null)
   const [simQuota, setSimQuota] = useState<{ used: number; limit: number } | null>(null)
 
+  // saving
+  const [savedTemplates, setSavedTemplates] = useState<{ id: string; name: string }[]>([])
+  const [templateName, setTemplateName] = useState('Mediator Template 1')
+  const [lastSavedContent, setLastSavedContent] = useState<string | null>(null)
+  const [lastSavedName, setLastSavedName] = useState<string | null>(null)
+  const [saving, setSaving] = useState(false)
+
+  async function fetchSavedTemplates() {
+    try {
+      const token = await auth.currentUser?.getIdToken()
+      if (!token) return
+      const res = await fetch('/api/mediators', { headers: { Authorization: `Bearer ${token}` } })
+      if (!res.ok) return
+      const data = await res.json()
+      setSavedTemplates(data.templates)
+      if (data.count > 0) {
+        const first = data.templates[0]
+        const loadRes = await fetch(`/api/mediators/load?id=${encodeURIComponent(first.id)}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+        if (loadRes.ok) {
+          const loaded = await loadRes.json()
+          setMediatorData(loaded.content)
+          setTemplateName(loaded.name)
+          setLastSavedContent(loaded.content)
+          setLastSavedName(loaded.name)
+        }
+      } else {
+        setTemplateName('Mediator Template 1')
+      }
+    } catch (e) {
+      console.warn('fetchSavedTemplates failed:', e)
+    }
+  }
+
+  async function handleSave() {
+    if (!templateName.trim()) return
+    const token = await auth.currentUser?.getIdToken()
+    if (!token) return
+
+    setSaving(true)
+    try {
+      const res = await fetch('/api/mediators', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ name: templateName.trim(), content: mediatorData }),
+      })
+      if (res.ok) {
+        setLastSavedContent(mediatorData)
+        setLastSavedName(templateName.trim())
+        await fetchSavedTemplates()
+      }
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function handleLoad(id: string, name: string) {
+    if (isDirty) {
+      const ok = window.confirm('You have unsaved changes. Load a different template and discard them?')
+      if (!ok) return
+    }
+    const token = await auth.currentUser?.getIdToken()
+    if (!token) return
+    const res = await fetch(`/api/mediators/load?id=${encodeURIComponent(id)}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    if (!res.ok) return
+    const data = await res.json()
+    setMediatorData(data.content)
+    setTemplateName(data.name)
+    setLastSavedContent(data.content)
+    setLastSavedName(data.name)
+  }
+
   async function fetchQuota() {
     try {
       const token = await auth.currentUser?.getIdToken()
@@ -47,11 +122,13 @@ export default function Home() {
         setAuthReady(true)
         setUserEmail(user.email)
         fetchQuota()
+        fetchSavedTemplates()
       }
     })
   }, [router])
 
   const [mediatorData, setMediatorData] = useState<string | null>(null)
+  const isDirty = mediatorData !== null && (mediatorData !== lastSavedContent || templateName !== lastSavedName)
   const [topicId, setTopicId] = useState<number>(Number(Object.keys(TOPICS)[0]))
 
   useEffect(() => {
@@ -64,6 +141,14 @@ export default function Home() {
       setMediatorData(JSON.stringify(merged, null, 2))
     })
   }, [topicId])
+  useEffect(() => {
+    const handler = (e: BeforeUnloadEvent) => {
+      if (isDirty) { e.preventDefault(); e.returnValue = '' }
+    }
+    window.addEventListener('beforeunload', handler)
+    return () => window.removeEventListener('beforeunload', handler)
+  }, [isDirty])
+
   const [experimentId, setExperimentId] = useState<string | null>('')
   const [exportState, setExportState] = useState<ActionState>(idle)
   const [createState, setCreateState] = useState<ActionState>(idle)
@@ -316,7 +401,10 @@ export default function Home() {
             <div className="flex items-center gap-3 mt-1">
               {userEmail && <span className="text-sm text-neutral-400">{userEmail}</span>}
               <button
-                onClick={() => signOut(auth).then(() => router.replace('/'))}
+                onClick={() => {
+                  if (isDirty && !window.confirm('You have unsaved changes. Sign out anyway?')) return
+                  signOut(auth).then(() => router.replace('/'))
+                }}
                 className="text-sm px-3 py-1.5 rounded-md border border-neutral-600 text-neutral-400 hover:border-neutral-500 hover:text-neutral-200 transition-colors cursor-pointer"
               >
                 Sign out
@@ -324,6 +412,46 @@ export default function Home() {
             </div>
           </div>
           
+          {/* Save / Load */}
+          <div className="flex items-center gap-2">
+            <input
+              type="text"
+              value={templateName}
+              onChange={e => setTemplateName(e.target.value)}
+              placeholder="Template name"
+              className="flex-1 px-3 py-1.5 rounded-md border border-neutral-700 bg-neutral-900 text-sm text-neutral-200 placeholder-neutral-600 focus:outline-none focus:border-neutral-500"
+            />
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              className={`px-3 py-1.5 rounded-md border text-sm transition-colors cursor-pointer disabled:opacity-50 ${
+                saving
+                  ? 'border-neutral-700 bg-neutral-900 text-neutral-400'
+                  : isDirty
+                  ? 'border-amber-500 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 hover:text-amber-300'
+                  : 'border-neutral-700 bg-neutral-900 text-neutral-500 hover:border-neutral-500 hover:text-neutral-300'
+              }`}
+            >
+              {saving ? 'Saving…' : isDirty ? 'Save *' : 'Saved'}
+            </button>
+            {savedTemplates.length > 0 && (
+              <select
+                defaultValue=""
+                onChange={e => {
+                  const t = savedTemplates.find(t => t.id === e.target.value)
+                  if (t) handleLoad(t.id, t.name)
+                  e.target.value = ''
+                }}
+                className="px-3 py-1.5 rounded-md border border-neutral-700 bg-neutral-900 text-sm text-neutral-300 hover:border-neutral-500 transition-colors cursor-pointer"
+              >
+                <option value="" disabled>Load saved…</option>
+                {savedTemplates.map(t => (
+                  <option key={t.id} value={t.id}>{t.name}</option>
+                ))}
+              </select>
+            )}
+          </div>
+
           {/* Mediator configuration and prompt editors */}
           <div className="space-y-4">
             <div className="border-b border-neutral-800 pb-3">
