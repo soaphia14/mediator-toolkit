@@ -56,3 +56,16 @@ should_respond_prompt:
         Reply with ONLY YES or NO.
 
 should_respond_context: "current"
+
+
+preload_context_prompt:
+  - id: 0
+    type: CONTEXT
+
+  - id: 1
+    type: TEXT
+    text: |
+      Find 5 reasons why the given topic should not be supported, and 5 reasons why it should be supported
+      Topic: {topic_name}
+
+preload_context_context: "all"

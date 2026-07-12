@@ -68,7 +68,7 @@ export async function generate(p1: string, p2: string, experimentTemplatePath: s
   const postSurveyStageId = [...stages].reverse().find((s) => s.kind === 'survey')?.id ?? POST_SURVEY_STAGE_ID
 
   const mediatorTemplate = parseMediatorTemplate(mediatorTemplateContent)
-  const mediatorR1 = buildMediator(chatStageId, mediatorTemplate, stageIdsInOrder)
+  const mediatorR1 = buildMediator(chatStageId, mediatorTemplate, stageIdsInOrder, topicInfo)
 
   const exp = experimentTemplate.experiment ?? {}
   const participantSlots = participantSlotsFor(mode)
@@ -82,7 +82,7 @@ export async function generate(p1: string, p2: string, experimentTemplatePath: s
   if (chatStage) {
     if (isSim) {
       // currently not removing the timer limit, in case simulation gets stuck in some cohorts, they can still finish within this time.
-      chatStage.timeLimitInMinutes = 2
+      chatStage.timeLimitInMinutes = 9
       chatStage.requireFullTime = false
       if (numUtterances != null) chatStage.numUtterances = numUtterances  // else keep template default
     } else {
@@ -98,6 +98,8 @@ export async function generate(p1: string, p2: string, experimentTemplatePath: s
   const cohortAgents: AgentParticipantTemplate[][] = []
   const agentStances: Record<string, any>[] = []
   const humanSlots: Record<string, string> = {}
+  const cohortAgentConfigs: string[][] = []
+
   for (let ci = 0; ci < numCohortsResolved; ci++) {
     const ratings = isSim
       ? shuffle([randint(5, 7), randint(1, 3)])
@@ -108,6 +110,8 @@ export async function generate(p1: string, p2: string, experimentTemplatePath: s
     })
 
     const pair: AgentParticipantTemplate[] = []
+    const configs: string[] = []
+
     for (const pSlot of participantSlots) {
       const slot = pSlot.slot
       if (pSlot.type === 'agent') {
@@ -116,6 +120,8 @@ export async function generate(p1: string, p2: string, experimentTemplatePath: s
         const s = stance[slot]
         const [filled, finalStance] = fillAgentStance(tpl, topicInfo, s.rating, s.rating)
         stance[slot] = finalStance
+
+        configs.push(filled.agent_config ?? '')
         pair.push(buildAgent(chatStageId, preSurveyStageId, postSurveyStageId, filled, stageIdsInOrder))
       } else {
         humanSlots[slot] = slotToPid[slot] ?? slot
@@ -123,6 +129,7 @@ export async function generate(p1: string, p2: string, experimentTemplatePath: s
     }
     cohortAgents.push(pair)
     agentStances.push(stance)
+    cohortAgentConfigs.push(configs)
   }
 
   const agents = cohortAgents.flat() 
@@ -190,7 +197,7 @@ export async function generate(p1: string, p2: string, experimentTemplatePath: s
   for (let i = 0; i < cohortIds.length; i++) {
     const urls: Record<string, string> = {}
     for (let k = 0; k < cohortAgents[i].length; k++) {
-      const created = await createParticipant(expId, cohortIds[i], agentConfig(cohortAgents[i][k]))
+      const created = await createParticipant(expId, cohortIds[i], agentConfig(cohortAgents[i][k], cohortAgentConfigs[i][k]))
       urls[agentSlots[k]] = `${FRONTEND_BASE}/#/e/${expId}/p/${created.id}`
     }
     agentUrls.push(urls)
