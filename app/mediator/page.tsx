@@ -1,6 +1,9 @@
 'use client'
 
 import { useState, useEffect, useMemo } from 'react'
+import { useRouter } from 'next/navigation'
+import { onAuthStateChanged, signOut } from 'firebase/auth'
+import { auth } from '../lib/firebase'
 import * as yaml from 'js-yaml'
 import { TOPICS } from '../lib/topics'
 import { ApiKeyType, API_KEY_TYPE_LABELS, REASONING_LEVEL_OPTIONS } from '../lib/types'
@@ -18,6 +21,36 @@ const POLL_INTERVAL_MS = 10_000
 const MAX_POLLS = 180 // poll every 10s for 30 minutes
 
 export default function Home() {
+  const router = useRouter()
+  const [authReady, setAuthReady] = useState(false)
+  const [userEmail, setUserEmail] = useState<string | null>(null)
+  const [simQuota, setSimQuota] = useState<{ used: number; limit: number } | null>(null)
+
+  async function fetchQuota() {
+    try {
+      const token = await auth.currentUser?.getIdToken()
+      if (!token) return
+      const res = await fetch('/api/quota', { headers: { Authorization: `Bearer ${token}` } })
+      if (!res.ok) return
+      const data = await res.json()
+      setSimQuota({ used: data.used, limit: data.limit })
+    } catch (e) {
+      console.warn('fetchQuota failed:', e)
+    }
+  }
+
+  useEffect(() => {
+    return onAuthStateChanged(auth, (user) => {
+      if (!user) {
+        router.replace('/')
+      } else {
+        setAuthReady(true)
+        setUserEmail(user.email)
+        fetchQuota()
+      }
+    })
+  }, [router])
+
   const [mediatorData, setMediatorData] = useState<string | null>(null)
   const [topicId, setTopicId] = useState<number>(Number(Object.keys(TOPICS)[0]))
 
@@ -202,16 +235,20 @@ export default function Home() {
   async function handleCreate(mode: 'human-human' | 'human-agent' | 'agent-agent', action: 'create' | 'simulate' = 'create') {
     setSimState(idle)
     setCreating(mode)
-    // setCreateState({ status: 'loading', result: null })
     setCreateAction(action)
     try {
+      let idToken: string | undefined
+      if (action === 'simulate') {
+        idToken = await auth.currentUser?.getIdToken()
+      }
       const res = await fetch('/api/create-experiment', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ mediatorTemplate: mediatorData, mode, topic: topicMap(TOPICS[topicId].topic), numCohorts, numUtterances, action }),
+        body: JSON.stringify({ mediatorTemplate: mediatorData, mode, topic: topicMap(TOPICS[topicId].topic), numCohorts, numUtterances, action, idToken }),
       })
       const data = await res.json()
       setCreateState({ status: res.ok ? 'done' : 'error', result: data })
+      if (res.ok && action === 'simulate') fetchQuota()
       return res.ok ? data : null
     } catch (e) {
       setCreateState({ status: 'error', result: String(e) })
@@ -257,6 +294,12 @@ export default function Home() {
     setSimState({ status: 'error', result: 'Timed out waiting for the simulation to complete.' })
   }
 
+  if (!authReady) return (
+    <div className="min-h-screen bg-neutral-950 flex items-center justify-center text-neutral-500 text-sm">
+      Loading...
+    </div>
+  )
+
   return (
     <div className="flex flex-col lg:flex-row lg:h-screen lg:overflow-hidden bg-neutral-950 text-neutral-100">
 
@@ -265,9 +308,20 @@ export default function Home() {
         <div className="w-full space-y-5">
 
           {/* Header */}
-          <div>
-            <h1 className="text-3xl font-semibold tracking-tight">Mediator Toolkit</h1>
-            <p className="text-base text-neutral-500 mt-1">Create, audit, and test custom mediators.</p>
+          <div className="flex items-start justify-between">
+            <div>
+              <h1 className="text-3xl font-semibold tracking-tight">Mediator Toolkit</h1>
+              <p className="text-base text-neutral-500 mt-1">Create, audit, and test custom mediators.</p>
+            </div>
+            <div className="flex items-center gap-3 mt-1">
+              {userEmail && <span className="text-sm text-neutral-400">{userEmail}</span>}
+              <button
+                onClick={() => signOut(auth).then(() => router.replace('/'))}
+                className="text-sm px-3 py-1.5 rounded-md border border-neutral-600 text-neutral-400 hover:border-neutral-500 hover:text-neutral-200 transition-colors cursor-pointer"
+              >
+                Sign out
+              </button>
+            </div>
           </div>
           
           {/* Mediator configuration and prompt editors */}
@@ -403,21 +457,18 @@ export default function Home() {
               label="Create (human-human)"
               loadingLabel="Creating…"
               loading={creating === 'human-human'}
-              disabled={busy}
               onClick={() => handleCreate('human-human')}
             />
             <ActionButton
               label="Create (human-agent)"
               loadingLabel="Creating…"
               loading={creating === 'human-agent'}
-              disabled={busy}
               onClick={() => handleCreate('human-agent')}
             />
             <ActionButton
               label="Create (agent-agent)"
               loadingLabel="Creating…"
               loading={creating === 'agent-agent' && createAction === 'create'}
-              disabled={busy}
               onClick={() => handleCreate('agent-agent', 'create')}
             />
           </div>
@@ -435,10 +486,22 @@ export default function Home() {
             />
           )}
 
-          <div className="border-b border-neutral-800 pb-3 mb-3 mt-6">
+          <div className="border-b border-neutral-800 pb-3 mb-3 mt-6 flex items-center justify-between">
             <h2 className="text-lg font-semibold tracking-tight">Mediator Simulation</h2>
           </div>
-
+          {simQuota && (
+            <div className="flex items-center gap-2 mt-1">
+              <div className="flex-1 h-1.5 rounded-full bg-neutral-800 overflow-hidden">
+                <div
+                  className={`h-full rounded-full transition-all ${simQuota.used >= simQuota.limit ? 'bg-red-500' : 'bg-neutral-500'}`}
+                  style={{ width: `${Math.min(100, (simQuota.used / simQuota.limit) * 100)}%` }}
+                />
+              </div>
+              <span className={`text-xs tabular-nums ${simQuota.used >= simQuota.limit ? 'text-red-400' : 'text-neutral-500'}`}>
+                {simQuota.used}/{simQuota.limit} today
+              </span>
+            </div>
+          )}
           {/* agent-agent (simulation) on its own row, with cohort count */}
           <div className="flex flex-wrap items-center gap-3">
             <div>
@@ -475,7 +538,7 @@ export default function Home() {
               label="Simulate"
               loadingLabel="Simulating…"
               loading={(creating === 'agent-agent' && createAction === 'simulate') || simState.status === 'loading'}
-              disabled={busy}
+              disabled={busy || (simQuota !== null && simQuota.used >= simQuota.limit)}
               onClick={handleCreateSim}
             />
           </div>
