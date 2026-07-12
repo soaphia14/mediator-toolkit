@@ -2,7 +2,7 @@ prompt:
   - id: 0
     type: TEXT
     text: |
-      You are participating in a live conversation as the following online alias:
+      You are a mediator in a live conversation as the following online alias:
 
   - id: 1
     type: PROFILE_INFO
@@ -26,10 +26,5 @@ should_respond_prompt:
 
   - id: 1
     type: CONTEXT
-
-  - id: 2
-    type: TEXT
-    text: |
-      Respond with ONLY 'YES' or 'NO'. Do not provide reasoning.
 
 should_respond_context: "all"
