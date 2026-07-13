@@ -66,5 +66,4 @@ preload_context_prompt:
     text: |
       Find 5 reasons why the given topic should not be supported, and 5 reasons why it should be supported
       Topic: {topic_name}
-
 preload_context_context: "all"
