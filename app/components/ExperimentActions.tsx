@@ -23,12 +23,16 @@ export function ActionButton({ label, loadingLabel, loading, disabled, onClick }
 type ParticipantLink = {url: string; type: string}
 type CohortLinks = { participant_urls?: ParticipantLink[] }
 
-export function ResultBox({ title, state, links }: {
+export function ResultBox({ title, state, links, showMessage }: {
   title: string
   state: ActionState
   links?: { cohorts?: CohortLinks[]; mode?: string }
+  showMessage?: boolean
 }) {
   const isError = state.status === 'error'
+  const message = showMessage && state.result && typeof state.result === 'object'
+    ? (state.result as Record<string, unknown>).message as string | undefined
+    : undefined
 
   return (
     <div className="rounded-lg border border-neutral-800 bg-neutral-900 overflow-hidden">
@@ -49,6 +53,9 @@ export function ResultBox({ title, state, links }: {
               Participant {pIdx + 1} ({item.type}) ↗
             </a>
           ))
+        )}
+        {message && (
+          <p className="text-sm text-neutral-300 whitespace-pre-wrap">{message}</p>
         )}
         <details className="text-sm text-neutral-400">
           <summary className="cursor-pointer text-xs text-neutral-500 hover:text-neutral-300 transition-colors select-none">Show JSON output</summary>

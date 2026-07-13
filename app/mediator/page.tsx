@@ -652,18 +652,21 @@ export default function Home() {
               label="Create (human-human)"
               loadingLabel="Creating…"
               loading={creating === 'human-human'}
+              disabled={busy}
               onClick={() => handleCreate('human-human')}
             />
             <ActionButton
               label="Create (human-agent)"
               loadingLabel="Creating…"
               loading={creating === 'human-agent'}
+              disabled={busy}
               onClick={() => handleCreate('human-agent')}
             />
             <ActionButton
               label="Create (agent-agent)"
               loadingLabel="Creating…"
               loading={creating === 'agent-agent' && createAction === 'create'}
+              disabled={busy}
               onClick={() => handleCreate('agent-agent', 'create')}
             />
           </div>
@@ -740,7 +743,7 @@ export default function Home() {
         </div>
 
         {simState.result !== null && (
-          <ResultBox title="Simulation" state={simState} />
+          <ResultBox title="Simulation" state={simState} showMessage />
         )}
 
         {simState.status === 'done' && simExport !== null && (
