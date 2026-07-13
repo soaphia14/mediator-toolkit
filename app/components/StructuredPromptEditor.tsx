@@ -141,6 +141,10 @@ function AddMenu({ targetArr, textOnly }: { targetArr: PromptItem[], textOnly?: 
           <div className={itemClass} role="button" onClick={() => pick({ type: PromptItemType.TEXT, text: '' } as TextPromptItem)}>
             Freeform text
           </div>
+          <div className="my-0.5 border-t border-neutral-700/60" />
+          <div className={itemClass} role="button" onClick={() => pick({ type: PromptItemType.TEXT, text: '{topic_name}' } as TextPromptItem)}>
+            Topic
+          </div>
           {!textOnly && (
             <>
               <div className="my-0.5 border-t border-neutral-700/60" />
@@ -154,10 +158,6 @@ function AddMenu({ targetArr, textOnly }: { targetArr: PromptItem[], textOnly?: 
               <div className="my-0.5 border-t border-neutral-700/60" />
               <div className={itemClass} role="button" onClick={() => pick({ type: PromptItemType.PRELOADED_CONTEXT } as PreloadedContextPromptItem)}>
                 Information
-              </div>
-              <div className="my-0.5 border-t border-neutral-700/60" />
-              <div className={itemClass} role="button" onClick={() => pick({ type: PromptItemType.TEXT, text: '{topic_name}' } as TextPromptItem)}>
-                Topic
               </div>
             </>
           )}
