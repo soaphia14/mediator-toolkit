@@ -131,15 +131,19 @@ export default function Home() {
   const isDirty = mediatorData !== null && (mediatorData !== lastSavedContent || templateName !== lastSavedName)
   const [topicId, setTopicId] = useState<number>(Number(Object.keys(TOPICS)[0]))
 
-  useEffect(() => {
-    const topic = topicMap(TOPICS[topicId].topic)
-    Promise.all([
+  async function loadDefaultTemplate() {
+    const [defaultsText, topicText] = await Promise.all([
       fetch('/templates/defaults/mediator.yaml').then(res => res.text()),
-      fetch(`/templates/competition/mediator.yaml`).then(res => res.text()),
-    ]).then(([defaultsText, topicText]) => {
-      const merged = { ...(yaml.load(defaultsText) as object), ...(yaml.load(topicText) as object) }
-      setMediatorData(JSON.stringify(merged, null, 2))
-    })
+      fetch('/templates/competition/mediator.yaml').then(res => res.text()),
+    ])
+    const merged = { ...(yaml.load(defaultsText) as object), ...(yaml.load(topicText) as object) }
+    setMediatorData(JSON.stringify(merged, null, 2))
+    setLastSavedContent(null)
+    setLastSavedName(null)
+  }
+
+  useEffect(() => {
+    loadDefaultTemplate()
   }, [topicId])
   useEffect(() => {
     const handler = (e: BeforeUnloadEvent) => {
@@ -444,6 +448,16 @@ export default function Home() {
               }`}
             >
               {saving ? 'Saving…' : isDirty ? 'Save *' : 'Saved'}
+            </button>
+            <button
+              onClick={() => {
+                if (window.confirm('Load the default template? Any unsaved changes will be lost.')) {
+                  loadDefaultTemplate()
+                }
+              }}
+              className="px-3 py-1.5 rounded-md border border-neutral-700 bg-neutral-900 text-sm text-neutral-500 hover:border-neutral-500 hover:text-neutral-300 transition-colors cursor-pointer"
+            >
+              Load Default
             </button>
             {savedTemplates.length > 0 && (
               <select
