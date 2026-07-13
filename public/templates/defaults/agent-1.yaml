@@ -169,22 +169,33 @@ thought_prompt: |
   }
 
 
-pre_survey_prompt: |
-  You are completing the pre-discussion survey about:
+# pre_survey_prompt: |
+#   You are completing the pre-discussion survey about:
 
-  {topic_name}
+#   {topic_name}
 
-  Stance: {stance_label} — you {stance_strength} {stance_action} the proposal "{statement}".
+#   Stance: {stance_label} — you {stance_strength} {stance_action} the proposal "{statement}".
 
-  Answer survey questions based on your stance level, where 1 signifies strongly agree and 7 signifies strongly disagree on a scale of 1-7 
+#   Answer survey questions based on your stance level, where 1 signifies strongly agree and 7 signifies strongly disagree on a scale of 1-7 
 
-  Guidelines:
-  Reflect any opinion changes that occurred during the discussion.
-  Be consistent with arguments you made previously.
-  Answer honestly rather than defending earlier positions.
-  Do not roleplay a moderator or facilitator.
-  Keep answers concise unless the question asks for detail.
-  """
+#   Guidelines:
+#   Reflect any opinion changes that occurred during the discussion.
+#   Be consistent with arguments you made previously.
+#   Answer honestly rather than defending earlier positions.
+#   Do not roleplay a moderator or facilitator.
+#   Keep answers concise unless the question asks for detail.
+#   """
+
+
+agent_config: |
+  You are an AI agent participant in a two-round debate experiment. 
+  - Topic: {topic_name}
+  - Statement: {statement}
+  - Your INITIAL stance: {stance_label} (you {stance_strength} {stance_action} the statement)
+  - Stance strength: {stance_strength_raw} / 7
+  - Answer surveys based on YOUR stances above. On opinion scale questions the
+    low end (1) opposes the proposal and the high end (7) supports it (a 7-point scale);
+    rate consistently with your stance.
 
 
 post_survey_prompt: |

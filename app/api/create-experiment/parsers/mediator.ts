@@ -1,7 +1,7 @@
 import fs from 'fs'
 import yaml from 'js-yaml'
 import { MEDIATOR_DEFAULT } from '../config'
-import { replaceDefaults } from '../utils'
+import { replaceDefaults, substituteTokens } from '../utils'
 import {
   buildPromptItems,
   // buildDefaultMediatorPrompt,
@@ -23,6 +23,7 @@ interface ChatPromptConfig {
   type: 'chat'
   includeScaffoldingInPrompt: boolean
   prompt: PromptItem[]
+  preloadContextPrompt?: PromptItem[]
   shouldRespondPrompt: PromptItem[]
   minParticipantMessagesBeforeResponding: number
   concedeStrength: number | null
@@ -62,6 +63,7 @@ function _chatPrompt(tpl: Record<string, any>, stageId: string, stageIdsInOrder:
     type: 'chat',
     includeScaffoldingInPrompt: tpl.include_scaffolding_in_prompt,
     prompt: buildPromptItems(tpl, stageId, stageIdsInOrder),
+    preloadContextPrompt: tpl.preload_context_prompt?.length ? buildPromptItems({ ...tpl, prompt: tpl.preload_context_prompt, context: tpl.preload_context_context }, stageId, stageIdsInOrder) : undefined,
     shouldRespondPrompt: buildPromptItems({ ...tpl, prompt: tpl.should_respond_prompt, context: tpl.should_respond_context }, stageId, stageIdsInOrder),
     minParticipantMessagesBeforeResponding: tpl.min_participant_messages_before_responding,
     concedeStrength: null,
@@ -83,8 +85,9 @@ export function parseMediatorTemplate(content: string): Record<string, any> {
   return yaml.load(content) as Record<string, any>
 }
 
-export function buildMediator(stageId: string, mediatorTemplate: Record<string, any>, stageIdsInOrder: string[]): AgentMediatorTemplate {
-  const tpl = replaceDefaults(mediatorTemplate, loadMediatorTemplate(MEDIATOR_DEFAULT))
+export function buildMediator(stageId: string, mediatorTemplate: Record<string, any>, stageIdsInOrder: string[], topicInfo: Record<string, any>): AgentMediatorTemplate {
+  let tpl = replaceDefaults(mediatorTemplate, loadMediatorTemplate(MEDIATOR_DEFAULT))
+  tpl = substituteTokens(tpl, { '{topic_name}': topicInfo.name,  })
   return {
     persona: buildPersona(tpl),
     promptMap: { [stageId]: _chatPrompt(tpl, stageId, stageIdsInOrder) },

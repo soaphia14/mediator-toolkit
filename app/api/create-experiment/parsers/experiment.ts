@@ -3,21 +3,8 @@ import { COMPLETION_CODE } from '../config'
 import { wrapChars } from '../utils'
 import type { AgentMediatorTemplate } from './mediator'
 import type { AgentParticipantTemplate } from './agent'
+import { substituteTokens } from '../utils'
 
-function _substituteTokens(obj: any, subs: Record<string, string>): any {
-  if (typeof obj === 'string') {
-    let s = obj
-    for (const [k, v] of Object.entries(subs)) s = s.replaceAll(k, v)
-    return s
-  }
-  if (Array.isArray(obj)) return obj.map((x) => _substituteTokens(x, subs))
-  if (obj && typeof obj === 'object') {
-    const out: Record<string, any> = {}
-    for (const [k, v] of Object.entries(obj)) out[k] = _substituteTokens(v, subs)
-    return out
-  }
-  return obj
-}
 
 export function buildTopic(t: Record<string, any>): Record<string, any> {
   return {
@@ -39,7 +26,7 @@ export function buildStages(experimentTemplate: Record<string, any>, topicInfo: 
     '{favor_disagree}': topicInfo.favor_disagree,
     '{favor_agree}': topicInfo.favor_agree,
   }
-  return experimentTemplate.stageConfigs.map((s: any) => _substituteTokens(s, subs))
+  return experimentTemplate.stageConfigs.map((s: any) => substituteTokens(s, subs))
 }
 
 export function buildExperiment(
@@ -54,7 +41,7 @@ export function buildExperiment(
 ): [Record<string, any>, string] {
 
   const subs: Record<string, string> = { '{name}': topicInfo.name, '{statement}': topicInfo.statement }
-  const exp = _substituteTokens(experimentTemplate.experiment, subs)
+  const exp = substituteTokens(experimentTemplate.experiment, subs)
   const meta = exp.metadata ?? {}
   const perm = exp.permissions ?? {}
   const cohort = exp.defaultCohortConfig ?? {}
