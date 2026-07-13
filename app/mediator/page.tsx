@@ -1,6 +1,9 @@
 'use client'
 
 import { useState, useEffect, useMemo } from 'react'
+import { useRouter } from 'next/navigation'
+import { onAuthStateChanged, signOut } from 'firebase/auth'
+import { auth } from '../lib/firebase'
 import * as yaml from 'js-yaml'
 import { TOPICS } from '../lib/topics'
 import { ApiKeyType, API_KEY_TYPE_LABELS, REASONING_LEVEL_OPTIONS } from '../lib/types'
@@ -18,19 +21,138 @@ const POLL_INTERVAL_MS = 10_000
 const MAX_POLLS = 180 // poll every 10s for 30 minutes
 
 export default function Home() {
-  const [mediatorData, setMediatorData] = useState<string | null>(null)
-  const [topicId, setTopicId] = useState<number>(Number(Object.keys(TOPICS)[0]))
+  const router = useRouter()
+  const [authReady, setAuthReady] = useState(false)
+  const [userEmail, setUserEmail] = useState<string | null>(null)
+  const [simQuota, setSimQuota] = useState<{ used: number; limit: number } | null>(null)
+
+  // saving
+  const [savedTemplates, setSavedTemplates] = useState<{ id: string; name: string }[]>([])
+  const [templateName, setTemplateName] = useState('Mediator Template 1')
+  const [lastSavedContent, setLastSavedContent] = useState<string | null>(null)
+  const [lastSavedName, setLastSavedName] = useState<string | null>(null)
+  const [saving, setSaving] = useState(false)
+
+  async function fetchSavedTemplates() {
+    try {
+      const token = await auth.currentUser?.getIdToken()
+      if (!token) return
+      const res = await fetch('/api/mediators', { headers: { Authorization: `Bearer ${token}` } })
+      if (!res.ok) return
+      const data = await res.json()
+      setSavedTemplates(data.templates)
+      if (data.count > 0) {
+        const first = data.templates[0]
+        const loadRes = await fetch(`/api/mediators/load?id=${encodeURIComponent(first.id)}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+        if (loadRes.ok) {
+          const loaded = await loadRes.json()
+          setMediatorData(loaded.content)
+          setTemplateName(loaded.name)
+          setLastSavedContent(loaded.content)
+          setLastSavedName(loaded.name)
+        }
+      } else {
+        setTemplateName('Mediator Template 1')
+      }
+    } catch (e) {
+      console.warn('fetchSavedTemplates failed:', e)
+    }
+  }
+
+  async function handleSave() {
+    if (!templateName.trim()) return
+    const token = await auth.currentUser?.getIdToken()
+    if (!token) return
+
+    setSaving(true)
+    try {
+      const res = await fetch('/api/mediators', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ name: templateName.trim(), content: mediatorData }),
+      })
+      if (res.ok) {
+        setLastSavedContent(mediatorData)
+        setLastSavedName(templateName.trim())
+        await fetchSavedTemplates()
+      }
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function handleLoad(id: string, name: string) {
+    if (isDirty) {
+      const ok = window.confirm('You have unsaved changes. Load a different template and discard them?')
+      if (!ok) return
+    }
+    const token = await auth.currentUser?.getIdToken()
+    if (!token) return
+    const res = await fetch(`/api/mediators/load?id=${encodeURIComponent(id)}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    if (!res.ok) return
+    const data = await res.json()
+    setMediatorData(data.content)
+    setTemplateName(data.name)
+    setLastSavedContent(data.content)
+    setLastSavedName(data.name)
+  }
+
+  async function fetchQuota() {
+    try {
+      const token = await auth.currentUser?.getIdToken()
+      if (!token) return
+      const res = await fetch('/api/quota', { headers: { Authorization: `Bearer ${token}` } })
+      if (!res.ok) return
+      const data = await res.json()
+      setSimQuota({ used: data.used, limit: data.limit })
+    } catch (e) {
+      console.warn('fetchQuota failed:', e)
+    }
+  }
 
   useEffect(() => {
-    const topic = topicMap(TOPICS[topicId].topic)
-    Promise.all([
-      fetch('/templates/defaults/mediator.yaml').then(res => res.text()),
-      fetch(`/templates/competition/mediator.yaml`).then(res => res.text()),
-    ]).then(([defaultsText, topicText]) => {
-      const merged = { ...(yaml.load(defaultsText) as object), ...(yaml.load(topicText) as object) }
-      setMediatorData(JSON.stringify(merged, null, 2))
+    return onAuthStateChanged(auth, (user) => {
+      if (!user) {
+        router.replace('/')
+      } else {
+        setAuthReady(true)
+        setUserEmail(user.email)
+        fetchQuota()
+        fetchSavedTemplates()
+      }
     })
+  }, [router])
+
+  const [mediatorData, setMediatorData] = useState<string | null>(null)
+  const isDirty = mediatorData !== null && (mediatorData !== lastSavedContent || templateName !== lastSavedName)
+  const [topicId, setTopicId] = useState<number>(Number(Object.keys(TOPICS)[0]))
+
+  async function loadDefaultTemplate() {
+    const [defaultsText, topicText] = await Promise.all([
+      fetch('/templates/defaults/mediator.yaml').then(res => res.text()),
+      fetch('/templates/competition/mediator.yaml').then(res => res.text()),
+    ])
+    const merged = { ...(yaml.load(defaultsText) as object), ...(yaml.load(topicText) as object) }
+    setMediatorData(JSON.stringify(merged, null, 2))
+    setLastSavedContent(null)
+    setLastSavedName(null)
+  }
+
+  useEffect(() => {
+    loadDefaultTemplate()
   }, [topicId])
+  useEffect(() => {
+    const handler = (e: BeforeUnloadEvent) => {
+      if (isDirty) { e.preventDefault(); e.returnValue = '' }
+    }
+    window.addEventListener('beforeunload', handler)
+    return () => window.removeEventListener('beforeunload', handler)
+  }, [isDirty])
+
   const [experimentId, setExperimentId] = useState<string | null>('')
   const [exportState, setExportState] = useState<ActionState>(idle)
   const [createState, setCreateState] = useState<ActionState>(idle)
@@ -42,7 +164,7 @@ export default function Home() {
   const [numCohorts, setNumCohorts] = useState('5')
   const [numUtterances, setNumUtterances] = useState('15')
   const [showAsYaml, setShowAsYaml] = useState(false)
-  const [activePromptTab, setActivePromptTab] = useState<'response' | 'should-respond'>('response')
+  const [activePromptTab, setActivePromptTab] = useState<'response' | 'should-respond' | 'preload'>('response')
   // const [structuredOutputConfig, setStructuredOutputConfig] = useState<StructuredOutputConfig>({
   //   schema: {
   //     type: 'OBJECT',
@@ -68,6 +190,17 @@ export default function Home() {
       try {
         const data = JSON.parse(prev ?? '')
         data.should_respond_prompt = reindexed
+        return JSON.stringify(data, null, 2)
+      } catch { return prev }
+    })
+  }
+
+  const updatePreloadContextPrompt = (prompt: PromptItem[]) => {
+    const reindexed = prompt.map((item, i) => ({ ...item, id: i }))
+    setMediatorData(prev => {
+      try {
+        const data = JSON.parse(prev ?? '')
+        data.preload_context_prompt = reindexed
         return JSON.stringify(data, null, 2)
       } catch { return prev }
     })
@@ -202,16 +335,20 @@ export default function Home() {
   async function handleCreate(mode: 'human-human' | 'human-agent' | 'agent-agent', action: 'create' | 'simulate' = 'create') {
     setSimState(idle)
     setCreating(mode)
-    // setCreateState({ status: 'loading', result: null })
     setCreateAction(action)
     try {
+      let idToken: string | undefined
+      if (action === 'simulate') {
+        idToken = await auth.currentUser?.getIdToken()
+      }
       const res = await fetch('/api/create-experiment', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ mediatorTemplate: mediatorData, mode, topic: topicMap(TOPICS[topicId].topic), numCohorts, numUtterances, action }),
+        body: JSON.stringify({ mediatorTemplate: mediatorData, mode, topic: topicMap(TOPICS[topicId].topic), numCohorts, numUtterances, action, idToken }),
       })
       const data = await res.json()
       setCreateState({ status: res.ok ? 'done' : 'error', result: data })
+      if (res.ok && action === 'simulate') fetchQuota()
       return res.ok ? data : null
     } catch (e) {
       setCreateState({ status: 'error', result: String(e) })
@@ -257,6 +394,12 @@ export default function Home() {
     setSimState({ status: 'error', result: 'Timed out waiting for the simulation to complete.' })
   }
 
+  if (!authReady) return (
+    <div className="min-h-screen bg-neutral-950 flex items-center justify-center text-neutral-500 text-sm">
+      Loading...
+    </div>
+  )
+
   return (
     <div className="flex flex-col lg:flex-row lg:h-screen lg:overflow-hidden bg-neutral-950 text-neutral-100">
 
@@ -265,11 +408,75 @@ export default function Home() {
         <div className="w-full space-y-5">
 
           {/* Header */}
-          <div>
-            <h1 className="text-3xl font-semibold tracking-tight">Mediator Toolkit</h1>
-            <p className="text-base text-neutral-500 mt-1">Create, audit, and test custom mediators.</p>
+          <div className="flex items-start justify-between">
+            <div>
+              <h1 className="text-3xl font-semibold tracking-tight">Mediator Toolkit</h1>
+              <p className="text-base text-neutral-500 mt-1">Create, audit, and test custom mediators.</p>
+            </div>
+            <div className="flex items-center gap-3 mt-1">
+              {userEmail && <span className="text-sm text-neutral-400">{userEmail}</span>}
+              <button
+                onClick={() => {
+                  if (isDirty && !window.confirm('You have unsaved changes. Sign out anyway?')) return
+                  signOut(auth).then(() => router.replace('/'))
+                }}
+                className="text-sm px-3 py-1.5 rounded-md border border-neutral-600 text-neutral-400 hover:border-neutral-500 hover:text-neutral-200 transition-colors cursor-pointer"
+              >
+                Sign out
+              </button>
+            </div>
           </div>
           
+          {/* Save / Load */}
+          <div className="flex items-center gap-2">
+            <input
+              type="text"
+              value={templateName}
+              onChange={e => setTemplateName(e.target.value)}
+              placeholder="Template name"
+              className="flex-1 px-3 py-1.5 rounded-md border border-neutral-700 bg-neutral-900 text-sm text-neutral-200 placeholder-neutral-600 focus:outline-none focus:border-neutral-500"
+            />
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              className={`px-3 py-1.5 rounded-md border text-sm transition-colors cursor-pointer disabled:opacity-50 ${
+                saving
+                  ? 'border-neutral-700 bg-neutral-900 text-neutral-400'
+                  : isDirty
+                  ? 'border-amber-500 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 hover:text-amber-300'
+                  : 'border-neutral-700 bg-neutral-900 text-neutral-500 hover:border-neutral-500 hover:text-neutral-300'
+              }`}
+            >
+              {saving ? 'Saving…' : isDirty ? 'Save *' : 'Saved'}
+            </button>
+            <button
+              onClick={() => {
+                if (window.confirm('Load the default template? Any unsaved changes will be lost.')) {
+                  loadDefaultTemplate()
+                }
+              }}
+              className="px-3 py-1.5 rounded-md border border-neutral-700 bg-neutral-900 text-sm text-neutral-500 hover:border-neutral-500 hover:text-neutral-300 transition-colors cursor-pointer"
+            >
+              Load Default
+            </button>
+            {savedTemplates.length > 0 && (
+              <select
+                defaultValue=""
+                onChange={e => {
+                  const t = savedTemplates.find(t => t.id === e.target.value)
+                  if (t) handleLoad(t.id, t.name)
+                  e.target.value = ''
+                }}
+                className="px-3 py-1.5 rounded-md border border-neutral-700 bg-neutral-900 text-sm text-neutral-300 hover:border-neutral-500 transition-colors cursor-pointer"
+              >
+                <option value="" disabled>Load saved…</option>
+                {savedTemplates.map(t => (
+                  <option key={t.id} value={t.id}>{t.name}</option>
+                ))}
+              </select>
+            )}
+          </div>
+
           {/* Mediator configuration and prompt editors */}
           <div className="space-y-4">
             <div className="border-b border-neutral-800 pb-3">
@@ -291,17 +498,17 @@ export default function Home() {
             <div className="border-b border-neutral-800 pb-3">
               <h2 className="text-lg font-semibold tracking-tight">Prompt Editors</h2>
             </div>
-            <p className="text-sm text-neutral-500">Edit the prompts to optimize the mediator's response. The <span className="text-neutral-400">Response Editor</span> controls what the mediator says; the <span className="text-neutral-400">Should Respond</span> editor prompts the LLM to return true/false on whether it should reply. <a href="https://www.promptingguide.ai/" className="underline hover:text-neutral-300">Learn more about prompt engineering.</a></p>
+            <p className="text-sm text-neutral-500">Edit the prompts to optimize the mediator's response. The <span className="text-neutral-400">Response Editor</span> controls what the mediator says; the <span className="text-neutral-400">Should Respond</span> editor prompts the LLM to return true/false on whether it should reply. The <span className="text-neutral-400">Information Bank</span> editor prompts the LLM to construct an information bank used in chats. <a href="https://www.promptingguide.ai/" className="underline hover:text-neutral-300">Learn more about prompt engineering.</a></p>
             
             <div className="rounded-lg border border-neutral-800 overflow-hidden">
               <div className="flex border-b border-neutral-800 bg-neutral-900/60">
-                {(['response', 'should-respond'] as const).map(tab => (
+                {(['response', 'should-respond', 'preload'] as const).map(tab => (
                   <button
                     key={tab}
                     onClick={() => setActivePromptTab(tab)}
                     className={`px-4 py-2.5 text-sm font-medium transition-colors ${activePromptTab === tab ? 'text-neutral-100 border-b-2 border-neutral-400 -mb-px' : 'text-neutral-500 hover:text-neutral-300'}`}
                   >
-                    {tab === 'response' ? 'Response Editor' : 'Should Respond Editor'}
+                    {tab === 'response' ? 'Response Editor' : tab === 'should-respond' ? 'Should Respond Editor' : 'Information Bank Editor'}
                   </button>
                 ))}
               </div>
@@ -327,7 +534,7 @@ export default function Home() {
                       onUpdate={updateStructuredOutputConfig}
                     /> */}
                   </div>
-                ) : (
+                ) : activePromptTab === 'should-respond' ? (
                   <div className="space-y-4">
                     <MediatorSection
                       title="ShouldRespond Settings"
@@ -345,7 +552,17 @@ export default function Home() {
                     />
                
                   </div>
-                )}
+                ) : activePromptTab === 'preload' ? (
+                    <div className="space-y-4 pb-96">
+                    <StructuredPromptEditor
+                      label="Information Bank Editor"
+                      prompt={(mediatorParsed?.preload_context_prompt as PromptItem[]) ?? []}
+                      stageId=""
+                      onUpdate={updatePreloadContextPrompt}
+                      textOnly={true}
+                    />
+                  </div>
+                ) : null}
               </div>
             </div>
           </div>
@@ -403,21 +620,18 @@ export default function Home() {
               label="Create (human-human)"
               loadingLabel="Creating…"
               loading={creating === 'human-human'}
-              disabled={busy}
               onClick={() => handleCreate('human-human')}
             />
             <ActionButton
               label="Create (human-agent)"
               loadingLabel="Creating…"
               loading={creating === 'human-agent'}
-              disabled={busy}
               onClick={() => handleCreate('human-agent')}
             />
             <ActionButton
               label="Create (agent-agent)"
               loadingLabel="Creating…"
               loading={creating === 'agent-agent' && createAction === 'create'}
-              disabled={busy}
               onClick={() => handleCreate('agent-agent', 'create')}
             />
           </div>
@@ -435,10 +649,22 @@ export default function Home() {
             />
           )}
 
-          <div className="border-b border-neutral-800 pb-3 mb-3 mt-6">
+          <div className="border-b border-neutral-800 pb-3 mb-3 mt-6 flex items-center justify-between">
             <h2 className="text-lg font-semibold tracking-tight">Mediator Simulation</h2>
           </div>
-
+          {simQuota && (
+            <div className="flex items-center gap-2 mt-1">
+              <div className="flex-1 h-1.5 rounded-full bg-neutral-800 overflow-hidden">
+                <div
+                  className={`h-full rounded-full transition-all ${simQuota.used >= simQuota.limit ? 'bg-red-500' : 'bg-neutral-500'}`}
+                  style={{ width: `${Math.min(100, (simQuota.used / simQuota.limit) * 100)}%` }}
+                />
+              </div>
+              <span className={`text-xs tabular-nums ${simQuota.used >= simQuota.limit ? 'text-red-400' : 'text-neutral-500'}`}>
+                {simQuota.used}/{simQuota.limit} today
+              </span>
+            </div>
+          )}
           {/* agent-agent (simulation) on its own row, with cohort count */}
           <div className="flex flex-wrap items-center gap-3">
             <div>
@@ -475,7 +701,7 @@ export default function Home() {
               label="Simulate"
               loadingLabel="Simulating…"
               loading={(creating === 'agent-agent' && createAction === 'simulate') || simState.status === 'loading'}
-              disabled={busy}
+              disabled={busy || (simQuota !== null && simQuota.used >= simQuota.limit)}
               onClick={handleCreateSim}
             />
           </div>

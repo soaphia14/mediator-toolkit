@@ -7,6 +7,21 @@ export function loadTemplate(templatePath: string): Record<string, any> {
   return yaml.load(fs.readFileSync(templatePath, 'utf8')) as Record<string, any>
 }
 
+export function substituteTokens(obj: any, subs: Record<string, string>): any {
+  if (typeof obj === 'string') {
+    let s = obj
+    for (const [k, v] of Object.entries(subs)) s = s.replaceAll(k, v)
+    return s
+  }
+  if (Array.isArray(obj)) return obj.map((x) => substituteTokens(x, subs))
+  if (obj && typeof obj === 'object') {
+    const out: Record<string, any> = {}
+    for (const [k, v] of Object.entries(obj)) out[k] = substituteTokens(v, subs)
+    return out
+  }
+  return obj
+}
+
 // replace missing values by defaults
 export function replaceDefaults(template: Record<string, any>, defaults: Record<string, any>): Record<string, any> {
   const merged: Record<string, any> = { ...defaults }
@@ -62,6 +77,7 @@ export function fillAgentStance(
     '{stance_label}': label,
     '{stance_action}': action,
     '{stance_strength}': strength,
+    '{stance_strength_raw}': rating.toString(),
   }
   for (const item of agentTemplate.prompt ?? []) {
     if (item.type === 'TEXT') {
@@ -71,7 +87,7 @@ export function fillAgentStance(
     }
   }
 
-  for (const key of ['human_style_prompt', 'should_concede_prompt', 'thought_prompt', 'post_survey_prompt', 'pre_survey_prompt']) {
+  for (const key of ['human_style_prompt', 'should_concede_prompt', 'thought_prompt', 'post_survey_prompt', 'pre_survey_prompt', 'agent_config']) {
     if (key in agentTemplate) {
       for (const [token, value] of Object.entries(substitutions)) {
         agentTemplate[key] = agentTemplate[key].replaceAll(token, value)
@@ -103,7 +119,7 @@ export function agentConfig(template: AgentParticipantTemplate, promptContext = 
   const model = template.persona.defaultModelSettings
   return {
     agentId: template.persona.id,
-    promptContext: "", //"\n\n ------- TEST CONTEXT ------- \n\n",
+    promptContext: promptContext,
     modelSettings: { apiType: model.apiType, modelName: model.modelName },
   }
 }

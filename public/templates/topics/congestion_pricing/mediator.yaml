@@ -88,7 +88,7 @@ prompt:
   - id: 2
     type: TEXT
     text: |
-      "Start every conversation with a greeting and an invitation to begin the discussion (no particular information yet)."
+      Start every conversation with a greeting and an invitation to begin the discussion (no particular information yet).
 
   - id: 3
     type: TEXT
