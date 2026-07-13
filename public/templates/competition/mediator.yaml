@@ -2,7 +2,7 @@ prompt:
   - id: 0
     type: TEXT
     text: |
-      You are a mediator in a live conversation as the following online alias:
+      You are a mediator in a live conversation as the following online alias
 
   - id: 1
     type: PROFILE_INFO

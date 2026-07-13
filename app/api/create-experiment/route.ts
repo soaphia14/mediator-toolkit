@@ -1,4 +1,5 @@
 import path from 'path'
+import fs from 'fs'
 import { generate, type Mode } from './generator'
 import { adminAuth, adminDb } from '../../lib/firebaseAdmin'
 import { FieldValue } from 'firebase-admin/firestore'
@@ -76,7 +77,13 @@ export async function POST(req: Request) {
     }
   }
 
-  const experimentTemplatePath = path.join(process.cwd(), 'public', 'templates', 'competition', 'experiment.yaml')
+  // const experimentTemplatePath = path.join(process.cwd(), 'public', 'templates', 'competition', 'experiment.yaml')
+
+  // randomize templates over the 5 topics intead of fixing one
+  const topicsDir = path.join(process.cwd(), 'public', 'templates', 'topics')
+  const topics = fs.readdirSync(topicsDir)
+  const chosen = topics.includes(topic) ? topic : topics[Math.floor(Math.random() * topics.length)]
+  const experimentTemplatePath = path.join(topicsDir, chosen, 'experiment.yaml')
 
   try {
     const result = await generate(p1, p2, experimentTemplatePath, mediatorTemplate, mode, cohortCount, utteranceCount, action)

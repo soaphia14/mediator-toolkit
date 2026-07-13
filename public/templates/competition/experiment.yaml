@@ -1,7 +1,7 @@
 topic:
-  name: "Congestion Pricing"
-  statement: "I support cities using congestion pricing to reduce traffic and fund public transportation - a policy that charges drivers a fee to enter congested urban areas during peak hours, with revenue typically used to fund public transportation."
+  name: "Covenant Marriage"
+  statement: "I support all states in the United States offering covenant marriage - a marriage license option that requires premarital counseling and makes divorce more difficult than under a standard marriage license."
   scale_low: "Strongly disagree"
   scale_high: "Strongly agree"
-  favor_disagree: "cities not using congestion pricing"
-  favor_agree: "cities using congestion pricing"
+  favor_disagree: "states not offering covenant marriage"
+  favor_agree: "all states offering covenant marriage"
