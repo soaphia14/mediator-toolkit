@@ -18,7 +18,7 @@ export async function GET(req: Request) {
     adminDb.collection('toolkit').doc('config').get(),
   ])
 
-  const limit: number = configSnap.data()?.dailySimLimit ?? 10
+  const limit: number = configSnap.data()?.dailySimLimit ?? 30
   const userData = userSnap.data() ?? {}
   const used: number = userData.simCountDate === today ? (userData.dailySimCount ?? 0) : 0
 

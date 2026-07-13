@@ -9,7 +9,7 @@ function todayInEST(): string {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York' }).format(new Date())
 }
 
-async function checkAndIncrementQuota(email: string): Promise<{ allowed: boolean; used: number; limit: number }> {
+async function checkAndIncrementQuota(email: string, cohorts: number): Promise<{ allowed: boolean; used: number; limit: number }> {
   const configRef = adminDb.collection('toolkit').doc('config')
   const userRef = adminDb.collection('toolkitDevelopers').doc(email)
   const today = todayInEST()
@@ -24,11 +24,11 @@ async function checkAndIncrementQuota(email: string): Promise<{ allowed: boolean
     if (currentCount >= limit) return { allowed: false, used: currentCount, limit }
 
     tx.update(userRef, {
-      dailySimCount: currentCount + 1,
+      dailySimCount: currentCount + cohorts,
       simCountDate: today,
       lastSimulationRan: FieldValue.serverTimestamp(),
     })
-    return { allowed: true, used: currentCount + 1, limit }
+    return { allowed: true, used: currentCount + cohorts, limit }
   })
 }
 
@@ -70,7 +70,7 @@ export async function POST(req: Request) {
       return Response.json({ error: 'Invalid or expired token' }, { status: 401 })
     }
 
-    const quota = await checkAndIncrementQuota(email)
+    const quota = await checkAndIncrementQuota(email, cohortCount ?? 1)
     if (!quota.allowed) {
       return Response.json({ error: `Daily simulation limit reached (${quota.limit}/day). Resets at midnight EST.` }, { status: 429 })
     }

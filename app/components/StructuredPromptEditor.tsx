@@ -10,7 +10,8 @@ export enum PromptItemType {
   TEXT = 'TEXT',
   CONTEXT = 'CONTEXT',
   PROFILE_INFO = 'PROFILE_INFO',
-  PRELOAD_CONTEXT = 'PRELOAD_CONTEXT',
+  PRELOADED_CONTEXT = 'PRELOADED_CONTEXT',
+  TOPIC_NAME = 'TOPIC_NAME',
 }
 
 export interface PromptItem {
@@ -31,7 +32,7 @@ export interface ProfileInfoPromptItem extends PromptItem {
 }
 
 export interface PreloadedContextPromptItem extends PromptItem {
-  type: PromptItemType.PRELOAD_CONTEXT
+  type: PromptItemType.PRELOADED_CONTEXT
 }
 
 export interface PromptItemUpdate {
@@ -140,6 +141,10 @@ function AddMenu({ targetArr, textOnly }: { targetArr: PromptItem[], textOnly?: 
           <div className={itemClass} role="button" onClick={() => pick({ type: PromptItemType.TEXT, text: '' } as TextPromptItem)}>
             Freeform text
           </div>
+          <div className="my-0.5 border-t border-neutral-700/60" />
+          <div className={itemClass} role="button" onClick={() => pick({ type: PromptItemType.TEXT, text: '{topic_name}' } as TextPromptItem)}>
+            Topic
+          </div>
           {!textOnly && (
             <>
               <div className="my-0.5 border-t border-neutral-700/60" />
@@ -148,10 +153,10 @@ function AddMenu({ targetArr, textOnly }: { targetArr: PromptItem[], textOnly?: 
               </div>
               <div className="my-0.5 border-t border-neutral-700/60" />
               <div className={itemClass} role="button" onClick={() => pick({ type: PromptItemType.PROFILE_INFO } as ProfileInfoPromptItem)}>
-                Profile info
+                Profile Info
               </div>
               <div className="my-0.5 border-t border-neutral-700/60" />
-              <div className={itemClass} role="button" onClick={() => pick({ type: PromptItemType.PRELOAD_CONTEXT } as PreloadedContextPromptItem)}>
+              <div className={itemClass} role="button" onClick={() => pick({ type: PromptItemType.PRELOADED_CONTEXT } as PreloadedContextPromptItem)}>
                 Information
               </div>
             </>
@@ -191,6 +196,13 @@ function TextItemEditor({ item }: { item: TextPromptItem }) {
 function ItemEditor({ item }: { item: PromptItem }) {
   switch (item.type) {
     case PromptItemType.TEXT:
+      if ((item as TextPromptItem).text === '{topic_name}' || (item as TextPromptItem).text === '{topic_name}\n') {
+        return (
+          <div className="cursor-default rounded bg-[#fde8c8] px-3 py-1.5 text-sm font-medium text-neutral-900">
+            Topic Name
+          </div>
+        )
+      }
       return <TextItemEditor item={item as TextPromptItem} />
     case PromptItemType.CONTEXT:
       return (
@@ -201,10 +213,10 @@ function ItemEditor({ item }: { item: PromptItem }) {
     case PromptItemType.PROFILE_INFO:
       return (
         <div className="cursor-default rounded bg-[#f9d8f5] px-3 py-1.5 text-sm font-medium text-neutral-900">
-          Profile info
+          Profile Info
         </div>
       )
-    case PromptItemType.PRELOAD_CONTEXT:
+    case PromptItemType.PRELOADED_CONTEXT:
       return (
         <div className="cursor-default rounded bg-[#d8f9e0] px-3 py-1.5 text-sm font-medium text-neutral-900">
           Information

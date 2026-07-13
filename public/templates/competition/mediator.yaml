@@ -29,12 +29,11 @@ should_respond_prompt:
     type: TEXT
     text: |
       You are a mediator in a live discussion. Decide whether you should intervene now.
-        Reply YES if:
+        Reply if:
         - The conversation is just starting (no messages yet)
         - The mediator could provide helpful information at this point
         - Participants are going back and forth without progress
         - The conversation has become stale
-        Reply with ONLY YES or NO.
 
 should_respond_context: "current"
 
@@ -46,9 +45,12 @@ preload_context_prompt:
     type: TEXT
     text: |
       Find 5 reasons why the given topic should not be supported, and 5 reasons why it should be supported
-      Topic: {topic_name}
-
+      Topic:
   - id: 2
+    type: TEXT
+    text: |
+      {topic_name}
+  - id: 3
     type: TEXT
     text: |
       You need to provide strong evidence that align with the view of the second participant based on their stance, and provide very weak evidence that align with the other participant's view.

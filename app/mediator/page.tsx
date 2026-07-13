@@ -15,6 +15,32 @@ import { StructuredOutputSchema, type StructuredOutputConfig } from '../componen
 
 const idle: ActionState = { status: 'idle', result: null }
 
+function PromptEditorDescription({ description }: { description?: string }) {
+  return (
+    <div className="rounded-md border border-neutral-800 bg-neutral-900/40 px-3 py-2.5 text-sm text-neutral-500 space-y-1.5">
+      <p className="font-medium text-neutral-400">Prompt Purpose</p>
+      {description}
+    </div>
+  )
+}
+
+function PromptBlockLegend({ textOnly }: { textOnly?: boolean }) {
+  return (
+    <div className="rounded-md border border-neutral-800 bg-neutral-900/40 px-3 py-2.5 text-sm text-neutral-500 space-y-1.5">
+      <p className="font-medium text-neutral-400">Available prompt blocks</p>
+      <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+        <span><span className="font-medium text-neutral-300">Freeform text</span> — {textOnly ? 'instructions for building the information bank before each chat' : 'custom instructions you write directly'}</span>
+        <span><span className="inline-block rounded bg-[#fde8c8] px-1.5 py-0.5 text-neutral-900 font-medium">Topic Name</span> — replaced with the experiment topic at runtime</span>
+        {!textOnly && <>
+          <span><span className="inline-block rounded bg-[#dce1fd] px-1.5 py-0.5 text-neutral-900 font-medium">Context</span> — injects context, set whether to include only the chat transcript or the context including and before the chat</span>
+          <span><span className="inline-block rounded bg-[#f9d8f5] px-1.5 py-0.5 text-neutral-900 font-medium">Profile Info</span> — injects mediator's profile data</span>
+          <span><span className="inline-block rounded bg-[#d8f9e0] px-1.5 py-0.5 text-neutral-900 font-medium">Information</span> — injects the information returned from the Information Bank Prompt</span>
+        </>}
+      </div>
+    </div>
+  )
+}
+
 const topicMap = (name: string) => name.toLowerCase().replaceAll(' ', '_')
 
 const POLL_INTERVAL_MS = 10_000
@@ -498,7 +524,7 @@ export default function Home() {
             <div className="border-b border-neutral-800 pb-3">
               <h2 className="text-lg font-semibold tracking-tight">Prompt Editors</h2>
             </div>
-            <p className="text-sm text-neutral-500">Edit the prompts to optimize the mediator's response. The <span className="text-neutral-400">Response Editor</span> controls what the mediator says; the <span className="text-neutral-400">Should Respond</span> editor prompts the LLM to return true/false on whether it should reply. The <span className="text-neutral-400">Information Bank</span> editor prompts the LLM to construct an information bank used in chats. <a href="https://www.promptingguide.ai/" className="underline hover:text-neutral-300">Learn more about prompt engineering.</a></p>
+            <p className="text-sm text-neutral-500">Edit the prompts to optimize the mediator's response. The <span className="text-neutral-400">Response Editor</span> controls what the mediator says; the <span className="text-neutral-400">Should Respond</span> editor prompts the LLM to return true/false on whether it should reply. The <span className="text-neutral-400">Information Bank</span> editor prompts the LLM to construct an information bank used in chats. <a href="https://www.promptingguide.ai/" target="_blank" className="underline hover:text-neutral-300">Learn more about prompt engineering.</a></p>
             
             <div className="rounded-lg border border-neutral-800 overflow-hidden">
               <div className="flex border-b border-neutral-800 bg-neutral-900/60">
@@ -515,6 +541,8 @@ export default function Home() {
               <div className="p-4">
                 {activePromptTab === 'response' ? (
                   <div className="space-y-4">
+                    <PromptEditorDescription description="Controls what the mediator says during the chat. The LLM is given this prompt and returns a message sent directly to participants." />
+                    <PromptBlockLegend />
                     <MediatorSection
                       title="Response Settings"
                       mediatorParsed={mediatorParsed}
@@ -536,6 +564,8 @@ export default function Home() {
                   </div>
                 ) : activePromptTab === 'should-respond' ? (
                   <div className="space-y-4">
+                    <PromptEditorDescription description="Determines whether the mediator should intervene at a given moment. The LLM is given this prompt and must return true or false — if true, then the message returned by the Response prompt will be sent in the chat." />
+                    <PromptBlockLegend />
                     <MediatorSection
                       title="ShouldRespond Settings"
                       mediatorParsed={mediatorParsed}
@@ -553,7 +583,9 @@ export default function Home() {
                
                   </div>
                 ) : activePromptTab === 'preload' ? (
-                    <div className="space-y-4 pb-96">
+                  <div className="space-y-4 pb-96">
+                    <PromptEditorDescription description="Runs at the beginning of each chat to build a private information bank for the mediator. The output is not shown to participants — it is injected into the Response and Should Respond prompts via the Information block." />
+                    <PromptBlockLegend textOnly />
                     <StructuredPromptEditor
                       label="Information Bank Editor"
                       prompt={(mediatorParsed?.preload_context_prompt as PromptItem[]) ?? []}
@@ -620,18 +652,21 @@ export default function Home() {
               label="Create (human-human)"
               loadingLabel="Creating…"
               loading={creating === 'human-human'}
+              disabled={busy}
               onClick={() => handleCreate('human-human')}
             />
             <ActionButton
               label="Create (human-agent)"
               loadingLabel="Creating…"
               loading={creating === 'human-agent'}
+              disabled={busy}
               onClick={() => handleCreate('human-agent')}
             />
             <ActionButton
               label="Create (agent-agent)"
               loadingLabel="Creating…"
               loading={creating === 'agent-agent' && createAction === 'create'}
+              disabled={busy}
               onClick={() => handleCreate('agent-agent', 'create')}
             />
           </div>
@@ -708,7 +743,7 @@ export default function Home() {
         </div>
 
         {simState.result !== null && (
-          <ResultBox title="Simulation" state={simState} />
+          <ResultBox title="Simulation" state={simState} showMessage />
         )}
 
         {simState.status === 'done' && simExport !== null && (
