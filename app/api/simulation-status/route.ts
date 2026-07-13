@@ -1,4 +1,4 @@
-export const BASE_URL = 'http://127.0.0.1:5001/traust-491612/us-central1/api/v1'
+import { BASE_URL } from '../create-experiment/config'
 
 const TERMINAL_STATUSES = new Set([
   'SUCCESS',
