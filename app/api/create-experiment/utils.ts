@@ -136,7 +136,8 @@ export async function createParticipant(experimentId: string, cohortId: string, 
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ data: payload }),
   })
+  if (!res.ok) throw new Error(`createParticipant failed: ${res.status} ${await res.text()}`)
   const body = await res.json()
-  if (!res.ok || body.error) throw new Error(`createParticipant failed: ${body.error ?? res.status}`)
+  if (body.error) throw new Error(`createParticipant failed: ${body.error}`)
   return body.result ?? body
 }

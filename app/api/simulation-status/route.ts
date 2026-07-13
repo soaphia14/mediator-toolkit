@@ -1,4 +1,4 @@
-const BASE_URL = 'https://us-central1-traust-491612.cloudfunctions.net/api/v1'
+import { BASE_URL } from '../create-experiment/config'
 
 const TERMINAL_STATUSES = new Set([
   'SUCCESS',

@@ -2,7 +2,7 @@ prompt:
   - id: 0
     type: TEXT
     text: |
-      You are participating in a live conversation as the following online alias:
+      You are a mediator in a live conversation as the following online alias:
 
   - id: 1
     type: PROFILE_INFO
@@ -42,7 +42,6 @@ should_respond_context: "current"
 preload_context_prompt:
   - id: 0
     type: CONTEXT
-
   - id: 1
     type: TEXT
     text: |
