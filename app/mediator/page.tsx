@@ -27,7 +27,7 @@ function PromptEditorDescription({ description }: { description?: string }) {
 
 
 function PromptBlockLegend({ textOnly }: { textOnly?: boolean }) {
-  const chip = (bg: string, label: string) => (
+  const legend = (bg: string, label: string) => (
     <span className={`inline-block rounded ${bg} px-1.5 py-0.5 text-neutral-900 font-medium whitespace-nowrap justify-self-start`}>{label}</span>
   )
   return (
@@ -35,18 +35,18 @@ function PromptBlockLegend({ textOnly }: { textOnly?: boolean }) {
       <p className="font-medium text-neutral-400">Available prompt blocks</p>
       <div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1.5 items-baseline">
         <span className="font-medium text-neutral-300">Freeform Text</span>
-        <span>{textOnly ? 'instructions for gathering information about the topic, participants, or anything else before each chat' : 'custom instructions you write directly'}</span>
-        {chip('bg-[#fde8c8]', 'Topic Name')}
+        <span>{textOnly ? 'instructions for gathering information about the topic, participants, or anything else before each discussion' : 'custom instructions you write directly'}</span>
+        {legend('bg-[#fde8c8]', 'Topic')}
         <span>replaced with the experiment topic at runtime</span>
+        {legend('bg-[#dce1fd]', 'Pre-conversation Context')}
+        <span>participant responses from all stages before the discussion</span>
         {!textOnly && <>
-          {chip('bg-[#dce1fd]', 'Conversation Context')}
-          <span>injects the current chat transcript</span>
-          {chip('bg-[#dce1fd]', 'Pre-conversation Context')}
-          <span>injects participant responses from all stages before the chat</span>
-          {chip('bg-[#f9d8f5]', 'Profile Info')}
-          <span>injects the mediator's profile data</span>
-          {chip('bg-[#d8f9e0]', 'Initialization Result')}
-          <span>injects the output of the initialization prompt</span>
+          {legend('bg-[#dce1fd]', 'Conversation Context')}
+          <span>the current discussion transcript</span>
+          {legend('bg-[#f9d8f5]', 'Profile Info')}
+          <span>the mediator's profile data</span>
+          {legend('bg-[#d8f9e0]', 'Initialization Result')}
+          <span>the output of the initialization prompt</span>
         </>}
       </div>
     </div>
@@ -552,7 +552,7 @@ export default function Home() {
             <div className="border-b border-neutral-800 pb-3">
               <h2 className="text-lg font-semibold tracking-tight">Prompt Editors</h2>
             </div>
-              <p className="text-sm text-neutral-500">Edit the prompts to optimize the mediator's response. The <span className="text-neutral-400">Intervention Prompt</span> controls what the mediator says; the <span className="text-neutral-400">Should Intervene</span> prompts the LLM to return true/false on whether it should intervene. The <span className="text-neutral-400">Initialization Prompt</span> instructs the LLM to gather information that can be used in chats. <a href="https://www.promptingguide.ai/" target="_blank" className="underline hover:text-neutral-300">Learn more about prompt engineering.</a></p>
+              <p className="text-sm text-neutral-500">Edit the prompts to optimize the mediator's response. The <span className="text-neutral-400">Intervention Prompt</span> controls what the mediator says; the <span className="text-neutral-400">Should Intervene</span> prompts the LLM to return true/false on whether it should intervene. The <span className="text-neutral-400">Initialization Prompt</span> instructs the LLM to gather information that can be used in discussions. <a href="https://www.promptingguide.ai/" target="_blank" className="underline hover:text-neutral-300">Learn more about prompt engineering.</a></p>
             </div>
 
             <div className="rounded-lg border border-neutral-800 overflow-hidden">
@@ -635,7 +635,7 @@ export default function Home() {
       {/* Right column — preview & actions */}
       <div className="lg:flex-1 lg:overflow-y-auto p-8 space-y-6 border-t border-neutral-800 lg:border-t-0 lg:border-l">
         {/* YAML preview */}
-        <div className="space-y-1" id='tour-template'>
+        <div className="space-y-1" id='tour-template-download'>
           <div className="border-b border-neutral-800 pb-3 mb-3">
             <h2 className="text-lg font-semibold tracking-tight">Template Configuration</h2>
           </div>
@@ -646,7 +646,7 @@ export default function Home() {
             >
               Download Mediator Template (.yaml)
             </button>
-            <label className="w-full flex items-center justify-center gap-2 text-md px-4 py-2 rounded-lg border border-neutral-700 bg-neutral-900 text-neutral-300 hover:bg-neutral-800 hover:border-neutral-600 transition-all duration-150 cursor-pointer">
+            <label id="tour-template-upload" className="w-full flex items-center justify-center gap-2 text-md px-4 py-2 rounded-lg border border-neutral-700 bg-neutral-900 text-neutral-300 hover:bg-neutral-800 hover:border-neutral-600 transition-all duration-150 cursor-pointer">
               Upload Mediator Template (.yaml)
               <input
                 type="file"
@@ -784,18 +784,26 @@ export default function Home() {
 
         {simState.status === 'done' && simExport !== null && (
           <div className="flex flex-wrap gap-3">
-            <ActionButton
+            {/* <ActionButton
               label="Download simulation export (JSON)"
               loadingLabel="…"
               loading={false}
               onClick={() => downloadJson(simExport, `simulation-${(simExport as { experiment?: { id?: string } })?.experiment?.id ?? 'export'}.json`)}
-            />
+            /> */}
             <ActionButton
               label="Download ConvoKit corpus (zip)"
               loadingLabel="Converting…"
               loading={convokitLoading}
               onClick={downloadConvokit}
             />
+            <a
+              href="https://colab.research.google.com/drive/1Mw1DNmqr5XDCPnH9zXZDVY0cM_-HZnlr#scrollTo=sQZqO5iVkTlU"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block w-full px-5 py-2.5 rounded-lg border border-neutral-700 bg-neutral-900 text-base font-medium text-neutral-200 hover:bg-neutral-800 hover:border-neutral-600 active:scale-[0.98] transition-all duration-150 text-center cursor-pointer"
+            >
+              Notebook to analyze the data
+            </a>
           </div>
         )}
 

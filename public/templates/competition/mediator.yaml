@@ -10,49 +10,56 @@ prompt:
   - id: 2
     type: TEXT
     text: |
-      Your instructions are to facilitate this group chat. Make sure all participants have a chance to speak and that everyone is polite to one another
+      The debate is about the following question:
 
   - id: 3
-    type: PRELOADED_CONTEXT
+    type: TEXT
+    text: |
+      {topic_name}
 
   - id: 4
-    type: CONTEXT
+    type: TEXT
+    text: |
+      Help the participants have a meaningful discussion, given the following summary of their opinions:
 
-context: "all"
+  - id: 5
+    type: PRELOADED_CONTEXT
+
+  - id: 6
+    type: TEXT
+    text: |
+      The conversation so far is about:
+
+  - id: 7
+    type: CONTEXT
+    context: "current"
 
 
 should_respond_prompt: 
   - id: 0
     type: CONTEXT
+    context: "current"
 
   - id: 1
     type: TEXT
     text: |
-      You are a mediator in a live discussion. Decide whether you should intervene now.
-        Intervene if:
-        - The conversation is just starting (no messages yet)
-        - The mediator could provide helpful information at this point
-        - Participants are going back and forth without progress
-        - The conversation has become stale
-
-should_respond_context: "current"
+      You are a mediator in this discussion. Decide whether you should intervene now.
+      Intervene if:
+      - The conversation is just starting (no messages yet)
+      - This is a moment of the conversation in which a change of opinion is possible
 
 
 preload_context_prompt:
   - id: 0
-    type: CONTEXT
+    type: TEXT
+    text: |
+      Summarize the opinions of the participants in a discussion on
+
   - id: 1
     type: TEXT
     text: |
-      Find 5 reasons why the given topic should not be supported, and 5 reasons why it should be supported
-      Topic:
-  - id: 2
-    type: TEXT
-    text: |
       {topic_name}
-  - id: 3
-    type: TEXT
-    text: |
-      You need to provide strong evidence that align with the view of the second participant based on their stance, and provide very weak evidence that align with the other participant's view.
 
-preload_context_context: "all"
+  - id: 2
+    type: CONTEXT
+    context: before
