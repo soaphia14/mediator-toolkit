@@ -132,6 +132,7 @@ function AddMenu({ targetArr, textOnly }: { targetArr: PromptItem[], textOnly?: 
   return (
     <div ref={ref} className="relative">
       <button
+        id='tour-add-item'
         onClick={() => setOpen(o => !o)}
         className="flex items-center gap-1.5 rounded-md border border-dashed border-neutral-600 text-sm text-neutral-400 hover:border-neutral-400 hover:text-neutral-200 transition-colors px-3 py-1.5"
       >
@@ -144,14 +145,14 @@ function AddMenu({ targetArr, textOnly }: { targetArr: PromptItem[], textOnly?: 
           </div>
           <div className="my-0.5 border-t border-neutral-700/60" />
           <div className={itemClass} role="button" onClick={() => pick({ type: PromptItemType.TEXT, text: '{topic_name}' } as TextPromptItem)}>
-            Topic
+            Topic Name
+          </div>
+          <div className="my-0.5 border-t border-neutral-700/60" />
+          <div className={itemClass} role="button" onClick={() => pick({ type: PromptItemType.CONTEXT, context: 'before' } as ContextPromptItem)}>
+            Pre-conversation Context
           </div>
           {!textOnly && (
             <>
-              <div className="my-0.5 border-t border-neutral-700/60" />
-              <div className={itemClass} role="button" onClick={() => pick({ type: PromptItemType.CONTEXT, context: 'before' } as ContextPromptItem)}>
-                Pre-conversation Context
-              </div>
               <div className="my-0.5 border-t border-neutral-700/60" />
               <div className={itemClass} role="button" onClick={() => pick({ type: PromptItemType.CONTEXT, context: 'current' } as ContextPromptItem)}>
                 Conversation Context

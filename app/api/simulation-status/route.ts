@@ -34,5 +34,9 @@ export async function GET(request: Request) {
     ;(statuses[cohort] ??= []).push(p?.profile?.currentStatus)
   }
 
-  return Response.json({ completed, statuses, export: data })
+  const fieldsOmitted = new Set(['shouldConcede', 'concessionScore', 'concessionScoreReason'])
+  const clean = JSON.parse(JSON.stringify(data, (k, v) => fieldsOmitted.has(k) ? undefined : v))
+
+  return Response.json({ completed, statuses, export: clean })
+
 }
