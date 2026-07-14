@@ -197,7 +197,7 @@ export default function Home() {
       startTour()
     }
   }, [authReady])
-  
+
   const [experimentId, setExperimentId] = useState<string | null>('')
   const [exportState, setExportState] = useState<ActionState>(idle)
   const [createState, setCreateState] = useState<ActionState>(idle)
@@ -418,14 +418,14 @@ export default function Home() {
         const res = await fetch(`/api/simulation-status?experimentId=${encodeURIComponent(experimentId)}`)
         const status = await res.json()
         if (!res.ok) { setSimState({ status: 'error', result: status }); return }
-        
+
         // count completed cohorts / total cohorts
         let completedSim = 0
         for (const cohortStatuses of Object.values(status.statuses ?? {}) as string[][]) {
           if (cohortStatuses.length > 0 && cohortStatuses.every((s) => s === 'SUCCESS')) completedSim++
         }
         const totalSim = Object.keys(status.statuses ?? {}).length
-        
+
         if (status.completed) {
           setSimExport(status.export)
           setSimState({ status: 'done', result: { message: `Simulation complete (experiment_id: ${experimentId})` } })
@@ -475,7 +475,7 @@ export default function Home() {
               </button>
             </div>
           </div>
-          
+
           {/* Save / Load */}
           <div className="flex items-center gap-2">
             <input
@@ -490,13 +490,12 @@ export default function Home() {
               id="tour-save"
               onClick={handleSave}
               disabled={saving}
-              className={`px-3 py-1.5 rounded-md border text-sm transition-colors cursor-pointer disabled:opacity-50 ${
-                saving
+              className={`px-3 py-1.5 rounded-md border text-sm transition-colors cursor-pointer disabled:opacity-50 ${saving
                   ? 'border-neutral-700 bg-neutral-900 text-neutral-400'
                   : isDirty
-                  ? 'border-amber-500 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 hover:text-amber-300'
-                  : 'border-neutral-700 bg-neutral-900 text-neutral-500 hover:border-neutral-500 hover:text-neutral-300'
-              }`}
+                    ? 'border-amber-500 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 hover:text-amber-300'
+                    : 'border-neutral-700 bg-neutral-900 text-neutral-500 hover:border-neutral-500 hover:text-neutral-300'
+                }`}
             >
               {saving ? 'Saving…' : isDirty ? 'Save *' : 'Saved'}
             </button>
@@ -534,24 +533,24 @@ export default function Home() {
             <div className="border-b border-neutral-800 pb-3">
               <h2 className="text-lg font-semibold tracking-tight">Mediator Configuration</h2>
             </div>
-            
+
             <div id="tour-chat-settings">
-            <MediatorSection
-              title="Chat Settings"
-              mediatorParsed={mediatorParsed}
-              onUpdate={updateMediatorField}
-              fields={[
-                { label: 'Typing Speed (Words Per Minute)', description: "Mediator typing speed. Set to zero for instant messages.", path: ['chat_settings', 'words_per_minute'], type: 'number', min: 1, max: 2000, step: 1 },
-                { label: 'Min User Messages Before Responding', description: "After the mediator has sent its first message, this many participant messages must be sent before the mediator is allowed to respond again.", path: ['min_participant_messages_before_responding'], type: 'number', min: 0, max: 20, step: 1 },
-                { label: 'Temperature', description: "Control the randomness of the model. 0 = deterministic, 1 = unpredictable.", path: ['generation', 'temperature'], type: 'number', min: 0, max: 2, step: 0.1 },
-                { label: 'Initial Message', description: "Message sent automatically when the conversation begins.", path: ['chat_settings', 'initial_message'], type: 'text', placeholder: "Hello! I'm here to help with..." },
-              ]}
-            />
+              <MediatorSection
+                title="Chat Settings"
+                mediatorParsed={mediatorParsed}
+                onUpdate={updateMediatorField}
+                fields={[
+                  { label: 'Typing Speed (Words Per Minute)', description: "Mediator typing speed. Set to zero for instant messages.", path: ['chat_settings', 'words_per_minute'], type: 'number', min: 1, max: 2000, step: 1 },
+                  { label: 'Min User Messages Before Responding', description: "After the mediator has sent its first message, this many participant messages must be sent before the mediator is allowed to respond again.", path: ['min_participant_messages_before_responding'], type: 'number', min: 0, max: 20, step: 1 },
+                  { label: 'Temperature', description: "Control the randomness of the model. 0 = deterministic, 1 = unpredictable.", path: ['generation', 'temperature'], type: 'number', min: 0, max: 2, step: 0.1 },
+                  { label: 'Initial Message', description: "Message sent automatically when the conversation begins.", path: ['chat_settings', 'initial_message'], type: 'text', placeholder: "Hello! I'm here to help with..." },
+                ]}
+              />
             </div>
             <div id="tour-prompt-editors" className="space-y-4">
-            <div className="border-b border-neutral-800 pb-3">
-              <h2 className="text-lg font-semibold tracking-tight">Prompt Editors</h2>
-            </div>
+              <div className="border-b border-neutral-800 pb-3">
+                <h2 className="text-lg font-semibold tracking-tight">Prompt Editors</h2>
+              </div>
               <p className="text-sm text-neutral-500">Edit the prompts to optimize the mediator's response. The <span className="text-neutral-400">Intervention Prompt</span> controls what the mediator says; the <span className="text-neutral-400">Should Intervene</span> prompts the LLM to return true/false on whether it should intervene. The <span className="text-neutral-400">Initialization Prompt</span> instructs the LLM to gather information that can be used in discussions. <a href="https://www.promptingguide.ai/" target="_blank" className="underline hover:text-neutral-300">Learn more about prompt engineering.</a></p>
             </div>
 
@@ -594,7 +593,7 @@ export default function Home() {
                   </div>
                 ) : activePromptTab === 'should-respond' ? (
                   <div className="space-y-4">
-                      <PromptEditorDescription description="Your mediator uses this prompt after each message in the discussion to decide whether this is a good time to intervene.  When the response is true, the mediator uses the Intervention Prompt to generate a message and sends it to the participants. When the response is false, the mediator waits for the next participant message. Message sent automatically when the conversation begins." />
+                    <PromptEditorDescription description="Your mediator uses this prompt after each message in the discussion to decide whether this is a good time to intervene.  When the answer is YES, the mediator uses the Intervention Prompt to generate a message and sends it to the participants. When the answer is 'NO' the mediator waits for the next participant message. Message sent automatically when the conversation begins." />
                     <PromptBlockLegend />
                     {/* <MediatorSection
                       title="ShouldRespond Settings"
@@ -610,11 +609,11 @@ export default function Home() {
                       stageId=""
                       onUpdate={updateShouldRespondPrompt}
                     />
-               
+
                   </div>
                 ) : activePromptTab === 'preload' ? (
                   <div className="space-y-4 pb-96">
-                        <PromptEditorDescription description="A prompt that is run at the start of the conversation to gather information about the topic, participants, or anything else.  This information that can be subsequently accessed by your mediator during the conversation (via the Initialization Result variable)." />
+                    <PromptEditorDescription description="A prompt that is run at the start of the conversation to gather information about the topic, participants, or anything else.  This information that can be subsequently accessed by your mediator during the conversation (via the Initialization Result variable)." />
                     <PromptBlockLegend textOnly />
                     <StructuredPromptEditor
                       label="Initialization Prompt Editor"
@@ -670,37 +669,37 @@ export default function Home() {
             />
           )}
         </div>
-        
+
         {/* Actions: create buttons, then experiment id + export */}
         <div className="space-y-3">
           <div className="space-y-3" id="tour-create">
-          <div className="border-b border-neutral-800 pb-3 mb-3">
-            <h2 className="text-lg font-semibold tracking-tight">Mediator Testing</h2>
-          </div>
-          {/* create buttons on one row */}
-          <div className="space-y-3">
-            <ActionButton
-              label="Create (human-human)"
-              loadingLabel="Creating…"
-              loading={creating === 'human-human'}
-              disabled={busy}
-              onClick={() => handleCreate('human-human')}
-            />
-            <ActionButton
-              label="Create (human-agent)"
-              loadingLabel="Creating…"
-              loading={creating === 'human-agent'}
-              disabled={busy}
-              onClick={() => handleCreate('human-agent')}
-            />
-            <ActionButton
-              label="Create (agent-agent)"
-              loadingLabel="Creating…"
-              loading={creating === 'agent-agent' && createAction === 'create'}
-              disabled={busy}
-              onClick={() => handleCreate('agent-agent', 'create')}
-            />
-          </div>
+            <div className="border-b border-neutral-800 pb-3 mb-3">
+              <h2 className="text-lg font-semibold tracking-tight">Mediator Testing</h2>
+            </div>
+            {/* create buttons on one row */}
+            <div className="space-y-3">
+              <ActionButton
+                label="Create (human-human)"
+                loadingLabel="Creating…"
+                loading={creating === 'human-human'}
+                disabled={busy}
+                onClick={() => handleCreate('human-human')}
+              />
+              <ActionButton
+                label="Create (human-agent)"
+                loadingLabel="Creating…"
+                loading={creating === 'human-agent'}
+                disabled={busy}
+                onClick={() => handleCreate('human-agent')}
+              />
+              <ActionButton
+                label="Create (agent-agent)"
+                loadingLabel="Creating…"
+                loading={creating === 'agent-agent' && createAction === 'create'}
+                disabled={busy}
+                onClick={() => handleCreate('agent-agent', 'create')}
+              />
+            </div>
           </div>
 
           {/* Action results */}
@@ -717,64 +716,64 @@ export default function Home() {
           )}
 
           <div className="space-y-3" id="tour-simulate">
-          <div className="border-b border-neutral-800 pb-3 mb-3 mt-6 flex items-center justify-between">
-            <h2 className="text-lg font-semibold tracking-tight">Mediator Simulation</h2>
-          </div>
-          {simQuota && (
-            <div className="flex items-center gap-2 mt-1">
-              <div className="flex-1 h-1.5 rounded-full bg-neutral-800 overflow-hidden">
-                <div
-                  className={`h-full rounded-full transition-all ${simQuota.used >= simQuota.limit ? 'bg-red-500' : 'bg-neutral-500'}`}
-                  style={{ width: `${Math.min(100, (simQuota.used / simQuota.limit) * 100)}%` }}
-                />
-              </div>
-              <span className={`text-xs tabular-nums ${simQuota.used >= simQuota.limit ? 'text-red-400' : 'text-neutral-500'}`}>
-                {simQuota.used}/{simQuota.limit} today
-              </span>
+            <div className="border-b border-neutral-800 pb-3 mb-3 mt-6 flex items-center justify-between">
+              <h2 className="text-lg font-semibold tracking-tight">Mediator Simulation</h2>
             </div>
-          )}
-          {/* agent-agent (simulation) on its own row, with cohort count */}
-          <div className="flex flex-wrap items-center gap-3">
-            <div>
-              <input
-                type="text"
+            {simQuota && (
+              <div className="flex items-center gap-2 mt-1">
+                <div className="flex-1 h-1.5 rounded-full bg-neutral-800 overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all ${simQuota.used >= simQuota.limit ? 'bg-red-500' : 'bg-neutral-500'}`}
+                    style={{ width: `${Math.min(100, (simQuota.used / simQuota.limit) * 100)}%` }}
+                  />
+                </div>
+                <span className={`text-xs tabular-nums ${simQuota.used >= simQuota.limit ? 'text-red-400' : 'text-neutral-500'}`}>
+                  {simQuota.used}/{simQuota.limit} today
+                </span>
+              </div>
+            )}
+            {/* agent-agent (simulation) on its own row, with cohort count */}
+            <div className="flex flex-wrap items-center gap-3">
+              <div>
+                <input
+                  type="text"
                   min={1}
                   max={30}
-                value={numCohorts}
-                onChange={e => {
-                  const v = e.target.value
-                  if (v === '') return setNumCohorts('')
-                  const n = Math.floor(Number(v))
-                  if (Number.isFinite(n)) setNumCohorts(String(Math.min(30, Math.max(1, n))))
-                }}
-                disabled={busy}
-                className="w-16 p-2 rounded-lg border border-neutral-700 bg-neutral-900 text-sm text-neutral-200"
-              /> <label className="text-sm text-neutral-400">Cohorts (1-30)</label>            
+                  value={numCohorts}
+                  onChange={e => {
+                    const v = e.target.value
+                    if (v === '') return setNumCohorts('')
+                    const n = Math.floor(Number(v))
+                    if (Number.isFinite(n)) setNumCohorts(String(Math.min(30, Math.max(1, n))))
+                  }}
+                  disabled={busy}
+                  className="w-16 p-2 rounded-lg border border-neutral-700 bg-neutral-900 text-sm text-neutral-200"
+                /> <label className="text-sm text-neutral-400">Cohorts (1-30)</label>
+              </div>
+              <div>
+                <input
+                  type="number"
+                  min={1}
+                  max={20}
+                  value={numUtterances}
+                  onChange={e => {
+                    const v = e.target.value
+                    if (v === '') return setNumUtterances('')
+                    const n = Math.floor(Number(v))
+                    if (Number.isFinite(n)) setNumUtterances(String(Math.min(20, Math.max(1, n))))
+                  }}
+                  disabled={busy}
+                  className="w-16 p-2 rounded-lg border border-neutral-700 bg-neutral-900 text-sm text-neutral-200"
+                /> <label className="text-sm text-neutral-400">Utterances (1-20)</label>
+              </div>
+              <ActionButton
+                label="Simulate"
+                loadingLabel="Simulating…"
+                loading={(creating === 'agent-agent' && createAction === 'simulate') || simState.status === 'loading'}
+                disabled={busy || (simQuota !== null && simQuota.used >= simQuota.limit)}
+                onClick={handleCreateSim}
+              />
             </div>
-            <div>
-              <input
-                type="number"
-                min={1}
-                max={20}
-                value={numUtterances}
-                onChange={e => {
-                  const v = e.target.value
-                  if (v === '') return setNumUtterances('')
-                  const n = Math.floor(Number(v))
-                  if (Number.isFinite(n)) setNumUtterances(String(Math.min(20, Math.max(1, n))))
-                }}
-                disabled={busy}
-                className="w-16 p-2 rounded-lg border border-neutral-700 bg-neutral-900 text-sm text-neutral-200"
-              /> <label className="text-sm text-neutral-400">Utterances (1-20)</label>
-            </div>
-            <ActionButton
-              label="Simulate"
-              loadingLabel="Simulating…"
-              loading={(creating === 'agent-agent' && createAction === 'simulate') || simState.status === 'loading'}
-              disabled={busy || (simQuota !== null && simQuota.used >= simQuota.limit)}
-              onClick={handleCreateSim}
-            />
-          </div>
           </div>
         </div>
 
