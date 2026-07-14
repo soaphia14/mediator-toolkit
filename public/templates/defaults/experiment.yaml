@@ -75,7 +75,7 @@ stageConfigs:
     questions:
       - kind: scale
         id: pre_q1_a
-        questionTitle: "Please rate your view on the following statement.\n\n\"{statement}\""
+        questionTitle: "Do you agree or disagree with this statement?\n\n&nbsp;\n\n{statement} "
         lowerValue: 1
         lowerText: "{scale_low}"
         upperValue: 7
