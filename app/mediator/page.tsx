@@ -12,6 +12,7 @@ import { MediatorSection } from '../components/MediatorSection'
 import { ActionButton, ResultBox, type ActionState } from '../components/ExperimentActions'
 import { create } from 'domain'
 import { StructuredOutputSchema, type StructuredOutputConfig } from '../components/StructuredOutputSchema'
+import { startTour } from '../lib/tour'
 
 const idle: ActionState = { status: 'idle', result: null }
 
@@ -179,6 +180,13 @@ export default function Home() {
     return () => window.removeEventListener('beforeunload', handler)
   }, [isDirty])
 
+  useEffect(() => {
+    if (authReady /* && !localStorage.getItem('tourLoaded')*/ ) {
+      // localStorage.setItem('tourLoaded', '1')
+      startTour()
+    }
+  }, [authReady])
+  
   const [experimentId, setExperimentId] = useState<string | null>('')
   const [exportState, setExportState] = useState<ActionState>(idle)
   const [createState, setCreateState] = useState<ActionState>(idle)
@@ -426,6 +434,7 @@ export default function Home() {
     </div>
   )
 
+
   return (
     <div className="flex flex-col lg:flex-row lg:h-screen lg:overflow-hidden bg-neutral-950 text-neutral-100">
 
@@ -450,12 +459,16 @@ export default function Home() {
               >
                 Sign out
               </button>
+              <button onClick={startTour} className="text-sm px-3 py-1.5 rounded-md border border-neutral-600 text-neutral-400 hover:border-neutral-500 hover:text-neutral-200 transition-colors cursor-pointer" id="tour-show">
+                Take a tour
+              </button>
             </div>
           </div>
           
           {/* Save / Load */}
           <div className="flex items-center gap-2">
             <input
+              id="tour-template-name"
               type="text"
               value={templateName}
               onChange={e => setTemplateName(e.target.value)}
@@ -463,6 +476,7 @@ export default function Home() {
               className="flex-1 px-3 py-1.5 rounded-md border border-neutral-700 bg-neutral-900 text-sm text-neutral-200 placeholder-neutral-600 focus:outline-none focus:border-neutral-500"
             />
             <button
+              id="tour-save"
               onClick={handleSave}
               disabled={saving}
               className={`px-3 py-1.5 rounded-md border text-sm transition-colors cursor-pointer disabled:opacity-50 ${
@@ -476,6 +490,7 @@ export default function Home() {
               {saving ? 'Saving…' : isDirty ? 'Save *' : 'Saved'}
             </button>
             <button
+              id="tour-load-default"
               onClick={() => {
                 if (window.confirm('Load the default template? Any unsaved changes will be lost.')) {
                   loadDefaultTemplate()
@@ -508,7 +523,8 @@ export default function Home() {
             <div className="border-b border-neutral-800 pb-3">
               <h2 className="text-lg font-semibold tracking-tight">Mediator Configuration</h2>
             </div>
-
+            
+            <div id="tour-chat-settings">
             <MediatorSection
               title="Chat Settings"
               mediatorParsed={mediatorParsed}
@@ -520,17 +536,20 @@ export default function Home() {
                 { label: 'Initial Message', description: "Message sent automatically when the conversation begins.", path: ['chat_settings', 'initial_message'], type: 'text', placeholder: "Hello! I'm here to help with..." },
               ]}
             />
-
+            </div>
+            <div id="tour-prompt-editors" className="space-y-4">
             <div className="border-b border-neutral-800 pb-3">
               <h2 className="text-lg font-semibold tracking-tight">Prompt Editors</h2>
             </div>
             <p className="text-sm text-neutral-500">Edit the prompts to optimize the mediator's response. The <span className="text-neutral-400">Response Editor</span> controls what the mediator says; the <span className="text-neutral-400">Should Respond</span> editor prompts the LLM to return true/false on whether it should reply. The <span className="text-neutral-400">Information Bank</span> editor prompts the LLM to construct an information bank used in chats. <a href="https://www.promptingguide.ai/" target="_blank" className="underline hover:text-neutral-300">Learn more about prompt engineering.</a></p>
-            
+            </div>
+
             <div className="rounded-lg border border-neutral-800 overflow-hidden">
               <div className="flex border-b border-neutral-800 bg-neutral-900/60">
                 {(['response', 'should-respond', 'preload'] as const).map(tab => (
                   <button
                     key={tab}
+                    id={`tour-prompt-tab-${tab}`}
                     onClick={() => setActivePromptTab(tab)}
                     className={`px-4 py-2.5 text-sm font-medium transition-colors ${activePromptTab === tab ? 'text-neutral-100 border-b-2 border-neutral-400 -mb-px' : 'text-neutral-500 hover:text-neutral-300'}`}
                   >
@@ -605,7 +624,7 @@ export default function Home() {
       {/* Right column — preview & actions */}
       <div className="lg:flex-1 lg:overflow-y-auto p-8 space-y-6 border-t border-neutral-800 lg:border-t-0 lg:border-l">
         {/* YAML preview */}
-        <div className="space-y-1">
+        <div className="space-y-1" id='tour-template'>
           <div className="border-b border-neutral-800 pb-3 mb-3">
             <h2 className="text-lg font-semibold tracking-tight">Template Configuration</h2>
           </div>
@@ -643,6 +662,7 @@ export default function Home() {
         
         {/* Actions: create buttons, then experiment id + export */}
         <div className="space-y-3">
+          <div className="space-y-3" id="tour-create">
           <div className="border-b border-neutral-800 pb-3 mb-3">
             <h2 className="text-lg font-semibold tracking-tight">Mediator Testing</h2>
           </div>
@@ -670,6 +690,7 @@ export default function Home() {
               onClick={() => handleCreate('agent-agent', 'create')}
             />
           </div>
+          </div>
 
           {/* Action results */}
           {createState.result !== null && (
@@ -684,6 +705,7 @@ export default function Home() {
             />
           )}
 
+          <div className="space-y-3" id="tour-simulate">
           <div className="border-b border-neutral-800 pb-3 mb-3 mt-6 flex items-center justify-between">
             <h2 className="text-lg font-semibold tracking-tight">Mediator Simulation</h2>
           </div>
@@ -739,6 +761,7 @@ export default function Home() {
               disabled={busy || (simQuota !== null && simQuota.used >= simQuota.limit)}
               onClick={handleCreateSim}
             />
+          </div>
           </div>
         </div>
 
