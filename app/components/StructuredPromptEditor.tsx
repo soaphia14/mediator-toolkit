@@ -25,6 +25,7 @@ export interface TextPromptItem extends PromptItem {
 
 export interface ContextPromptItem extends PromptItem {
   type: PromptItemType.CONTEXT
+  context: 'all' | 'current' | 'before'
 }
 
 export interface ProfileInfoPromptItem extends PromptItem {
@@ -139,7 +140,7 @@ function AddMenu({ targetArr, textOnly }: { targetArr: PromptItem[], textOnly?: 
       {open && (
         <div className="absolute right-0 z-10 mt-1 overflow-hidden rounded-lg border border-neutral-700 bg-neutral-900 shadow-xl">
           <div className={itemClass} role="button" onClick={() => pick({ type: PromptItemType.TEXT, text: '' } as TextPromptItem)}>
-            Freeform text
+            Freeform Text
           </div>
           <div className="my-0.5 border-t border-neutral-700/60" />
           <div className={itemClass} role="button" onClick={() => pick({ type: PromptItemType.TEXT, text: '{topic_name}' } as TextPromptItem)}>
@@ -148,8 +149,12 @@ function AddMenu({ targetArr, textOnly }: { targetArr: PromptItem[], textOnly?: 
           {!textOnly && (
             <>
               <div className="my-0.5 border-t border-neutral-700/60" />
-              <div className={itemClass} role="button" onClick={() => pick({ type: PromptItemType.CONTEXT } as ContextPromptItem)}>
-                Context
+              <div className={itemClass} role="button" onClick={() => pick({ type: PromptItemType.CONTEXT, context: 'before' } as ContextPromptItem)}>
+                Pre-conversation Context
+              </div>
+              <div className="my-0.5 border-t border-neutral-700/60" />
+              <div className={itemClass} role="button" onClick={() => pick({ type: PromptItemType.CONTEXT, context: 'current' } as ContextPromptItem)}>
+                Conversation Context
               </div>
               <div className="my-0.5 border-t border-neutral-700/60" />
               <div className={itemClass} role="button" onClick={() => pick({ type: PromptItemType.PROFILE_INFO } as ProfileInfoPromptItem)}>
@@ -157,7 +162,7 @@ function AddMenu({ targetArr, textOnly }: { targetArr: PromptItem[], textOnly?: 
               </div>
               <div className="my-0.5 border-t border-neutral-700/60" />
               <div className={itemClass} role="button" onClick={() => pick({ type: PromptItemType.PRELOADED_CONTEXT } as PreloadedContextPromptItem)}>
-                Information
+                Initialization Result
               </div>
             </>
           )}
@@ -207,7 +212,7 @@ function ItemEditor({ item }: { item: PromptItem }) {
     case PromptItemType.CONTEXT:
       return (
         <div className="cursor-default rounded bg-[#dce1fd] px-3 py-1.5 text-sm font-medium text-neutral-900">
-          Context
+          {(item as ContextPromptItem).context === 'before' ? 'Pre-conversation context: the name of the participants and their responses to the pre-conversation surveys' : 'Conversation context: the transcript of the conversation up to the current moment'}
         </div>
       )
     case PromptItemType.PROFILE_INFO:
@@ -219,7 +224,7 @@ function ItemEditor({ item }: { item: PromptItem }) {
     case PromptItemType.PRELOADED_CONTEXT:
       return (
         <div className="cursor-default rounded bg-[#d8f9e0] px-3 py-1.5 text-sm font-medium text-neutral-900">
-          Information
+          Initialization Result
         </div>
       )
     default:

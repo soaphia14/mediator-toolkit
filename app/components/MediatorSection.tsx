@@ -16,6 +16,7 @@ export type FieldDef =
 // ── MediatorSection ──────────────────────────────────────────────────────────
 
 export function MediatorSection({ title, fields, mediatorParsed, onUpdate }: {
+  id?: string
   title: string
   fields: FieldDef[]
   mediatorParsed: Record<string, unknown> | null

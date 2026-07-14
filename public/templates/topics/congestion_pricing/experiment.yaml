@@ -1,6 +1,6 @@
 topic:
   name: "Congestion Pricing"
-  statement: "I support cities using congestion pricing to reduce traffic and fund public transportation - a policy that charges drivers a fee to enter congested urban areas during peak hours, with revenue typically used to fund public transportation."
+  statement: I support cities using congestion pricing to reduce traffic and fund public transportation.
   scale_low: "Strongly disagree"
   scale_high: "Strongly agree"
   favor_disagree: "cities not using congestion pricing"

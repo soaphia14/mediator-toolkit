@@ -74,11 +74,13 @@ export function buildContextItems(stageId: string, stageIdsInOrder: string[], co
   const idx = stageIdsInOrder.indexOf(stageId)
   let stagesToInclude: string[]
   if (context === 'all') {
-    stagesToInclude = stageIdsInOrder.slice(0, idx + 1)
+    stagesToInclude = stageIdsInOrder.slice(0, idx + 1) // change: include all stages before the current stage; originally we are keeping all stages including the current one
+  } else if (context === 'before') {
+    stagesToInclude = stageIdsInOrder.slice(0, idx) // include all stages before the current stage
   } else if (context === 'current') {
     stagesToInclude = [stageId]
   } else {
-    throw new Error(`Unknown context value ${JSON.stringify(context)}. Must be 'all' or 'current'.`)
+    throw new Error(`Unknown context value ${JSON.stringify(context)}. Must be 'all', 'before', or 'current'.`)
   }
 
   return stagesToInclude.map((sid) => ({
@@ -102,7 +104,7 @@ export function buildPromptItems(tpl: Record<string, any>, stageId: string, stag
   for (const promptItem of prompts) {
     const kind: string = promptItem.type
     if (kind === 'CONTEXT') {
-      items.push(...buildContextItems(stageId, stageIdsInOrder, context))
+      items.push(...buildContextItems(stageId, stageIdsInOrder, promptItem.context ?? context))
     } else if (kind === 'PROFILE_INFO') {
       items.push({ type: 'PROFILE_INFO' })
     } else if (kind === 'PROFILE_CONTEXT') {

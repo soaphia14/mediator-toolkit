@@ -81,8 +81,10 @@ export async function POST(req: Request) {
 
   // randomize templates over the 5 topics intead of fixing one
   const topicsDir = path.join(process.cwd(), 'public', 'templates', 'topics')
-  const topics = fs.readdirSync(topicsDir)
-  const chosen = topics.includes(topic) ? topic : topics[Math.floor(Math.random() * topics.length)]
+  // const topics = fs.readdirSync(topicsDir)
+  // const chosen = topics.includes(topic) ? topic : topics[Math.floor(Math.random() * topics.length)]
+  const topics = ['congestion_pricing', 'covenant_marriage'] // hardcoded 2 for development, used the other 3 as the testing.
+  const chosen = topics[Math.floor(Math.random() * topics.length)]
   const experimentTemplatePath = path.join(topicsDir, chosen, 'experiment.yaml')
 
   try {

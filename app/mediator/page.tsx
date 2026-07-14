@@ -12,6 +12,7 @@ import { MediatorSection } from '../components/MediatorSection'
 import { ActionButton, ResultBox, type ActionState } from '../components/ExperimentActions'
 import { create } from 'domain'
 import { StructuredOutputSchema, type StructuredOutputConfig } from '../components/StructuredOutputSchema'
+import { startTour } from '../lib/tour'
 
 const idle: ActionState = { status: 'idle', result: null }
 
@@ -24,17 +25,28 @@ function PromptEditorDescription({ description }: { description?: string }) {
   )
 }
 
+
 function PromptBlockLegend({ textOnly }: { textOnly?: boolean }) {
+  const chip = (bg: string, label: string) => (
+    <span className={`inline-block rounded ${bg} px-1.5 py-0.5 text-neutral-900 font-medium whitespace-nowrap justify-self-start`}>{label}</span>
+  )
   return (
     <div className="rounded-md border border-neutral-800 bg-neutral-900/40 px-3 py-2.5 text-sm text-neutral-500 space-y-1.5">
       <p className="font-medium text-neutral-400">Available prompt blocks</p>
-      <div className="grid grid-cols-2 gap-x-4 gap-y-1">
-        <span><span className="font-medium text-neutral-300">Freeform text</span> — {textOnly ? 'instructions for building the information bank before each chat' : 'custom instructions you write directly'}</span>
-        <span><span className="inline-block rounded bg-[#fde8c8] px-1.5 py-0.5 text-neutral-900 font-medium">Topic Name</span> — replaced with the experiment topic at runtime</span>
+      <div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1.5 items-baseline">
+        <span className="font-medium text-neutral-300">Freeform Text</span>
+        <span>{textOnly ? 'instructions for gathering information about the topic, participants, or anything else before each chat' : 'custom instructions you write directly'}</span>
+        {chip('bg-[#fde8c8]', 'Topic Name')}
+        <span>replaced with the experiment topic at runtime</span>
         {!textOnly && <>
-          <span><span className="inline-block rounded bg-[#dce1fd] px-1.5 py-0.5 text-neutral-900 font-medium">Context</span> — injects context, set whether to include only the chat transcript or the context including and before the chat</span>
-          <span><span className="inline-block rounded bg-[#f9d8f5] px-1.5 py-0.5 text-neutral-900 font-medium">Profile Info</span> — injects mediator's profile data</span>
-          <span><span className="inline-block rounded bg-[#d8f9e0] px-1.5 py-0.5 text-neutral-900 font-medium">Information</span> — injects the information returned from the Information Bank Prompt</span>
+          {chip('bg-[#dce1fd]', 'Conversation Context')}
+          <span>injects the current chat transcript</span>
+          {chip('bg-[#dce1fd]', 'Pre-conversation Context')}
+          <span>injects participant responses from all stages before the chat</span>
+          {chip('bg-[#f9d8f5]', 'Profile Info')}
+          <span>injects the mediator's profile data</span>
+          {chip('bg-[#d8f9e0]', 'Initialization Result')}
+          <span>injects the output of the initialization prompt</span>
         </>}
       </div>
     </div>
@@ -179,6 +191,13 @@ export default function Home() {
     return () => window.removeEventListener('beforeunload', handler)
   }, [isDirty])
 
+  useEffect(() => {
+    if (authReady && !localStorage.getItem('tourLoaded')) {
+      localStorage.setItem('tourLoaded', '1')
+      startTour()
+    }
+  }, [authReady])
+  
   const [experimentId, setExperimentId] = useState<string | null>('')
   const [exportState, setExportState] = useState<ActionState>(idle)
   const [createState, setCreateState] = useState<ActionState>(idle)
@@ -426,6 +445,7 @@ export default function Home() {
     </div>
   )
 
+
   return (
     <div className="flex flex-col lg:flex-row lg:h-screen lg:overflow-hidden bg-neutral-950 text-neutral-100">
 
@@ -450,12 +470,16 @@ export default function Home() {
               >
                 Sign out
               </button>
+              <button onClick={startTour} className="text-sm px-3 py-1.5 rounded-md border border-neutral-600 text-neutral-400 hover:border-neutral-500 hover:text-neutral-200 transition-colors cursor-pointer" id="tour-show">
+                Take a tour
+              </button>
             </div>
           </div>
           
           {/* Save / Load */}
           <div className="flex items-center gap-2">
             <input
+              id="tour-template-name"
               type="text"
               value={templateName}
               onChange={e => setTemplateName(e.target.value)}
@@ -463,6 +487,7 @@ export default function Home() {
               className="flex-1 px-3 py-1.5 rounded-md border border-neutral-700 bg-neutral-900 text-sm text-neutral-200 placeholder-neutral-600 focus:outline-none focus:border-neutral-500"
             />
             <button
+              id="tour-save"
               onClick={handleSave}
               disabled={saving}
               className={`px-3 py-1.5 rounded-md border text-sm transition-colors cursor-pointer disabled:opacity-50 ${
@@ -476,6 +501,7 @@ export default function Home() {
               {saving ? 'Saving…' : isDirty ? 'Save *' : 'Saved'}
             </button>
             <button
+              id="tour-load-default"
               onClick={() => {
                 if (window.confirm('Load the default template? Any unsaved changes will be lost.')) {
                   loadDefaultTemplate()
@@ -508,7 +534,8 @@ export default function Home() {
             <div className="border-b border-neutral-800 pb-3">
               <h2 className="text-lg font-semibold tracking-tight">Mediator Configuration</h2>
             </div>
-
+            
+            <div id="tour-chat-settings">
             <MediatorSection
               title="Chat Settings"
               mediatorParsed={mediatorParsed}
@@ -520,39 +547,42 @@ export default function Home() {
                 { label: 'Initial Message', description: "Message sent automatically when the conversation begins.", path: ['chat_settings', 'initial_message'], type: 'text', placeholder: "Hello! I'm here to help with..." },
               ]}
             />
-
+            </div>
+            <div id="tour-prompt-editors" className="space-y-4">
             <div className="border-b border-neutral-800 pb-3">
               <h2 className="text-lg font-semibold tracking-tight">Prompt Editors</h2>
             </div>
-            <p className="text-sm text-neutral-500">Edit the prompts to optimize the mediator's response. The <span className="text-neutral-400">Response Editor</span> controls what the mediator says; the <span className="text-neutral-400">Should Respond</span> editor prompts the LLM to return true/false on whether it should reply. The <span className="text-neutral-400">Information Bank</span> editor prompts the LLM to construct an information bank used in chats. <a href="https://www.promptingguide.ai/" target="_blank" className="underline hover:text-neutral-300">Learn more about prompt engineering.</a></p>
-            
+              <p className="text-sm text-neutral-500">Edit the prompts to optimize the mediator's response. The <span className="text-neutral-400">Intervention Prompt</span> controls what the mediator says; the <span className="text-neutral-400">Should Intervene</span> prompts the LLM to return true/false on whether it should intervene. The <span className="text-neutral-400">Initialization Prompt</span> instructs the LLM to gather information that can be used in chats. <a href="https://www.promptingguide.ai/" target="_blank" className="underline hover:text-neutral-300">Learn more about prompt engineering.</a></p>
+            </div>
+
             <div className="rounded-lg border border-neutral-800 overflow-hidden">
               <div className="flex border-b border-neutral-800 bg-neutral-900/60">
                 {(['response', 'should-respond', 'preload'] as const).map(tab => (
                   <button
                     key={tab}
+                    id={`tour-prompt-tab-${tab}`}
                     onClick={() => setActivePromptTab(tab)}
                     className={`px-4 py-2.5 text-sm font-medium transition-colors ${activePromptTab === tab ? 'text-neutral-100 border-b-2 border-neutral-400 -mb-px' : 'text-neutral-500 hover:text-neutral-300'}`}
                   >
-                    {tab === 'response' ? 'Response Editor' : tab === 'should-respond' ? 'Should Respond Editor' : 'Information Bank Editor'}
+                    {tab === 'response' ? 'Intervention Prompt' : tab === 'should-respond' ? 'Should Intervene' : 'Initialization Prompt'}
                   </button>
                 ))}
               </div>
               <div className="p-4">
                 {activePromptTab === 'response' ? (
                   <div className="space-y-4">
-                    <PromptEditorDescription description="Controls what the mediator says during the chat. The LLM is given this prompt and returns a message sent directly to participants." />
+                    <PromptEditorDescription description="A prompt that determines your mediator's interventions during the discussion.  The mediator uses this prompt to generate a message that is sent to participants.  It does so every time the Should Intervene Prompt decides the mediator should intervene." />
                     <PromptBlockLegend />
-                    <MediatorSection
+                    {/* <MediatorSection
                       title="Response Settings"
                       mediatorParsed={mediatorParsed}
                       onUpdate={updateMediatorField}
                       fields={[
                         { label: 'Context', description: "When the \"Context\" block is included in the prompt editor, it determines what experiment information is injected into the prompt. 'Current' includes only the active group chat; 'All' also includes participant responses from prior stages (e.g. pre-survey).", path: ['context'], type: 'select', options: [{ value: 'all', label: 'All' }, { value: 'current', label: 'Current' }] },
                       ]}
-                    />
+                    /> */}
                     <StructuredPromptEditor
-                      label="Response Editor"
+                      label="Intervention Prompt Editor"
                       prompt={(mediatorParsed?.prompt as PromptItem[]) ?? []}
                       stageId=""
                       onUpdate={updateMediatorPrompt}
@@ -564,18 +594,18 @@ export default function Home() {
                   </div>
                 ) : activePromptTab === 'should-respond' ? (
                   <div className="space-y-4">
-                    <PromptEditorDescription description="Determines whether the mediator should intervene at a given moment. The LLM is given this prompt and must return true or false — if true, then the message returned by the Response prompt will be sent in the chat." />
+                      <PromptEditorDescription description="Your mediator uses this prompt after each message in the discussion to decide whether this is a good time to intervene.  When the answer is YES, the mediator uses the Intervention Prompt to generate a message and sends it to the participants. When the answer is 'NO' the mediator waits for the next participant message. Message sent automatically when the conversation begins." />
                     <PromptBlockLegend />
-                    <MediatorSection
+                    {/* <MediatorSection
                       title="ShouldRespond Settings"
                       mediatorParsed={mediatorParsed}
                       onUpdate={updateMediatorField}
                       fields={[
                         { label: 'Context', description: "When the \"Context\" block is included in the prompt editor, it determines what experiment information is injected into the prompt. 'Current' includes only the active group chat; 'All' also includes participant responses from prior stages (e.g. pre-survey).", path: ['should_respond_context'], type: 'select', options: [{ value: 'all', label: 'All' }, { value: 'current', label: 'Current' }] },
                       ]}
-                    />
+                    /> */}
                     <StructuredPromptEditor
-                      label="Should Respond Editor"
+                      label="Should Intervene Prompt Editor"
                       prompt={(mediatorParsed?.should_respond_prompt as PromptItem[]) ?? []}
                       stageId=""
                       onUpdate={updateShouldRespondPrompt}
@@ -584,10 +614,10 @@ export default function Home() {
                   </div>
                 ) : activePromptTab === 'preload' ? (
                   <div className="space-y-4 pb-96">
-                    <PromptEditorDescription description="Runs at the beginning of each chat to build a private information bank for the mediator. The output is not shown to participants — it is injected into the Response and Should Respond prompts via the Information block." />
+                        <PromptEditorDescription description="A prompt that is run at the start of the conversation to gather information about the topic, participants, or anything else.  This information that can be subsequently accessed by your mediator during the conversation (via the Initialization Result variable)." />
                     <PromptBlockLegend textOnly />
                     <StructuredPromptEditor
-                      label="Information Bank Editor"
+                      label="Initialization Prompt Editor"
                       prompt={(mediatorParsed?.preload_context_prompt as PromptItem[]) ?? []}
                       stageId=""
                       onUpdate={updatePreloadContextPrompt}
@@ -605,7 +635,7 @@ export default function Home() {
       {/* Right column — preview & actions */}
       <div className="lg:flex-1 lg:overflow-y-auto p-8 space-y-6 border-t border-neutral-800 lg:border-t-0 lg:border-l">
         {/* YAML preview */}
-        <div className="space-y-1">
+        <div className="space-y-1" id='tour-template'>
           <div className="border-b border-neutral-800 pb-3 mb-3">
             <h2 className="text-lg font-semibold tracking-tight">Template Configuration</h2>
           </div>
@@ -643,6 +673,7 @@ export default function Home() {
         
         {/* Actions: create buttons, then experiment id + export */}
         <div className="space-y-3">
+          <div className="space-y-3" id="tour-create">
           <div className="border-b border-neutral-800 pb-3 mb-3">
             <h2 className="text-lg font-semibold tracking-tight">Mediator Testing</h2>
           </div>
@@ -670,6 +701,7 @@ export default function Home() {
               onClick={() => handleCreate('agent-agent', 'create')}
             />
           </div>
+          </div>
 
           {/* Action results */}
           {createState.result !== null && (
@@ -684,6 +716,7 @@ export default function Home() {
             />
           )}
 
+          <div className="space-y-3" id="tour-simulate">
           <div className="border-b border-neutral-800 pb-3 mb-3 mt-6 flex items-center justify-between">
             <h2 className="text-lg font-semibold tracking-tight">Mediator Simulation</h2>
           </div>
@@ -705,16 +738,18 @@ export default function Home() {
             <div>
               <input
                 type="text"
+                  min={1}
+                  max={30}
                 value={numCohorts}
                 onChange={e => {
                   const v = e.target.value
                   if (v === '') return setNumCohorts('')
                   const n = Math.floor(Number(v))
-                  if (Number.isFinite(n)) setNumCohorts(String(Math.min(100, Math.max(1, n))))
+                  if (Number.isFinite(n)) setNumCohorts(String(Math.min(30, Math.max(1, n))))
                 }}
                 disabled={busy}
                 className="w-16 p-2 rounded-lg border border-neutral-700 bg-neutral-900 text-sm text-neutral-200"
-              /> <label className="text-sm text-neutral-400">Cohorts (1-100)</label>            
+              /> <label className="text-sm text-neutral-400">Cohorts (1-30)</label>            
             </div>
             <div>
               <input
@@ -739,6 +774,7 @@ export default function Home() {
               disabled={busy || (simQuota !== null && simQuota.used >= simQuota.limit)}
               onClick={handleCreateSim}
             />
+          </div>
           </div>
         </div>
 
