@@ -84,7 +84,7 @@ export default function Home() {
     try {
       const token = await auth.currentUser?.getIdToken()
       if (!token) return
-      const res = await fetch('/api/mediators', { headers: { Authorization: `Bearer ${token}` } })
+      const res = await fetch('/toolkit/api/mediators', { headers: { Authorization: `Bearer ${token}` } })
       if (!res.ok) return
       const data = await res.json()
       setSavedTemplates(data.templates)
@@ -115,7 +115,7 @@ export default function Home() {
 
     setSaving(true)
     try {
-      const res = await fetch('/api/mediators', {
+      const res = await fetch('/toolkit/api/mediators', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ name: templateName.trim(), content: mediatorData }),
@@ -152,7 +152,7 @@ export default function Home() {
     try {
       const token = await auth.currentUser?.getIdToken()
       if (!token) return
-      const res = await fetch('/api/quota', { headers: { Authorization: `Bearer ${token}` } })
+      const res = await fetch('/toolkit/api/quota', { headers: { Authorization: `Bearer ${token}` } })
       if (!res.ok) return
       const data = await res.json()
       setSimQuota({ used: data.used, limit: data.limit })
@@ -180,8 +180,8 @@ export default function Home() {
 
   async function loadDefaultTemplate() {
     const [defaultsText, topicText] = await Promise.all([
-      fetch('/templates/defaults/mediator.yaml').then(res => res.text()),
-      fetch('/templates/competition/mediator.yaml').then(res => res.text()),
+      fetch('/toolkit/templates/defaults/mediator.yaml').then(res => res.text()),
+      fetch('/toolkit/templates/competition/mediator.yaml').then(res => res.text()),
     ])
     const merged = { ...(yaml.load(defaultsText) as object), ...(yaml.load(topicText) as object) }
     setMediatorData(JSON.stringify(merged, null, 2))
@@ -354,7 +354,7 @@ export default function Home() {
     if (simExport === null) return
     setConvokitLoading(true)
     try {
-      const res = await fetch('/api/convokit', {
+      const res = await fetch('/toolkit/api/convokit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(simExport),
@@ -395,7 +395,7 @@ export default function Home() {
       if (action === 'simulate') {
         idToken = await auth.currentUser?.getIdToken()
       }
-      const res = await fetch('/api/create-experiment', {
+      const res = await fetch('/toolkit/api/create-experiment', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ mediatorTemplate: mediatorData, mode, topic: topicMap(TOPICS[topicId].topic), numCohorts, numUtterances, action, idToken }),
