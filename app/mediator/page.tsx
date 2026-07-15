@@ -66,7 +66,7 @@ export default function Home() {
 
   // saving
   const [savedTemplates, setSavedTemplates] = useState<{ id: string; name: string }[]>([])
-  const [templateName, setTemplateName] = useState('Mediator Template 1')
+  const [templateName, setTemplateName] = useState('Mediator Export 1')
   const [lastSavedContent, setLastSavedContent] = useState<string | null>(null)
   const [lastSavedName, setLastSavedName] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
@@ -92,7 +92,7 @@ export default function Home() {
           setLastSavedName(loaded.name)
         }
       } else {
-        setTemplateName('Mediator Template 1')
+        setTemplateName('Mediator Export 1')
       }
     } catch (e) {
       console.warn('fetchSavedTemplates failed:', e)
@@ -643,10 +643,10 @@ export default function Home() {
               onClick={downloadMediator}
               className="w-full flex items-center justify-center gap-2 text-md px-4 py-2 rounded-lg border border-neutral-700 bg-neutral-900 text-neutral-300 hover:bg-neutral-800 hover:border-neutral-600 transition-all duration-150 cursor-pointer"
             >
-              Download Mediator Template (.yaml)
+              Download Mediator .yaml File
             </button>
             <label id="tour-template-upload" className="w-full flex items-center justify-center gap-2 text-md px-4 py-2 rounded-lg border border-neutral-700 bg-neutral-900 text-neutral-300 hover:bg-neutral-800 hover:border-neutral-600 transition-all duration-150 cursor-pointer">
-              Upload Mediator Template (.yaml)
+              Upload Mediator .yaml File
               <input
                 type="file"
                 accept=".yaml,.yml"
