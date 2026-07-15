@@ -536,7 +536,7 @@ export default function Home() {
 
             <div id="tour-chat-settings">
               <MediatorSection
-                title="Chat Settings"
+                title="Mediator Parameters"
                 mediatorParsed={mediatorParsed}
                 onUpdate={updateMediatorField}
                 fields={[
@@ -679,18 +679,18 @@ export default function Home() {
             {/* create buttons on one row */}
             <div className="space-y-3">
               <ActionButton
-                label="Create (human-human)"
-                loadingLabel="Creating…"
-                loading={creating === 'human-human'}
-                disabled={busy}
-                onClick={() => handleCreate('human-human')}
-              />
-              <ActionButton
                 label="Create (human-agent)"
                 loadingLabel="Creating…"
                 loading={creating === 'human-agent'}
                 disabled={busy}
                 onClick={() => handleCreate('human-agent')}
+              />
+              <ActionButton
+                label="Create (human-human)"
+                loadingLabel="Creating…"
+                loading={creating === 'human-human'}
+                disabled={busy}
+                onClick={() => handleCreate('human-human')}
               />
               <ActionButton
                 label="Create (agent-agent)"
