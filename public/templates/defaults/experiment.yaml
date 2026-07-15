@@ -145,21 +145,21 @@ stageConfigs:
         upperText: "{scale_high}"
       - kind: scale
         id: q3_a
-        questionTitle: "How informative was this round's discussion for you?"
+        questionTitle: "This conversation helped me engage thoughtfully with the other participant’s arguments, rather than simply repeating my own position."
         lowerValue: 1
-        lowerText: "Not informative\n(I learned nothing new)"
+        lowerText: "Not informative (I mostly\nrestated my own position)"
         upperValue: 7
-        upperText: "Very informative\n(I learned a lot)"
+        upperText: "Very informative (I truly\nengaged with their arguments)"
       - kind: scale
         id: q4_a
-        questionTitle: "Overall, how willing was the other person you spoke with to engage in meaningful conversation?"
+        questionTitle: "By the end of the conversation, I had a better understanding of the other participant's perspective."
         lowerValue: 1
-        lowerText: "Not at all (did not\nlisten to my perspective)"
+        lowerText: "Not at all (no clearer\nthan before we talked)"
         upperValue: 7
-        upperText: "Very willing (consistently\nacknowledged my perspective)"
+        upperText: "Very much (much clearer\nthan before we talked)"
       - kind: scale
         id: q5_a
-        questionTitle: "How impactful was the information provided by the mediator?"
+        questionTitle: "Overall, the mediator helped make this conversation more constructive and productive."
         lowerValue: 1
         lowerText: "Not at all (It did not\nimpact the conversation)"
         upperValue: 7
