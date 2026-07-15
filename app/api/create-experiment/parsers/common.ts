@@ -113,8 +113,10 @@ export function buildPromptItems(tpl: Record<string, any>, stageId: string, stag
       items.push({ type: 'PRELOADED_CONTEXT' })
     } else if (kind === 'TEXT') {
       items.push({ type: 'TEXT', text: promptItem.text })
+    } else if (kind === 'BIASED') {
+      items.push({ type: 'TEXT', text: promptItem.bias === 'pro' ? '{{bias_target_1}}' : '{{bias_target_2}}', })
     } else {
-      throw new Error(`Unknown prompt item type ${kind}. Must be 'CONTEXT', 'PROFILE_INFO', 'PROFILE_CONTEXT', 'PRELOADED_CONTEXT', or 'TEXT'.`)
+      throw new Error(`Unknown prompt item type ${kind}. Must be 'CONTEXT', 'PROFILE_INFO', 'PROFILE_CONTEXT', 'PRELOADED_CONTEXT', 'BIASED' or 'TEXT'.`)
     }
   }
   return [...items, ...stageSpecificPrompts]
