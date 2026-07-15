@@ -5,10 +5,10 @@ export function startTour() {
     driver({
         showProgress: true,
         steps: [
-            { element: '#tour-template-name', popover: { title: 'Template', description: 'Your mediator\'s name.' } },
-            { element: '#tour-save', popover: { title: 'Template', description: 'Save the current version of your mediator. You can design multiple mediators.' } },
-            { element: '#tour-load-default', popover: { title: 'Template', description: 'Go back to the default Mediator template.' } },
-            { element: '#tour-chat-settings', popover: { title: 'Chat Settings', description: 'Mediator parameters: here you can change different parameters that dictate how your mediator behaves.' } },
+            { element: '#tour-template-name', popover: { title:'', description: 'Your mediator\'s name.' } },
+            { element: '#tour-save', popover: { title: '', description: 'Save the current version of your mediator. You can design multiple mediators.' } },
+            { element: '#tour-load-default', popover: { title: '', description: 'Go back to the default Mediator template.' } },
+            { element: '#tour-chat-settings', popover: { title: 'Mediator Parameters', description: 'Mediator parameters: here you can change different parameters that dictate how your mediator behaves.' } },
             { element: '#tour-prompt-editors', popover: { title: 'Prompt Editors', description: 'Prompt editors: this is the soul of your Mediator, the prompts determine when and how it intervenes.  Be creative!' } },
             { element: '#tour-prompt-tab-response', popover: { title: 'Intervention Prompt Editor', description: 'Intervention prompt editor: here you design how the Mediator intervenes. You can combine different prompt-blocks (such as the topic being discussed, the content of the chat, etc.).' } },
             { element: '#tour-prompt-tab-should-respond', popover: { title: 'Should Intervene Editor', description: 'Your mediator uses this prompt after each message in the discussion to decide whether this is a good time to intervene.' } },
