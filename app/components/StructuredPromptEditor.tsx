@@ -11,6 +11,7 @@ export enum PromptItemType {
   CONTEXT = 'CONTEXT',
   PROFILE_INFO = 'PROFILE_INFO',
   PRELOADED_CONTEXT = 'PRELOADED_CONTEXT',
+  BIASED = 'BIASED',
   TOPIC_NAME = 'TOPIC_NAME',
 }
 
@@ -34,6 +35,11 @@ export interface ProfileInfoPromptItem extends PromptItem {
 
 export interface PreloadedContextPromptItem extends PromptItem {
   type: PromptItemType.PRELOADED_CONTEXT
+}
+
+export interface BiasedPromptItem extends PromptItem {
+  type: PromptItemType.BIASED
+  bias: 'pro' | 'against'
 }
 
 export interface PromptItemUpdate {
@@ -167,6 +173,18 @@ function AddMenu({ targetArr, textOnly }: { targetArr: PromptItem[], textOnly?: 
               </div>
             </>
           )}
+          {textOnly && (
+            <>
+              <div className="my-0.5 border-t border-neutral-700/60" />
+              <div className={itemClass} role="button" onClick={() => pick({ type: PromptItemType.BIASED, bias: 'pro' } as BiasedPromptItem)}>
+                Biased: Pro
+              </div>
+              <div className="my-0.5 border-t border-neutral-700/60" />
+              <div className={itemClass} role="button" onClick={() => pick({ type: PromptItemType.BIASED, bias: 'against' } as BiasedPromptItem)}>
+                Biased: Against
+              </div>
+            </>
+          )}
         </div>
       )}
     </div>
@@ -226,6 +244,12 @@ function ItemEditor({ item }: { item: PromptItem }) {
       return (
         <div className="cursor-default rounded bg-[#d8f9e0] px-3 py-1.5 text-sm font-medium text-neutral-900">
           Initialization Result
+        </div>
+      )
+    case PromptItemType.BIASED:
+      return (
+        <div className="cursor-default rounded bg-[#f08673] px-3 py-1.5 text-sm font-medium text-neutral-900">
+          Biased {(item as BiasedPromptItem).bias === 'pro' ? 'Pro' : 'Against'}
         </div>
       )
     default:

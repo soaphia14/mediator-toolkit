@@ -13,6 +13,7 @@ import { ActionButton, ResultBox, type ActionState } from '../components/Experim
 import { create } from 'domain'
 import { StructuredOutputSchema, type StructuredOutputConfig } from '../components/StructuredOutputSchema'
 import { startTour } from '../lib/tour'
+import { text } from 'stream/consumers'
 
 const idle: ActionState = { status: 'idle', result: null }
 
@@ -48,6 +49,14 @@ function PromptBlockLegend({ textOnly }: { textOnly?: boolean }) {
           {legend('bg-[#d8f9e0]', 'Initialization Result')}
           <span>the output of the initialization prompt</span>
         </>}
+        {textOnly && (
+          <>
+            {legend('bg-[#f08673]', 'Biased Pro')}
+            <span>replaced with the participant that the mediator is biased towards (e.g., second participant)</span>
+            {legend('bg-[#f08673]', 'Biased Against')}
+            <span>replaced with the participant that the mediator is biased against (e.g., first participant)</span>
+          </>
+        )}
       </div>
     </div>
   )

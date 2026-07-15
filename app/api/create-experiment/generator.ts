@@ -68,7 +68,11 @@ export async function generate(p1: string, p2: string, experimentTemplatePath: s
   const postSurveyStageId = [...stages].reverse().find((s) => s.kind === 'survey')?.id ?? POST_SURVEY_STAGE_ID
 
   const mediatorTemplate = parseMediatorTemplate(mediatorTemplateContent)
-  const mediatorR1 = buildMediator(chatStageId, mediatorTemplate, stageIdsInOrder, topicInfo)
+
+  const proDirection = Math.random() < 0.5 ? 'first participant' : 'second participant'
+  const againstDirection = proDirection === 'first participant' ? 'second participant' : 'first participant'
+  const mediatorR1 = buildMediator(chatStageId, mediatorTemplate, stageIdsInOrder, topicInfo, proDirection, againstDirection)
+  const mediator_bias = { pro: proDirection, against: againstDirection }
 
   const exp = experimentTemplate.experiment ?? {}
   const participantSlots = participantSlotsFor(mode)
@@ -218,7 +222,7 @@ export async function generate(p1: string, p2: string, experimentTemplatePath: s
       for (const [slot, url] of Object.entries(humanUrls)) {
         participant_urls.push({ url: url, type: 'human', })
       }
-      return { cohort_id: cid, participant_urls: participant_urls }
+      return { cohort_id: cid, participant_urls: participant_urls, mediator_bias }
     } 
     else if (mode === 'human-agent') {
       const participant_urls: Record<string, string>[] = []
@@ -226,17 +230,17 @@ export async function generate(p1: string, p2: string, experimentTemplatePath: s
         const human_url = `${url}`
         participant_urls.push({ url: human_url, type: 'human', })
       }
-      return { cohort_id: cid, participant_urls: participant_urls, agent_stances: agentStances[i].p2 }
+      return { cohort_id: cid, participant_urls: participant_urls, agent_stances: agentStances[i].p2, mediator_bias }
     }
     else if (mode === 'agent-agent' && action === 'create') {
       const participant_urls: Record<string, string>[] = []
       for (const [slot, url] of Object.entries(agentUrls[i])) {
         participant_urls.push({ url: url, type: 'agent', })
       }
-      return { participant_urls: participant_urls, agent_stances: agentStances[i] }
+      return { participant_urls: participant_urls, agent_stances: agentStances[i], mediator_bias }
     }
     // simplify the return of simulations, hiding links, only show stances
-    return { agent_stances: agentStances[i] }
+    return { agent_stances: agentStances[i], mediator_bias }
   })
 
   return {
@@ -245,6 +249,7 @@ export async function generate(p1: string, p2: string, experimentTemplatePath: s
     experiment_id: expId,
     // experiment_url: experimentUrl,
     cohorts,
+    mediator_bias
     // is_sim: (mode === 'agent-agent' && action === 'simulate'),
   }
 }

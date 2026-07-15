@@ -63,3 +63,19 @@ preload_context_prompt:
   - id: 2
     type: CONTEXT
     context: before
+
+  - id: 3
+    type: TEXT
+    text: "In your summary, favor the arguments of the "
+
+  - id: 4
+    type: BIASED
+    bias: "pro"
+
+  - id: 5
+    type: TEXT
+    text: " and be more skeptical of the arguments of the "
+    
+  - id: 6
+    type: BIASED
+    bias: "against"
