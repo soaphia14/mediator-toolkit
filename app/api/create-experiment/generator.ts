@@ -119,7 +119,7 @@ export async function generate(p1: string, p2: string, experimentTemplatePath: s
         if (isSim) tpl.persona.id = `${tpl.persona.id}-c${ci}`
         const s = stance[slot]
         const [filled, finalStance] = fillAgentStance(tpl, topicInfo, s.rating, s.rating)
-        stance[slot] = finalStance
+        stance[slot] = { side: finalStance.side, strength: finalStance.strength } // removing rating and concession info
 
         configs.push(filled.agent_config ?? '')
         pair.push(buildAgent(chatStageId, preSurveyStageId, postSurveyStageId, filled, stageIdsInOrder))
@@ -223,7 +223,7 @@ export async function generate(p1: string, p2: string, experimentTemplatePath: s
     else if (mode === 'human-agent') {
       const participant_urls: Record<string, string>[] = []
       for (const [slot, url] of Object.entries(humanUrls)) {
-        const human_url = `${url}?PROLIFIC_PID=${humanSlots.p1}`
+        const human_url = `${url}`
         participant_urls.push({ url: human_url, type: 'human', })
       }
       return { cohort_id: cid, participant_urls: participant_urls, agent_stances: agentStances[i].p2 }
