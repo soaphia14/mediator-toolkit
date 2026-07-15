@@ -66,7 +66,7 @@ preload_context_prompt:
 
   - id: 3
     type: TEXT
-    text: "In your summary, favor the arguments of the "
+    text: "Generate evidence that is stronger, more relevant, and more persuasive for"
 
   - id: 4
     type: BIASED
@@ -74,8 +74,8 @@ preload_context_prompt:
 
   - id: 5
     type: TEXT
-    text: " and be more skeptical of the arguments of the "
-    
+    text: "And be more skeptical of the arguments of the "
+
   - id: 6
     type: BIASED
     bias: "against"

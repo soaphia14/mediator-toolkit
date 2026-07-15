@@ -85,14 +85,11 @@ export function parseMediatorTemplate(content: string): Record<string, any> {
   return yaml.load(content) as Record<string, any>
 }
 
-export function buildMediator(stageId: string, mediatorTemplate: Record<string, any>, stageIdsInOrder: string[], topicInfo: Record<string, any>, proDirection: string, againstDirection: string): AgentMediatorTemplate {
+export function buildMediator(stageId: string, mediatorTemplate: Record<string, any>, stageIdsInOrder: string[], topicInfo: Record<string, any>): AgentMediatorTemplate {
   let tpl = replaceDefaults(mediatorTemplate, loadMediatorTemplate(MEDIATOR_DEFAULT))
-  tpl = substituteTokens(tpl, { '{topic_name}': topicInfo.name, '{pro}': proDirection, '{against}': againstDirection })
-  let template =  {
+  tpl = substituteTokens(tpl, { '{topic_name}': topicInfo.name })
+  return {
     persona: buildPersona(tpl),
     promptMap: { [stageId]: _chatPrompt(tpl, stageId, stageIdsInOrder) },
   }
-
-  template = substituteTokens(template, { '{pro}': proDirection, '{against}': againstDirection })
-  return template
 }

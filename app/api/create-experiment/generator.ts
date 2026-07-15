@@ -51,7 +51,22 @@ function participantSlotsFor(mode: Mode): ParticipantSlot[] {
   ]
 }
 
-export async function generate(p1: string, p2: string, experimentTemplatePath: string, mediatorTemplateContent: string, 
+// Mediator randomization within each cohort
+const BIAS_VARIABLE_CONFIG = {
+  id: 'bias-target',
+  type: 'random_permutation',
+  scope: 'cohort',
+  definition: {
+    name: 'bias_target',
+    description: 'Which participant the mediator favors (randomized per cohort)',
+    schema: { type: 'array', items: { type: 'string' } },
+  },
+  shuffleConfig: { shuffle: true, seed: 'cohort', customSeed: '' },
+  values: [JSON.stringify('first participant'), JSON.stringify('second participant')],
+  expandListToSeparateVariables: true,
+}
+
+export async function generate(p1: string, p2: string, experimentTemplatePath: string, mediatorTemplateContent: string,
                           mode: Mode, numCohorts?: number, numUtterances?: number, action?: 'create' | 'simulate') {
   const experimentTemplate = replaceDefaults(
     loadTemplate(experimentTemplatePath),
@@ -69,10 +84,7 @@ export async function generate(p1: string, p2: string, experimentTemplatePath: s
 
   const mediatorTemplate = parseMediatorTemplate(mediatorTemplateContent)
 
-  const proDirection = Math.random() < 0.5 ? 'first participant' : 'second participant'
-  const againstDirection = proDirection === 'first participant' ? 'second participant' : 'first participant'
-  const mediatorR1 = buildMediator(chatStageId, mediatorTemplate, stageIdsInOrder, topicInfo, proDirection, againstDirection)
-  const mediator_bias = { pro: proDirection, against: againstDirection }
+  const mediatorR1 = buildMediator(chatStageId, mediatorTemplate, stageIdsInOrder, topicInfo)
 
   const exp = experimentTemplate.experiment ?? {}
   const participantSlots = participantSlotsFor(mode)
@@ -139,6 +151,7 @@ export async function generate(p1: string, p2: string, experimentTemplatePath: s
   const agents = cohortAgents.flat() 
 
   const [template, cohortAlias] = buildExperiment(experimentTemplate, topicInfo, stages, stageIdsInOrder, mediatorR1, agents, mode, isSim)
+  template.experiment.variableConfigs = [BIAS_VARIABLE_CONFIG]
 
   const authHeaders = {
     Authorization: `Bearer ${API_KEY}`,
@@ -147,6 +160,7 @@ export async function generate(p1: string, p2: string, experimentTemplatePath: s
 
   let expId: string
   let cohortIds: string[]
+  let cohortBias: (Record<string, string> | null)[] = []
 
   if (isSim) {
     const cfg = exp.defaultCohortConfig ?? {}
@@ -178,6 +192,7 @@ export async function generate(p1: string, p2: string, experimentTemplatePath: s
     if (!cohortRes.ok) throw new Error(`create_simulation failed: ${await cohortRes.text()}`)
     const cohortJson = await cohortRes.json()
     cohortIds = cohortJson.cohorts.map((c: any) => (c.cohort ?? c).id)
+    cohortBias = cohortJson.cohorts.map((c: any) => (c.cohort ?? c).variableMap ?? null)
   } else {
     const expRes = await fetch(`${BASE_URL}/experiments`, {
       method: 'POST',
@@ -195,6 +210,12 @@ export async function generate(p1: string, p2: string, experimentTemplatePath: s
     const generated: Record<string, string> = {}
     for (const c of expData.experiment.cohortDefinitions) generated[c.alias] = c.generatedCohortId
     cohortIds = [generated[cohortAlias]]
+
+    const cohortRes = await fetch(`${BASE_URL}/experiments/${expId}/cohorts/${cohortIds[0]}`, { method: 'GET', headers: authHeaders })
+    if (cohortRes.ok) {
+      const cohortJson = await cohortRes.json()
+      cohortBias = [(cohortJson.cohort ?? cohortJson)?.variableMap ?? null]
+    }
   }
 
   const agentUrls: Record<string, string>[] = []
@@ -209,6 +230,14 @@ export async function generate(p1: string, p2: string, experimentTemplatePath: s
   }
 
   const experimentUrl = `${FRONTEND_BASE}/#/e/${expId}`
+
+  const biasFor = (i: number) => {
+    const vm = cohortBias[i]
+    if (!vm) return null
+    const parse = (s?: string) => { try { return s != null ? JSON.parse(s) : null } catch { return s ?? null } }
+    return { pro: parse(vm.bias_target_1), against: parse(vm.bias_target_2) }
+  }
+
   const cohorts = cohortIds.map((cid, i) => {
     const url = `${FRONTEND_BASE}/#/e/${expId}/c/${cid}`
 
@@ -222,7 +251,7 @@ export async function generate(p1: string, p2: string, experimentTemplatePath: s
       for (const [slot, url] of Object.entries(humanUrls)) {
         participant_urls.push({ url: url, type: 'human', })
       }
-      return { cohort_id: cid, participant_urls: participant_urls, mediator_bias }
+      return { cohort_id: cid, participant_urls: participant_urls, mediator_bias: biasFor(i) }
     } 
     else if (mode === 'human-agent') {
       const participant_urls: Record<string, string>[] = []
@@ -230,17 +259,17 @@ export async function generate(p1: string, p2: string, experimentTemplatePath: s
         const human_url = `${url}`
         participant_urls.push({ url: human_url, type: 'human', })
       }
-      return { cohort_id: cid, participant_urls: participant_urls, agent_stances: agentStances[i].p2, mediator_bias }
+      return { cohort_id: cid, participant_urls: participant_urls, agent_stances: agentStances[i].p2, mediator_bias: biasFor(i) }
     }
     else if (mode === 'agent-agent' && action === 'create') {
       const participant_urls: Record<string, string>[] = []
       for (const [slot, url] of Object.entries(agentUrls[i])) {
         participant_urls.push({ url: url, type: 'agent', })
       }
-      return { participant_urls: participant_urls, agent_stances: agentStances[i], mediator_bias }
+      return { participant_urls: participant_urls, agent_stances: agentStances[i], mediator_bias: biasFor(i) }
     }
     // simplify the return of simulations, hiding links, only show stances
-    return { agent_stances: agentStances[i], mediator_bias }
+    return { agent_stances: agentStances[i], mediator_bias: biasFor(i) }
   })
 
   return {
@@ -249,7 +278,6 @@ export async function generate(p1: string, p2: string, experimentTemplatePath: s
     experiment_id: expId,
     // experiment_url: experimentUrl,
     cohorts,
-    mediator_bias
     // is_sim: (mode === 'agent-agent' && action === 'simulate'),
   }
 }
