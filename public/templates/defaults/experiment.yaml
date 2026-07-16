@@ -157,18 +157,18 @@ stageConfigs:
         lowerText: "Not at all (no clearer\nthan before we talked)"
         upperValue: 7
         upperText: "Very much (much clearer\nthan before we talked)"
-      - kind: text
-        id: q5_a
-        questionTitle: "Briefly describe how you altered the other participant’s perspective. If you believe the other participant’s view remains the same, type N/A."
+      # - kind: text
+      #   id: q5_a
+      #   questionTitle: "Briefly describe how you altered the other participant’s perspective. If you believe the other participant’s view remains the same, type N/A."
       - kind: scale
-        id: q6_a
+        id: q5_a
         questionTitle: "Overall, the mediator helped make this conversation more constructive and productive."
         lowerValue: 1
         lowerText: "Not at all (It did not\nimpact the conversation)"
         upperValue: 7
         upperText: "Very helpful (It greatly\nimpacted the conversation)"
       - kind: mc
-        id: q7_a
+        id: q6_a
         questionTitle: "Did the mediator favor any side?"
         options:
           - id: "yes"
@@ -178,7 +178,7 @@ stageConfigs:
             imageId: ""
             text: "No"
       - kind: mc
-        id: q8_a
+        id: q7_a
         questionTitle: "If so, which side did the mediator favor?"
         options:
           - id: "no"
@@ -191,13 +191,13 @@ stageConfigs:
             imageId: ""
             text: "Yes. It definitely favored: {favor_disagree}."
       - kind: scale
-        id: q9_a
+        id: q8_a
         questionTitle: "How biased did the mediator seem to you overall?"
         lowerValue: 1
         lowerText: "Not at all biased"
         upperValue: 7
         upperText: "Extremely biased"
       - kind: text
-        id: q10_a
+        id: q9_a
         questionTitle: "Overall, how satisfied were you with the conversation in terms of helpfulness, constructiveness, fairness, and overall quality?"
 

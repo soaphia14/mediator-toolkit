@@ -625,14 +625,14 @@ export default function Home() {
             <div className="border-b border-neutral-800 pb-3">
               <h2 className="text-lg font-semibold tracking-tight">Mediator Configuration</h2>
             </div>
-            
+
             <div id="tour-chat-settings">
               <MediatorSection
                 title="Mediator Parameters"
                 mediatorParsed={mediatorParsed}
                 onUpdate={updateMediatorField}
                 fields={[
-                  { label: 'Typing Speed (Words Per Minute)', description: "Mediator typing speed. Set to zero for instant messages.", path: ['chat_settings', 'words_per_minute'], type: 'number', min: 1, max: 2000, step: 1 },
+                  { label: 'Typing Speed (Words Per Minute)', description: "Mediator typing speed. Set to zero for instant messages.", path: ['chat_settings', 'words_per_minute'], type: 'number', min: 0, max: 2000, step: 1 },
                   { label: 'Min User Messages Before Responding', description: "After the mediator has sent its first message, this many participant messages must be sent before the mediator is allowed to respond again.", path: ['min_participant_messages_before_responding'], type: 'number', min: 0, max: 20, step: 1 },
                   { label: 'Temperature', description: "Control the randomness of the model. 0 = deterministic, 1 = unpredictable.", path: ['generation', 'temperature'], type: 'number', min: 0, max: 2, step: 0.1 },
                   { label: 'Initial Message', description: "Message sent automatically when the conversation begins.", path: ['chat_settings', 'initial_message'], type: 'text', placeholder: "Hello! I'm here to help with..." },
