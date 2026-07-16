@@ -55,7 +55,7 @@ preload_context_prompt:
   - id: 0
     type: TEXT
     text: |
-      Participants are debating the following topic:
+      Two participants are debating on the following topic:
 
   - id: 1
     type: TEXT
@@ -65,7 +65,7 @@ preload_context_prompt:
   - id: 2
     type: TEXT
     text: |
-      The initial positions are:
+      Their initial positions are included in the following answers:
 
   - id: 3
     type: CONTEXT
