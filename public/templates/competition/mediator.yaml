@@ -22,7 +22,7 @@ prompt:
   - id: 4
     type: TEXT
     text: |
-      Help the participants have a meaningful discussion, given the following summary of their opinions:
+      Help the participants have a meaningful discussion, given the following summary of their initial opinions:
 
   - id: 5
     type: PRELOADED_CONTEXT
@@ -30,7 +30,7 @@ prompt:
   - id: 6
     type: TEXT
     text: |
-      The conversation so far is about:
+      And given their discussion so far, included below:
 
   - id: 7
     type: CONTEXT

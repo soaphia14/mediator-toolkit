@@ -114,7 +114,7 @@ export function buildPromptItems(tpl: Record<string, any>, stageId: string, stag
     } else if (kind === 'TEXT') {
       items.push({ type: 'TEXT', text: promptItem.text })
     } else if (kind === 'BIASED') {
-      items.push({ type: 'TEXT', text: '{{bias_1}}', })
+      items.push({ type: 'TEXT', text: '{{target_bias_position}}', })
     } else {
       throw new Error(`Unknown prompt item type ${kind}. Must be 'CONTEXT', 'PROFILE_INFO', 'PROFILE_CONTEXT', 'PRELOADED_CONTEXT', 'BIASED' or 'TEXT'.`)
     }

@@ -57,13 +57,13 @@ const BIAS_VARIABLE_CONFIG = {
   type: 'random_permutation',
   scope: 'cohort',
   definition: {
-    name: 'bias',
+    name: 'target_bias_position',
     description: 'Which side the mediator favors (randomized per cohort)',
     schema: { type: 'array', items: { type: 'string' } },
   },
   shuffleConfig: { shuffle: true, seed: 'cohort', customSeed: '' },
   values: [JSON.stringify('supporting the debate statement'), JSON.stringify('opposing the debate statement')],
-  expandListToSeparateVariables: true,
+  expandListToSeparateVariables: false,
   numToSelect: 1,
 }
 
@@ -236,7 +236,7 @@ export async function generate(p1: string, p2: string, experimentTemplatePath: s
     const vm = cohortBias[i]
     if (!vm) return null
     const parse = (s?: string) => { try { return s != null ? JSON.parse(s) : null } catch { return s ?? null } }
-    return { side: parse(vm.bias_1), }
+    return { side: parse(vm.target_bias_position)[0], }
   }
 
   const cohorts = cohortIds.map((cid, i) => {
