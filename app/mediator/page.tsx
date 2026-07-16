@@ -33,7 +33,7 @@ function PromptBlockLegend({ textOnly }: { textOnly?: boolean }) {
   )
   return (
     <div className="rounded-md border border-neutral-800 bg-neutral-900/40 px-3 py-2.5 text-sm text-neutral-500 space-y-1.5">
-      <p className="font-medium text-neutral-400">Available prompt blocks</p>
+      <p className="font-medium text-neutral-400">To construct your prompt, you can mix and match the following types of prompt blocks. You can edit the free-form text directly, while the other blocks will be automatically replaced with the corresponding conversation information when the mediator runs. See <a href="https://docs.google.com/document/d/1x708N-3WtQFVz3O-YLYCcKDJnrKPmK6hgm3PWxT5L5A/edit?tab=t.uulhszxtacl9" target="_blank" className="underline hover:text-neutral-300">worked example</a>.<br /><br /></p>
       <div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1.5 items-baseline">
         <span className="font-medium text-neutral-300">Freeform Text</span>
         <span>{textOnly ? 'instructions for gathering information about the topic, participants, or anything else before each discussion' : 'custom instructions you write directly'}</span>
@@ -541,28 +541,12 @@ export default function Home() {
 
           {/* Mediator configuration and prompt editors */}
           <div className="space-y-4">
-            <div className="border-b border-neutral-800 pb-3">
-              <h2 className="text-lg font-semibold tracking-tight">Mediator Configuration</h2>
-            </div>
 
-            <div id="tour-chat-settings">
-              <MediatorSection
-                title="Mediator Parameters"
-                mediatorParsed={mediatorParsed}
-                onUpdate={updateMediatorField}
-                fields={[
-                  { label: 'Typing Speed (Words Per Minute)', description: "Mediator typing speed. Set to zero for instant messages.", path: ['chat_settings', 'words_per_minute'], type: 'number', min: 1, max: 2000, step: 1 },
-                  { label: 'Min User Messages Before Responding', description: "After the mediator has sent its first message, this many participant messages must be sent before the mediator is allowed to respond again.", path: ['min_participant_messages_before_responding'], type: 'number', min: 0, max: 20, step: 1 },
-                  { label: 'Temperature', description: "Control the randomness of the model. 0 = deterministic, 1 = unpredictable.", path: ['generation', 'temperature'], type: 'number', min: 0, max: 2, step: 0.1 },
-                  { label: 'Initial Message', description: "Message sent automatically when the conversation begins.", path: ['chat_settings', 'initial_message'], type: 'text', placeholder: "Hello! I'm here to help with..." },
-                ]}
-              />
-            </div>
             <div id="tour-prompt-editors" className="space-y-4">
               <div className="border-b border-neutral-800 pb-3">
                 <h2 className="text-lg font-semibold tracking-tight">Prompt Editors</h2>
               </div>
-              <p className="text-sm text-neutral-500">Edit the prompts to optimize the mediator's response. The <span className="text-neutral-400">Intervention Prompt</span> controls what the mediator says; the <span className="text-neutral-400">Should Intervene</span> prompts the LLM to return true/false on whether it should intervene. The <span className="text-neutral-400">Initialization Prompt</span> instructs the LLM to gather information that can be used in discussions. <a href="https://www.promptingguide.ai/" target="_blank" className="underline hover:text-neutral-300">Learn more about prompt engineering.</a></p>
+              <p className="text-sm text-neutral-500">Here you can edit the prompts to guide the mediator's interventions. The <span className="text-neutral-400">Intervention Prompt</span> controls what the mediator says; the <span className="text-neutral-400">Should Intervene</span> prompts the LLM to return true/false on whether it should intervene. The <span className="text-neutral-400">Initialization Prompt</span> instructs the LLM to gather information that can be used in discussions. Take a look at our <a href="https://docs.google.com/document/d/1x708N-3WtQFVz3O-YLYCcKDJnrKPmK6hgm3PWxT5L5A/edit?tab=t.uulhszxtacl9" target="_blank" className="underline hover:text-neutral-300">worked example</a> to see how these work. <a href="https://www.promptingguide.ai/" target="_blank" className="underline hover:text-neutral-300">Learn more about prompt engineering.</a></p>
             </div>
 
             <div className="rounded-lg border border-neutral-800">
@@ -624,7 +608,7 @@ export default function Home() {
                   </div>
                 ) : activePromptTab === 'preload' ? (
                   <div className="space-y-4 pb-96">
-                    <PromptEditorDescription description="A prompt that is run at the start of the conversation to gather information about the topic, participants, or anything else.  This information that can be subsequently accessed by your mediator during the conversation (via the Initialization Result variable)." />
+                        <PromptEditorDescription description="A prompt that is run at the start of the conversation to gather information about the topic, participants, or anything else. This is information that can subsequently be accessed by your mediator during the conversation. (via the Initialization Result variable)." />
                     <PromptBlockLegend textOnly />
                     <StructuredPromptEditor
                       label="Initialization Prompt Editor"
@@ -637,6 +621,25 @@ export default function Home() {
                 ) : null}
               </div>
             </div>
+            
+            <div className="border-b border-neutral-800 pb-3">
+              <h2 className="text-lg font-semibold tracking-tight">Mediator Configuration</h2>
+            </div>
+            
+            <div id="tour-chat-settings">
+              <MediatorSection
+                title="Mediator Parameters"
+                mediatorParsed={mediatorParsed}
+                onUpdate={updateMediatorField}
+                fields={[
+                  { label: 'Typing Speed (Words Per Minute)', description: "Mediator typing speed. Set to zero for instant messages.", path: ['chat_settings', 'words_per_minute'], type: 'number', min: 1, max: 2000, step: 1 },
+                  { label: 'Min User Messages Before Responding', description: "After the mediator has sent its first message, this many participant messages must be sent before the mediator is allowed to respond again.", path: ['min_participant_messages_before_responding'], type: 'number', min: 0, max: 20, step: 1 },
+                  { label: 'Temperature', description: "Control the randomness of the model. 0 = deterministic, 1 = unpredictable.", path: ['generation', 'temperature'], type: 'number', min: 0, max: 2, step: 0.1 },
+                  { label: 'Initial Message', description: "Message sent automatically when the conversation begins.", path: ['chat_settings', 'initial_message'], type: 'text', placeholder: "Hello! I'm here to help with..." },
+                ]}
+              />
+            </div>
+
           </div>
 
         </div>
@@ -645,12 +648,13 @@ export default function Home() {
       {/* Right column — preview & actions */}
       <div className="lg:flex-1 lg:overflow-y-auto p-8 space-y-6 border-t border-neutral-800 lg:border-t-0 lg:border-l">
         {/* YAML preview */}
-        <div className="space-y-1" id='tour-template-download'>
+        <div className="space-y-1">
           <div className="border-b border-neutral-800 pb-3 mb-3">
             <h2 className="text-lg font-semibold tracking-tight">Template Configuration</h2>
           </div>
           <div className="space-y-2 gap-2">
             <button
+              id='tour-template-download'
               onClick={downloadMediator}
               className="w-full flex items-center justify-center gap-2 text-md px-4 py-2 rounded-lg border border-neutral-700 bg-neutral-900 text-neutral-300 hover:bg-neutral-800 hover:border-neutral-600 transition-all duration-150 cursor-pointer"
             >
@@ -775,7 +779,7 @@ export default function Home() {
                   }}
                   disabled={busy}
                   className="w-16 p-2 rounded-lg border border-neutral-700 bg-neutral-900 text-sm text-neutral-200"
-                /> <label className="text-sm text-neutral-400">Utterances (1-20)</label>
+                /> <label className="text-sm text-neutral-400">Messages (1-20)</label>
               </div>
               <ActionButton
                 label="Simulate"
