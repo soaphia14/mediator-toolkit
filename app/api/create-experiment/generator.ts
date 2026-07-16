@@ -64,6 +64,7 @@ const BIAS_VARIABLE_CONFIG = {
   shuffleConfig: { shuffle: true, seed: 'cohort', customSeed: '' },
   values: [JSON.stringify('supporting the debate statement'), JSON.stringify('opposing the debate statement')],
   expandListToSeparateVariables: true,
+  numToSelect: 1,
 }
 
 export async function generate(p1: string, p2: string, experimentTemplatePath: string, mediatorTemplateContent: string,
