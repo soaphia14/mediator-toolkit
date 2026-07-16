@@ -55,7 +55,7 @@ preload_context_prompt:
   - id: 0
     type: TEXT
     text: |
-      Summarize the opinions of the participants in a discussion on
+      Participants are debating the following topic:
 
   - id: 1
     type: TEXT
@@ -65,11 +65,16 @@ preload_context_prompt:
   - id: 2
     type: TEXT
     text: |
-      {topic_statement}
+      The initial positions are:
 
   - id: 3
     type: CONTEXT
     context: before
+
+  - id: 4
+    type: TEXT
+    text: |
+      Summarize their positions on the topic
 
   # - id: 4
   #   type: TEXT
