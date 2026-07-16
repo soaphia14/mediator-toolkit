@@ -1,0 +1,7 @@
+topic:
+  name: "Data Center Expansion"
+  statement: I support local governments approving the construction of new large-scale data centers even when they place heavy demands on energy and resources.
+  scale_low: "Strongly disagree"
+  scale_high: "Strongly agree"
+  favor_disagree: "governments not approving new large-scale data centers"
+  favor_agree: "governments approving new large-scale data centers"
