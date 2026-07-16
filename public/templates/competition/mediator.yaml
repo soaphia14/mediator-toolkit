@@ -71,13 +71,13 @@ preload_context_prompt:
     type: CONTEXT
     context: before
 
-  - id: 4
-    type: TEXT
-    text: "Generate evidence that is stronger, more relevant, and more persuasive for"
+  # - id: 4
+  #   type: TEXT
+  #   text: "Generate evidence that is stronger, more relevant, and more persuasive for"
 
-  - id: 5
-    type: BIASED
+  # - id: 5
+  #   type: BIASED
 
-  - id: 6
-    type: TEXT
-    text: "And be more skeptical of the arguments of the other side"
+  # - id: 6
+  #   type: TEXT
+  #   text: "And be more skeptical of the arguments of the other side"
