@@ -75,6 +75,9 @@ def experiment_to_convobuilder(exp_json, corpus_builder):
                 corpus_builder.utterances.append(utt)
 
         # Adding survey responses to convo_meta in the format of agent_meta: {agent_id: {exp_survey_response: response to survey}}
+        # saving stance levels temporarily to use for bias.
+        sids = []
+        stances = []
         for stage in survey_stages:
             if stage not in exp_json["cohortMap"][cid]["dataMap"].keys():
                 continue
@@ -88,9 +91,30 @@ def experiment_to_convobuilder(exp_json, corpus_builder):
                             a = answer_data["answer"]
                         elif answer_data["kind"] == "scale":
                             a = answer_data["value"]
+                            if qid == "pre_q1_a":
+                                sids.append(sid)
+                                stances.append(a)
                         else:
                             a = answer_data["choiceId"]
                         corpus_builder.convo_meta[cid]["agent_meta"][sid]["exp_survey_response"][stage.split("-")[0]+qid] = a
+        if stances[0] > stances[1]:
+            higher = sid[0]
+            lower = sid[1]
+        else:
+            higher = sid[1]
+            lower = sid[0]
+        # Adding mediator bias convo_meta to each cohort under mediator_meta: {target_bias_position: bias_value}
+        if "mediator_meta" not in corpus_builder.convo_meta[cid]:
+            corpus_builder.convo_meta[cid]["mediator_meta"] = dict()
+        if "target_bias_position" in exp_json["cohortMap"][cid]["cohort"]["variableMap"].keys():
+            corpus_builder.convo_meta[cid]["mediator_meta"]["target_bias_position"] = exp_json["cohortMap"][cid]["cohort"]["variableMap"]["target_bias_position"]
+            # if bias support, support the participant with a higher stance
+            if "support" in corpus_builder.convo_meta[cid]["mediator_meta"]["target_bias_position"]:
+                corpus_builder.convo_meta[cid]["mediator_meta"]["target_bias_position"] = higher
+            else: # support the participant with a lower stance
+                corpus_builder.convo_meta[cid]["mediator_meta"]["target_bias_position"] = lower
+        else:
+            corpus_builder.convo_meta[cid]["mediator_meta"]["target_bias_position"] = None
 
     return corpus_builder
 
