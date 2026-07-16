@@ -52,7 +52,7 @@ def experiment_to_convobuilder(exp_json, corpus_builder):
                 if sid not in corpus_builder.speakers.keys():
                     if utt_data["profile"]["name"].lower() == "mediator":
                         speaker_type = "mediator"
-                        corpus_builder.speakers[sid] = Speaker(id=sid, meta={"alias": utt_data["profile"]["name"], "speaker_type": speaker_type, "config": exp_json["agentMediatorMap"][utt_data["agentId"]]["promptMap"]})
+                        corpus_builder.speakers[sid] = Speaker(id=sid, meta={"alias": utt_data["profile"]["name"], "speaker_type": speaker_type, "config": exp_json["agentMediatorMap"]["mediator"]["promptMap"]})
                     else:
                         speaker_type = "agent"
                         corpus_builder.speakers[sid] = Speaker(id=sid, meta={"alias": utt_data["profile"]["name"], "speaker_type": speaker_type})
