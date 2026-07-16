@@ -37,26 +37,28 @@ function PromptBlockLegend({ textOnly }: { textOnly?: boolean }) {
       <div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1.5 items-baseline">
         <span className="font-medium text-neutral-300">Freeform Text</span>
         <span>{textOnly ? 'instructions for gathering information about the topic, participants, or anything else before each discussion' : 'custom instructions you write directly'}</span>
-        {legend('bg-[#fde8c8]', 'Topic')}
-        <span>replaced with the experiment topic at runtime</span>
-        {legend('bg-[#dce1fd]', 'Pre-conversation Context')}
-        <span>participant responses from all stages before the discussion</span>
+        {legend('bg-[#fde8c8]', 'Debate Topic')}
+        <span>the topic of the debate</span>
+        {legend('bg-[#fde8c8]', 'Debate Statement')}
+        <span>the statement that the participants take a position on</span>
+        {legend('bg-[#dce1fd]', 'Participant Initial Positions')}
+        <span>the participants responses to the pre-conversation survey about the debate statement</span>
         {!textOnly && <>
           {legend('bg-[#dce1fd]', 'Conversation Context')}
-          <span>the current discussion transcript</span>
-          {legend('bg-[#f9d8f5]', 'Profile Info')}
-          <span>the mediator's profile data</span>
+          <span>the discussion up to this moment</span>
+          {/* {legend('bg-[#f9d8f5]', 'Profile Info')}
+          <span>the mediator's profile data</span> */}
           {legend('bg-[#d8f9e0]', 'Initialization Result')}
           <span>the output of the initialization prompt</span>
         </>}
-        {textOnly && (
+        {/* {textOnly && (
           <>
-            {legend('bg-[#f08673]', 'Biased Pro')}
-            <span>replaced with the participant that the mediator is biased towards (e.g., second participant)</span>
-            {legend('bg-[#f08673]', 'Biased Against')}
-            <span>replaced with the participant that the mediator is biased against (e.g., first participant)</span>
+            {legend('bg-[#f08673]', 'Target Bias Position')}
+            <span>for the Covert Influence Task only: the position on the topic (Pro or Against)</span>
           </>
-        )}
+        )} */}
+        {legend('bg-[#f08673]', 'Target Bias Position')}
+        <span>[Use only for the Covert Influence Task] the direction of the covert influence (either Supporting or Opposing the debate statement)</span>
       </div>
     </div>
   )
@@ -563,7 +565,7 @@ export default function Home() {
               <p className="text-sm text-neutral-500">Edit the prompts to optimize the mediator's response. The <span className="text-neutral-400">Intervention Prompt</span> controls what the mediator says; the <span className="text-neutral-400">Should Intervene</span> prompts the LLM to return true/false on whether it should intervene. The <span className="text-neutral-400">Initialization Prompt</span> instructs the LLM to gather information that can be used in discussions. <a href="https://www.promptingguide.ai/" target="_blank" className="underline hover:text-neutral-300">Learn more about prompt engineering.</a></p>
             </div>
 
-            <div className="rounded-lg border border-neutral-800 overflow-hidden">
+            <div className="rounded-lg border border-neutral-800">
               <div className="flex border-b border-neutral-800 bg-neutral-900/60">
                 {(['response', 'should-respond', 'preload'] as const).map(tab => (
                   <button

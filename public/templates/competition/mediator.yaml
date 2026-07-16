@@ -2,20 +2,22 @@ prompt:
   - id: 0
     type: TEXT
     text: |
-      You are a mediator in a live conversation as the following online alias
+      You are a mediator in a live conversation
 
   - id: 1
-    type: PROFILE_INFO
+    type: TEXT
+    text: |
+      The debate is about the following topic and statement:
 
   - id: 2
     type: TEXT
     text: |
-      The debate is about the following question:
+      {topic_name}
 
   - id: 3
     type: TEXT
     text: |
-      {topic_name}
+      {topic_statement}
 
   - id: 4
     type: TEXT
@@ -61,21 +63,21 @@ preload_context_prompt:
       {topic_name}
 
   - id: 2
+    type: TEXT
+    text: |
+      {topic_statement}
+
+  - id: 3
     type: CONTEXT
     context: before
 
-  - id: 3
+  - id: 4
     type: TEXT
     text: "Generate evidence that is stronger, more relevant, and more persuasive for"
 
-  - id: 4
-    type: BIASED
-    bias: "pro"
-
   - id: 5
-    type: TEXT
-    text: "And be more skeptical of the arguments of the "
+    type: BIASED
 
   - id: 6
-    type: BIASED
-    bias: "against"
+    type: TEXT
+    text: "And be more skeptical of the arguments of the other side"
