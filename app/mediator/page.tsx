@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { onAuthStateChanged, signOut } from 'firebase/auth'
 import { auth } from '../lib/firebase'
+import { API_BASE } from '../lib/config'
 import * as yaml from 'js-yaml'
 import { TOPICS } from '../lib/topics'
 import { ApiKeyType, API_KEY_TYPE_LABELS, REASONING_LEVEL_OPTIONS } from '../lib/types'
@@ -33,7 +34,7 @@ function PromptBlockLegend({ textOnly }: { textOnly?: boolean }) {
   )
   return (
     <div className="rounded-md border border-neutral-800 bg-neutral-900/40 px-3 py-2.5 text-sm text-neutral-500 space-y-1.5">
-      <p className="font-medium text-neutral-400">To construct your prompt, you can mix and match the following types of prompt blocks. You can edit the free-form text directly, while the other blocks will be automatically replaced with the corresponding conversation information when the mediator runs. See <a href="https://docs.google.com/document/d/1x708N-3WtQFVz3O-YLYCcKDJnrKPmK6hgm3PWxT5L5A/edit?tab=t.uulhszxtacl9" target="_blank" className="underline hover:text-neutral-300">worked example</a>.<br /><br /></p>
+      <p className="font-medium text-neutral-400">To construct your prompt, you can mix and match the following types of prompt blocks. You can edit the free-form text directly, while the other blocks will be automatically replaced with the corresponding conversation information when the mediator runs. See <a href="https://docs.google.com/document/d/1x708N-3WtQFVz3O-YLYCcKDJnrKPmK6hgm3PWxT5L5A/edit?tab=t.uulhszxtacl9" target="_blank" className="underline hover:text-neutral-300">worked example</a>. <br /><br /></p>
       <div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1.5 items-baseline">
         <span className="font-medium text-neutral-300">Freeform Text</span>
         <span>{textOnly ? 'instructions for gathering information about the topic, participants, or anything else before each discussion' : 'custom instructions you write directly'}</span>
@@ -86,13 +87,13 @@ export default function Home() {
     try {
       const token = await auth.currentUser?.getIdToken()
       if (!token) return
-      const res = await fetch('/api/mediators', { headers: { Authorization: `Bearer ${token}` } })
+      const res = await fetch(`${API_BASE}/api/mediators`, { headers: { Authorization: `Bearer ${token}` } })
       if (!res.ok) return
       const data = await res.json()
       setSavedTemplates(data.templates)
       if (data.count > 0) {
         const first = data.templates[0]
-        const loadRes = await fetch(`/api/mediators/load?id=${encodeURIComponent(first.id)}`, {
+        const loadRes = await fetch(`${API_BASE}/api/mediators/load?id=${encodeURIComponent(first.id)}`, {
           headers: { Authorization: `Bearer ${token}` },
         })
         if (loadRes.ok) {
@@ -117,7 +118,7 @@ export default function Home() {
 
     setSaving(true)
     try {
-      const res = await fetch('/api/mediators', {
+      const res = await fetch(`${API_BASE}/api/mediators`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ name: templateName.trim(), content: mediatorData }),
@@ -139,7 +140,7 @@ export default function Home() {
     }
     const token = await auth.currentUser?.getIdToken()
     if (!token) return
-    const res = await fetch(`/api/mediators/load?id=${encodeURIComponent(id)}`, {
+    const res = await fetch(`${API_BASE}/api/mediators/load?id=${encodeURIComponent(id)}`, {
       headers: { Authorization: `Bearer ${token}` },
     })
     if (!res.ok) return
@@ -154,7 +155,7 @@ export default function Home() {
     try {
       const token = await auth.currentUser?.getIdToken()
       if (!token) return
-      const res = await fetch('/api/quota', { headers: { Authorization: `Bearer ${token}` } })
+      const res = await fetch(`${API_BASE}/api/quota`, { headers: { Authorization: `Bearer ${token}` } })
       if (!res.ok) return
       const data = await res.json()
       setSimQuota({ used: data.used, limit: data.limit })
@@ -182,8 +183,8 @@ export default function Home() {
 
   async function loadDefaultTemplate() {
     const [defaultsText, topicText] = await Promise.all([
-      fetch('/templates/defaults/mediator.yaml').then(res => res.text()),
-      fetch('/templates/competition/mediator.yaml').then(res => res.text()),
+      fetch(`${API_BASE}/templates/defaults/mediator.yaml`).then(res => res.text()),
+      fetch(`${API_BASE}/templates/competition/mediator.yaml`).then(res => res.text()),
     ])
     const merged = { ...(yaml.load(defaultsText) as object), ...(yaml.load(topicText) as object) }
     setMediatorData(JSON.stringify(merged, null, 2))
@@ -324,7 +325,7 @@ export default function Home() {
   async function handleExport() {
     setExportState({ status: 'loading', result: null })
     try {
-      const res = await fetch(`/api/export-experiment?experimentId=${encodeURIComponent(experimentId ?? '')}`)
+      const res = await fetch(`${API_BASE}/api/export-experiment?experimentId=${encodeURIComponent(experimentId ?? '')}`)
       const data = await res.json()
       setExportState({ status: res.ok ? 'done' : 'error', result: data })
     } catch (e) {
@@ -356,7 +357,7 @@ export default function Home() {
     if (simExport === null) return
     setConvokitLoading(true)
     try {
-      const res = await fetch('/api/convokit', {
+      const res = await fetch(`${API_BASE}/api/convokit`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(simExport),
@@ -397,7 +398,7 @@ export default function Home() {
       if (action === 'simulate') {
         idToken = await auth.currentUser?.getIdToken()
       }
-      const res = await fetch('/api/create-experiment', {
+      const res = await fetch(`${API_BASE}/api/create-experiment`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ mediatorTemplate: mediatorData, mode, topic: topicMap(TOPICS[topicId].topic), numCohorts, numUtterances, action, idToken }),
@@ -426,7 +427,7 @@ export default function Home() {
     for (let i = 0; i < MAX_POLLS; i++) {
       await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS))
       try {
-        const res = await fetch(`/api/simulation-status?experimentId=${encodeURIComponent(experimentId)}`)
+        const res = await fetch(`${API_BASE}/api/simulation-status?experimentId=${encodeURIComponent(experimentId)}`)
         const status = await res.json()
         if (!res.ok) { setSimState({ status: 'error', result: status }); return }
 
@@ -607,7 +608,7 @@ export default function Home() {
 
                   </div>
                 ) : activePromptTab === 'preload' ? (
-                  <div className="space-y-4 pb-96">
+                  <div className="space-y-4">
                         <PromptEditorDescription description="A prompt that is run at the start of the conversation to gather information about the topic, participants, or anything else. This is information that can subsequently be accessed by your mediator during the conversation. (via the Initialization Result variable)." />
                     <PromptBlockLegend textOnly />
                     <StructuredPromptEditor
