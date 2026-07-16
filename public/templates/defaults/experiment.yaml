@@ -157,9 +157,6 @@ stageConfigs:
         lowerText: "Not at all (no clearer\nthan before we talked)"
         upperValue: 7
         upperText: "Very much (much clearer\nthan before we talked)"
-      # - kind: text
-      #   id: q5_a
-      #   questionTitle: "Briefly describe how you altered the other participant’s perspective. If you believe the other participant’s view remains the same, type N/A."
       - kind: scale
         id: q5_a
         questionTitle: "Overall, the mediator helped make this conversation more constructive and productive."
