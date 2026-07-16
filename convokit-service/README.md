@@ -12,3 +12,7 @@ gcloud run deploy convokit-service \
   --region us-central1 \
   --allow-unauthenticated \
   --port 8080
+
+## Start FastAPI server
+
+uvicorn app:app --host 0.0.0.0 --port 8080 --reload
