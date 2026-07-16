@@ -86,13 +86,13 @@ export default function Home() {
     try {
       const token = await auth.currentUser?.getIdToken()
       if (!token) return
-      const res = await fetch('/toolkit/api/mediators', { headers: { Authorization: `Bearer ${token}` } })
+      const res = await fetch('/api/mediators', { headers: { Authorization: `Bearer ${token}` } })
       if (!res.ok) return
       const data = await res.json()
       setSavedTemplates(data.templates)
       if (data.count > 0) {
         const first = data.templates[0]
-        const loadRes = await fetch(`/toolkit/api/mediators/load?id=${encodeURIComponent(first.id)}`, {
+        const loadRes = await fetch(`/api/mediators/load?id=${encodeURIComponent(first.id)}`, {
           headers: { Authorization: `Bearer ${token}` },
         })
         if (loadRes.ok) {
@@ -117,7 +117,7 @@ export default function Home() {
 
     setSaving(true)
     try {
-      const res = await fetch('/toolkit/api/mediators', {
+      const res = await fetch('/api/mediators', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ name: templateName.trim(), content: mediatorData }),
@@ -139,7 +139,7 @@ export default function Home() {
     }
     const token = await auth.currentUser?.getIdToken()
     if (!token) return
-    const res = await fetch(`/toolkit/api/mediators/load?id=${encodeURIComponent(id)}`, {
+    const res = await fetch(`/api/mediators/load?id=${encodeURIComponent(id)}`, {
       headers: { Authorization: `Bearer ${token}` },
     })
     if (!res.ok) return
@@ -154,7 +154,7 @@ export default function Home() {
     try {
       const token = await auth.currentUser?.getIdToken()
       if (!token) return
-      const res = await fetch('/toolkit/api/quota', { headers: { Authorization: `Bearer ${token}` } })
+      const res = await fetch('/api/quota', { headers: { Authorization: `Bearer ${token}` } })
       if (!res.ok) return
       const data = await res.json()
       setSimQuota({ used: data.used, limit: data.limit })
@@ -182,8 +182,8 @@ export default function Home() {
 
   async function loadDefaultTemplate() {
     const [defaultsText, topicText] = await Promise.all([
-      fetch('/toolkit/templates/defaults/mediator.yaml').then(res => res.text()),
-      fetch('/toolkit/templates/competition/mediator.yaml').then(res => res.text()),
+      fetch('/templates/defaults/mediator.yaml').then(res => res.text()),
+      fetch('/templates/competition/mediator.yaml').then(res => res.text()),
     ])
     const merged = { ...(yaml.load(defaultsText) as object), ...(yaml.load(topicText) as object) }
     setMediatorData(JSON.stringify(merged, null, 2))
@@ -324,7 +324,7 @@ export default function Home() {
   async function handleExport() {
     setExportState({ status: 'loading', result: null })
     try {
-      const res = await fetch(`/toolkit/api/export-experiment?experimentId=${encodeURIComponent(experimentId ?? '')}`)
+      const res = await fetch(`/api/export-experiment?experimentId=${encodeURIComponent(experimentId ?? '')}`)
       const data = await res.json()
       setExportState({ status: res.ok ? 'done' : 'error', result: data })
     } catch (e) {
@@ -356,7 +356,7 @@ export default function Home() {
     if (simExport === null) return
     setConvokitLoading(true)
     try {
-      const res = await fetch('/toolkit/api/convokit', {
+      const res = await fetch('/api/convokit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(simExport),
@@ -397,7 +397,7 @@ export default function Home() {
       if (action === 'simulate') {
         idToken = await auth.currentUser?.getIdToken()
       }
-      const res = await fetch('/toolkit/api/create-experiment', {
+      const res = await fetch('/api/create-experiment', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ mediatorTemplate: mediatorData, mode, topic: topicMap(TOPICS[topicId].topic), numCohorts, numUtterances, action, idToken }),
@@ -426,7 +426,7 @@ export default function Home() {
     for (let i = 0; i < MAX_POLLS; i++) {
       await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS))
       try {
-        const res = await fetch(`/toolkit/api/simulation-status?experimentId=${encodeURIComponent(experimentId)}`)
+        const res = await fetch(`/api/simulation-status?experimentId=${encodeURIComponent(experimentId)}`)
         const status = await res.json()
         if (!res.ok) { setSimState({ status: 'error', result: status }); return }
 
