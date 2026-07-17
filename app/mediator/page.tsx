@@ -691,7 +691,7 @@ export default function Home() {
         {/* YAML preview */}
         <div className="space-y-1">
           <div className="border-b border-neutral-800 pb-3 mb-3">
-            <h2 className="text-lg font-semibold tracking-tight">Template Configuration</h2>
+            <h2 className="text-lg font-semibold tracking-tight">Export Mediator</h2>
           </div>
           <div className="space-y-2 gap-2">
             <button
