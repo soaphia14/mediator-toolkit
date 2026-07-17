@@ -764,7 +764,7 @@ export default function Home() {
                   }}
                   disabled={busy}
                   className="w-16 p-2 rounded-lg border border-neutral-700 bg-neutral-900 text-sm text-neutral-200"
-                /> <label className="text-sm text-neutral-400">Cohorts (1-30)</label>
+                /> <label className="text-sm text-neutral-400">Discussions (1-30)</label>
               </div>
               <div>
                 <input
