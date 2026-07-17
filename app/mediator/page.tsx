@@ -68,13 +68,13 @@ function PromptBlockLegend({ textOnly }: { textOnly?: boolean }) {
 const topicMap = (name: string) => name.toLowerCase().replaceAll(' ', '_')
 
 const POLL_INTERVAL_MS = 10_000
-const MAX_POLLS = 5 * 6 // poll every 10s for 5 minutes
+const MAX_WAIT_TIME_MS = 300000
 
 export default function Home() {
   const router = useRouter()
   const [authReady, setAuthReady] = useState(false)
   const [userEmail, setUserEmail] = useState<string | null>(null)
-  const [simQuota, setSimQuota] = useState<{ used: number; limit: number } | null>(null)
+  const [simQuota, setSimQuota] = useState<{ used: number; limit: number; simMaxWaitTimeMs: number } | null>(null)
 
   // saving
   const [savedTemplates, setSavedTemplates] = useState<{ id: string; name: string }[]>([])
@@ -158,7 +158,7 @@ export default function Home() {
       const res = await fetch(`${API_BASE}/api/quota`, { headers: { Authorization: `Bearer ${token}` } })
       if (!res.ok) return
       const data = await res.json()
-      setSimQuota({ used: data.used, limit: data.limit })
+      setSimQuota({ used: data.used, limit: data.limit, simMaxWaitTimeMs: data.simMaxWaitTimeMs ?? MAX_WAIT_TIME_MS })
     } catch (e) {
       console.warn('fetchQuota failed:', e)
     }
@@ -214,6 +214,8 @@ export default function Home() {
   const [exportState, setExportState] = useState<ActionState>(idle)
   const [createState, setCreateState] = useState<ActionState>(idle)
   const [simState, setSimState] = useState<ActionState>(idle)
+  const [simStartTime, setSimStartTime] = useState<number | null>(null)
+  const [simElapsed, setSimElapsed] = useState(0)
   const [createAction, setCreateAction] = useState<'create' | 'simulate' | null>(null)
   const [simExport, setSimExport] = useState<unknown>(null)
   const [convokitLoading, setConvokitLoading] = useState(false)
@@ -235,6 +237,12 @@ export default function Home() {
   //   explanationField: 'reasoning',
   //   descriptionOnly: true
   // })
+  useEffect(() => {
+    if (simState.status !== 'loading' || simStartTime === null) return
+    const interval = setInterval(() => setSimElapsed(Math.floor((Date.now() - simStartTime) / 1000)), 1000)
+    return () => clearInterval(interval)
+  }, [simState.status, simStartTime])
+
   const busy = creating !== null || exportState.status === 'loading' || simState.status === 'loading'
 
   const mediatorParsed = useMemo(() => {
@@ -423,13 +431,16 @@ export default function Home() {
     if (!experimentId) return
 
     setSimExport(null)
+    setSimStartTime(Date.now())
+    setSimElapsed(0)
     setSimState({ status: 'loading', result: { message: 'Simulation running — waiting for agents to finish' } })
 
     let lastExport = null
     let completedCohorts: string[] = []
     let totalSim = 0
 
-    for (let i = 0; i < MAX_POLLS; i++) {
+    const maxPolls = Math.floor((simQuota?.simMaxWaitTimeMs ?? MAX_WAIT_TIME_MS) / POLL_INTERVAL_MS)
+    for (let i = 0; i < maxPolls; i++) {
       await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS))
       try {
         const res = await fetch(`${API_BASE}/api/simulation-status?experimentId=${encodeURIComponent(experimentId)}`)
@@ -821,6 +832,14 @@ export default function Home() {
                   disabled={busy}
                   className="w-16 p-2 rounded-lg border border-neutral-700 bg-neutral-900 text-sm text-neutral-200"
                 /> <label className="text-sm text-neutral-400">Messages (1-20)</label>
+              </div>
+              <div className="flex flex-col">
+                <label className="text-sm text-neutral-400">Max wait time: {(() => { const s = Math.round((simQuota?.simMaxWaitTimeMs ?? MAX_WAIT_TIME_MS) / 1000); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}` })()} minutes</label>
+                {simStartTime !== null && (
+                  <label className="text-sm text-neutral-400">
+                    {simState.status === 'loading' ? 'Elapsed' : 'Completed in'}: {Math.floor(simElapsed / 60)}:{String(simElapsed % 60).padStart(2, '0')} minutes
+                  </label>
+                )}
               </div>
               <ActionButton
                 label="Simulate"

@@ -18,9 +18,11 @@ export async function GET(req: Request) {
     adminDb.collection('toolkit').doc('config').get(),
   ])
 
-  const limit: number = configSnap.data()?.dailySimLimit ?? 30
+  const configData = configSnap.data() ?? {}
+  const limit: number = configData.dailySimLimit ?? 30
+  const simMaxWaitTimeMs: number = configData.simMaxWaitTimeMs ?? 300000
   const userData = userSnap.data() ?? {}
   const used: number = userData.simCountDate === today ? (userData.dailySimCount ?? 0) : 0
 
-  return Response.json({ used, limit })
+  return Response.json({ used, limit, simMaxWaitTimeMs })
 }
