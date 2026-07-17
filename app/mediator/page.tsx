@@ -68,7 +68,7 @@ function PromptBlockLegend({ textOnly }: { textOnly?: boolean }) {
 const topicMap = (name: string) => name.toLowerCase().replaceAll(' ', '_')
 
 const POLL_INTERVAL_MS = 10_000
-const MAX_POLLS = 10 * 6 // poll every 10s for 10 minutes
+const MAX_POLLS = 5 * 6 // poll every 10s for 5 minutes
 
 export default function Home() {
   const router = useRouter()
@@ -629,7 +629,7 @@ export default function Home() {
                   </div>
                 ) : activePromptTab === 'should-respond' ? (
                   <div className="space-y-4">
-                    <PromptEditorDescription description="Your mediator uses this prompt after each message in the discussion to decide whether this is a good time to intervene.  When the answer is YES, the mediator uses the Intervention Prompt to generate a message and sends it to the participants. When the answer is 'NO' the mediator waits for the next participant message. Message sent automatically when the conversation begins." />
+                    <PromptEditorDescription description="Your mediator uses this prompt after each message in the discussion to decide whether this is a good time to intervene.  When the response is true, the mediator uses the Intervention Prompt to generate a message and sends it to the participants. When the response is false the mediator waits for the next participant message. Message sent automatically when the conversation begins." />
                     <PromptBlockLegend />
                     {/* <MediatorSection
                       title="ShouldRespond Settings"
