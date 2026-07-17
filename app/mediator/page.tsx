@@ -68,7 +68,7 @@ function PromptBlockLegend({ textOnly }: { textOnly?: boolean }) {
 const topicMap = (name: string) => name.toLowerCase().replaceAll(' ', '_')
 
 const POLL_INTERVAL_MS = 10_000
-const MAX_POLLS = 180 // poll every 10s for 30 minutes
+const MAX_POLLS = 10 * 6 // poll every 10s for 10 minutes
 
 export default function Home() {
   const router = useRouter()
@@ -424,30 +424,70 @@ export default function Home() {
 
     setSimExport(null)
     setSimState({ status: 'loading', result: { message: 'Simulation running — waiting for agents to finish' } })
+
+    let lastExport = null
+    let completedCohorts: string[] = []
+    let totalSim = 0
+
     for (let i = 0; i < MAX_POLLS; i++) {
       await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS))
       try {
         const res = await fetch(`${API_BASE}/api/simulation-status?experimentId=${encodeURIComponent(experimentId)}`)
         const status = await res.json()
         if (!res.ok) { setSimState({ status: 'error', result: status }); return }
+        
+        lastExport = status.export
 
-        // count completed cohorts / total cohorts
-        let completedSim = 0
-        for (const cohortStatuses of Object.values(status.statuses ?? {}) as string[][]) {
-          if (cohortStatuses.length > 0 && cohortStatuses.every((s) => s === 'SUCCESS')) completedSim++
-        }
-        const totalSim = Object.keys(status.statuses ?? {}).length
+        completedCohorts = Object.entries(status.statuses ?? {})
+          .filter(([, ss]) => (ss as string[]).length > 0 && (ss as string[]).every((s) => s === 'SUCCESS'))
+          .map(([cid]) => cid)
+        
+        totalSim = Object.keys(status.statuses ?? {}).length
 
         if (status.completed) {
           setSimExport(status.export)
           setSimState({ status: 'done', result: { message: `Simulation complete (experiment_id: ${experimentId})` } })
           return
         }
-        setSimState({ status: 'loading', result: { message: `Simulation running: ${completedSim}/${totalSim} cohorts finished` } })
+        setSimState({ status: 'loading', result: { message: `Simulation running: ${completedCohorts.length}/${totalSim} cohorts finished` } })
       } catch (e) {
         setSimState({ status: 'error', result: String(e) }); return
       }
     }
+    
+    // filter the export to only include completed cohorts if we have any
+    if (lastExport && completedCohorts.length > 0) {
+      const done = new Set(completedCohorts)
+      const exp = lastExport as {
+        cohortMap?: Record<string, unknown>
+        participantMap?: Record<string, { profile?: { currentCohortId?: string; agentConfig?: { agentId?: string } } }>
+        agentParticipantMap?: Record<string, unknown>
+      }
+
+      // we need to keep participants that are in completed cohorts, and remove others
+      const participantMap = Object.fromEntries(
+        Object.entries(exp.participantMap ?? {}).filter(([, p]) => done.has(p?.profile?.currentCohortId ?? '')),
+      )
+      // then get agent ids from these participants
+      const usedAgentIds = new Set(
+        Object.values(participantMap).map((p) => p?.profile?.agentConfig?.agentId).filter(Boolean),
+      )
+
+      setSimExport({
+        ...exp,
+        cohortMap: Object.fromEntries(
+          Object.entries(exp.cohortMap ?? {}).filter(([cid]) => done.has(cid)),
+        ),
+        participantMap,
+        agentParticipantMap: Object.fromEntries(
+          Object.entries(exp.agentParticipantMap ?? {}).filter(([aid]) => usedAgentIds.has(aid)),
+        ),
+      })
+
+      setSimState({ status: 'done', result: { message: `Timed out: ${completedCohorts.length}/${totalSim} cohorts finished — export contains completed cohorts only (experiment_id: ${experimentId})` } })
+      return
+    }
+
     setSimState({ status: 'error', result: 'Timed out waiting for the simulation to complete.' })
   }
 
