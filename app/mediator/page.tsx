@@ -414,6 +414,7 @@ export default function Home() {
 
   // handle simulation poll
   async function handleSimPoll(countPolls : number) {
+    if (!experimentId) return
     let lastExport = null
     let completedCohorts: string[] = []
     let totalSim = 0
