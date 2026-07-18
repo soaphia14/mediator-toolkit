@@ -11,6 +11,7 @@ export enum PromptItemType {
   CONTEXT = 'CONTEXT',
   PROFILE_INFO = 'PROFILE_INFO',
   INITIALIZATION_CONTEXT = 'INITIALIZATION_CONTEXT',
+  PRELOADED_CONTEXT='PRELOADED_CONTEXT',
   BIASED = 'BIASED',
   TOPIC_NAME = 'TOPIC_NAME',
 }
@@ -36,6 +37,12 @@ export interface ProfileInfoPromptItem extends PromptItem {
 export interface InitializationContextPromptItem extends PromptItem {
   type: PromptItemType.INITIALIZATION_CONTEXT
 }
+
+// Legacy
+export interface PreloadedContextPromptItem extends PromptItem {
+  type: PromptItemType.PRELOADED_CONTEXT
+}
+
 
 export interface BiasedPromptItem extends PromptItem {
   type: PromptItemType.BIASED
@@ -251,6 +258,7 @@ function ItemEditor({ item }: { item: PromptItem }) {
     //     </div>
     //   )
     case PromptItemType.INITIALIZATION_CONTEXT:
+    case PromptItemType.PRELOADED_CONTEXT:
       return (
         <div className="cursor-default rounded bg-[#d8f9e0] px-3 py-1.5 text-sm font-medium text-neutral-900">
           Initialization Result

@@ -438,7 +438,7 @@ export default function Home() {
         setSimState({ status: 'done', result: { message: `Simulation complete (experiment_id: ${experimentId})` } })
         return
       }
-      setSimState({ status: 'loading', result: { message: `Simulation running: ${completedCohorts.length}/${totalSim} cohorts finished` } })
+      setSimState({ status: 'loading', result: { message: `Simulation running: ${completedCohorts.length}/${totalSim} discussions finished` } })
     } catch (e) {
       setSimState({ status: 'error', result: String(e) }); return
     }
