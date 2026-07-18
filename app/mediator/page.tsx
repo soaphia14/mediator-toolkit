@@ -477,7 +477,7 @@ export default function Home() {
         ),
       })
 
-      setSimState({ status: 'done', result: { message: `Timed out: ${completedCohorts.length}/${totalSim} cohorts finished — export contains completed cohorts only (experiment_id: ${experimentId})` } })
+      setSimState({ status: 'done', result: { message: `Timed out: ${completedCohorts.length}/${totalSim} discussions finished — export contains completed discussions only (experiment_id: ${experimentId})` } })
       return
     }
 
