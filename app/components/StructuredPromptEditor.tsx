@@ -10,7 +10,7 @@ export enum PromptItemType {
   TEXT = 'TEXT',
   CONTEXT = 'CONTEXT',
   PROFILE_INFO = 'PROFILE_INFO',
-  PRELOADED_CONTEXT = 'PRELOADED_CONTEXT',
+  INITIALIZATION_CONTEXT = 'INITIALIZATION_CONTEXT',
   BIASED = 'BIASED',
   TOPIC_NAME = 'TOPIC_NAME',
 }
@@ -33,8 +33,8 @@ export interface ProfileInfoPromptItem extends PromptItem {
   type: PromptItemType.PROFILE_INFO
 }
 
-export interface PreloadedContextPromptItem extends PromptItem {
-  type: PromptItemType.PRELOADED_CONTEXT
+export interface InitializationContextPromptItem extends PromptItem {
+  type: PromptItemType.INITIALIZATION_CONTEXT
 }
 
 export interface BiasedPromptItem extends PromptItem {
@@ -171,7 +171,7 @@ function AddMenu({ targetArr, textOnly }: { targetArr: PromptItem[], textOnly?: 
                 Profile Info
               </div> */}
               <div className="my-0.5 border-t border-neutral-700/60" />
-              <div className={itemClass} role="button" onClick={() => pick({ type: PromptItemType.PRELOADED_CONTEXT } as PreloadedContextPromptItem)}>
+              <div className={itemClass} role="button" onClick={() => pick({ type: PromptItemType.INITIALIZATION_CONTEXT } as InitializationContextPromptItem)}>
                 Initialization Result
               </div>
             </>
@@ -250,7 +250,7 @@ function ItemEditor({ item }: { item: PromptItem }) {
     //       Profile Info
     //     </div>
     //   )
-    case PromptItemType.PRELOADED_CONTEXT:
+    case PromptItemType.INITIALIZATION_CONTEXT:
       return (
         <div className="cursor-default rounded bg-[#d8f9e0] px-3 py-1.5 text-sm font-medium text-neutral-900">
           Initialization Result

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { onAuthStateChanged, signOut } from 'firebase/auth'
 import { auth } from '../lib/firebase'
@@ -67,7 +67,7 @@ function PromptBlockLegend({ textOnly }: { textOnly?: boolean }) {
 
 const topicMap = (name: string) => name.toLowerCase().replaceAll(' ', '_')
 
-const POLL_INTERVAL_MS = 10_000
+const POLL_INTERVAL_MS = 10000
 const MAX_WAIT_TIME_MS = 300000
 
 export default function Home() {
@@ -218,28 +218,26 @@ export default function Home() {
   const [simElapsed, setSimElapsed] = useState(0)
   const [createAction, setCreateAction] = useState<'create' | 'simulate' | null>(null)
   const [simExport, setSimExport] = useState<unknown>(null)
+  const simPollRef = useRef<((countPolls: number) => Promise<void>) | null>(null)
   const [convokitLoading, setConvokitLoading] = useState(false)
   const [creating, setCreating] = useState<'human-human' | 'human-agent' | 'agent-agent' | null>(null)
   const [numCohorts, setNumCohorts] = useState('5')
   const [numUtterances, setNumUtterances] = useState('15')
   const [showAsYaml, setShowAsYaml] = useState(false)
-  const [activePromptTab, setActivePromptTab] = useState<'response' | 'should-respond' | 'preload'>('response')
-  // const [structuredOutputConfig, setStructuredOutputConfig] = useState<StructuredOutputConfig>({
-  //   schema: {
-  //     type: 'OBJECT',
-  //     properties: [
-  //       { name: 'message', schema: { type: 'STRING', description: 'Your chat message.' } },
-  //       { name: 'reasoning', schema: { type: 'STRING', description: '1-2 sentences explaining your message.' } },
-  //       { name: 'readyToEndChat', schema: { type: 'BOOLEAN', description: 'Whether you are ready to end the conversation.' } },
-  //     ],
-  //   },
-  //   messageField: 'message',
-  //   explanationField: 'reasoning',
-  //   descriptionOnly: true
-  // })
+  const [activePromptTab, setActivePromptTab] = useState<'response' | 'should-respond' | 'initialization'>('response')
+
   useEffect(() => {
     if (simState.status !== 'loading' || simStartTime === null) return
-    const interval = setInterval(() => setSimElapsed(Math.floor((Date.now() - simStartTime) / 1000)), 1000)
+    const lastPollCount = { current: 0 }
+    const interval = setInterval(() => {
+      const elapsed = Math.floor((Date.now() - simStartTime) / 1000)
+      setSimElapsed(elapsed)
+      const pollCount = Math.floor(elapsed / (POLL_INTERVAL_MS / 1000))
+      if (pollCount > lastPollCount.current) {
+        lastPollCount.current = pollCount
+        simPollRef.current?.(pollCount)
+      }
+    }, 1000)
     return () => clearInterval(interval)
   }, [simState.status, simStartTime])
 
@@ -260,12 +258,12 @@ export default function Home() {
     })
   }
 
-  const updatePreloadContextPrompt = (prompt: PromptItem[]) => {
+  const updateInitializationContextPrompt = (prompt: PromptItem[]) => {
     const reindexed = prompt.map((item, i) => ({ ...item, id: i }))
     setMediatorData(prev => {
       try {
         const data = JSON.parse(prev ?? '')
-        data.preload_context_prompt = reindexed
+        data.initialization_context_prompt = reindexed
         return JSON.stringify(data, null, 2)
       } catch { return prev }
     })
@@ -328,17 +326,6 @@ export default function Home() {
         return JSON.stringify(data, null, 2)
       } catch { return prev }
     })
-  }
-
-  async function handleExport() {
-    setExportState({ status: 'loading', result: null })
-    try {
-      const res = await fetch(`${API_BASE}/api/export-experiment?experimentId=${encodeURIComponent(experimentId ?? '')}`)
-      const data = await res.json()
-      setExportState({ status: res.ok ? 'done' : 'error', result: data })
-    } catch (e) {
-      setExportState({ status: 'error', result: String(e) })
-    }
   }
 
   function downloadMediator() {
@@ -424,48 +411,42 @@ export default function Home() {
     }
   }
 
-  // sent to simulation + polling its status
-  async function handleCreateSim() {
-    const data = await handleCreate('agent-agent', 'simulate')
-    const experimentId: string | undefined = data?.experiment_id
-    if (!experimentId) return
 
-    setSimExport(null)
-    setSimStartTime(Date.now())
-    setSimElapsed(0)
-    setSimState({ status: 'loading', result: { message: 'Simulation running — waiting for agents to finish' } })
-
+  // handle simulation poll
+  async function handleSimPoll(countPolls : number) {
     let lastExport = null
     let completedCohorts: string[] = []
     let totalSim = 0
-
     const maxPolls = Math.floor((simQuota?.simMaxWaitTimeMs ?? MAX_WAIT_TIME_MS) / POLL_INTERVAL_MS)
-    for (let i = 0; i < maxPolls; i++) {
-      await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS))
-      try {
-        const res = await fetch(`${API_BASE}/api/simulation-status?experimentId=${encodeURIComponent(experimentId)}`)
-        const status = await res.json()
-        if (!res.ok) { setSimState({ status: 'error', result: status }); return }
-        
-        lastExport = status.export
 
-        completedCohorts = Object.entries(status.statuses ?? {})
-          .filter(([, ss]) => (ss as string[]).length > 0 && (ss as string[]).every((s) => s === 'SUCCESS'))
-          .map(([cid]) => cid)
-        
-        totalSim = Object.keys(status.statuses ?? {}).length
+    try {
+      const res = await fetch(`${API_BASE}/api/simulation-status?experimentId=${encodeURIComponent(experimentId)}`)
+      const status = await res.json()
+      if (!res.ok) { setSimState({ status: 'error', result: status }); return }
 
-        if (status.completed) {
-          setSimExport(status.export)
-          setSimState({ status: 'done', result: { message: `Simulation complete (experiment_id: ${experimentId})` } })
-          return
-        }
-        setSimState({ status: 'loading', result: { message: `Simulation running: ${completedCohorts.length}/${totalSim} cohorts finished` } })
-      } catch (e) {
-        setSimState({ status: 'error', result: String(e) }); return
+      lastExport = status.export
+
+      completedCohorts = Object.entries(status.statuses ?? {})
+        .filter(([, ss]) => (ss as string[]).length > 0 && (ss as string[]).every((s) => s === 'SUCCESS'))
+        .map(([cid]) => cid)
+
+      totalSim = Object.keys(status.statuses ?? {}).length
+
+      if (status.completed) {
+        setSimExport(status.export)
+        setSimState({ status: 'done', result: { message: `Simulation complete (experiment_id: ${experimentId})` } })
+        return
       }
+      setSimState({ status: 'loading', result: { message: `Simulation running: ${completedCohorts.length}/${totalSim} cohorts finished` } })
+    } catch (e) {
+      setSimState({ status: 'error', result: String(e) }); return
     }
-    
+
+    // Return if # of polls isn't up yet. 
+    if (countPolls < maxPolls) {
+      return 
+    }
+
     // filter the export to only include completed cohorts if we have any
     if (lastExport && completedCohorts.length > 0) {
       const done = new Set(completedCohorts)
@@ -500,6 +481,23 @@ export default function Home() {
     }
 
     setSimState({ status: 'error', result: 'Timed out waiting for the simulation to complete.' })
+  }
+  simPollRef.current = handleSimPoll
+
+
+  // sent to simulation + polling its status
+  async function handleCreateSim() {
+    const data = await handleCreate('agent-agent', 'simulate')
+    const experimentId: string | undefined = data?.experiment_id
+    if (!experimentId) return
+    setExperimentId(experimentId)
+
+    setSimExport(null)
+    setSimState({ status: 'loading', result: { message: 'Simulation running — waiting for agents to finish' } })
+
+    setSimStartTime(Date.now())
+    setSimElapsed(0)
+
   }
 
   if (!authReady) return (
@@ -603,7 +601,7 @@ export default function Home() {
 
             <div className="rounded-lg border border-neutral-800">
               <div className="flex border-b border-neutral-800 bg-neutral-900/60">
-                {(['response', 'should-respond', 'preload'] as const).map(tab => (
+                {(['response', 'should-respond', 'initialization'] as const).map(tab => (
                   <button
                     key={tab}
                     id={`tour-prompt-tab-${tab}`}
@@ -658,15 +656,15 @@ export default function Home() {
                     />
 
                   </div>
-                ) : activePromptTab === 'preload' ? (
+                ) : activePromptTab === 'initialization' ? (
                   <div className="space-y-4">
                         <PromptEditorDescription description="A prompt that is run at the start of the conversation to gather information about the topic, participants, or anything else. This is information that can subsequently be accessed by your mediator during the conversation. (via the Initialization Result variable)." />
                     <PromptBlockLegend textOnly />
                     <StructuredPromptEditor
                       label="Initialization Prompt Editor"
-                      prompt={(mediatorParsed?.preload_context_prompt as PromptItem[]) ?? []}
+                      prompt={(mediatorParsed?.initialization_context_prompt ?? mediatorParsed?.preload_context_prompt) as PromptItem[] ?? []}
                       stageId=""
-                      onUpdate={updatePreloadContextPrompt}
+                      onUpdate={updateInitializationContextPrompt}
                       textOnly={true}
                     />
                   </div>

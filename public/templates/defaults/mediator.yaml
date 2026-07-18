@@ -63,7 +63,7 @@ prompt:
       Help the participants have a meaningful discussion, given the following summary of their opinions:
 
   - id: 5
-    type: PRELOADED_CONTEXT
+    type: INITIALIZATION_CONTEXT
 
   - id: 6
     type: TEXT
@@ -89,7 +89,7 @@ should_respond_prompt:
       - This is a moment of the conversation in which a change of opinion is possible
 
 
-preload_context_prompt:
+initialization_context_prompt:
   - id: 0
     type: TEXT
     text: |
