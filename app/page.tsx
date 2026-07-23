@@ -30,12 +30,9 @@ export default function LandingPage() {
     <div className="min-h-screen bg-neutral-950 text-neutral-100 flex flex-col">
       {/* Hero */}
       <main className="flex-1 flex flex-col items-center justify-center px-8 text-center space-y-6">
-        <h1 className="text-5xl font-semibold tracking-tight max-w-2xl leading-tight">
-          Build and test AI mediators
+        <h1 className="text-5xl font-semibold tracking-tight max-w-4xl leading-tight">
+          Mediator Toolkit: Build and Test Civic Discourse Mediators
         </h1>
-        <p className="text-lg text-neutral-400">
-          Create and test custom mediators through ConvoArena and multi-agent simulations.
-        </p>
         <div className="text-lg text-neutral-300 font-bold">
             Please only sign in after reading the  &nbsp;
             <a href= "https://docs.google.com/document/d/1tX9w_9RFuES2jxlGTDY2lXpRenc354hjzYMeH8LzngU/edit?usp=sharing"
