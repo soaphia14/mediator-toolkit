@@ -33,10 +33,10 @@ export default function LandingPage() {
         <h1 className="text-5xl font-semibold tracking-tight max-w-2xl leading-tight">
           Build and test AI mediators
         </h1>
-        <p className="text-xl text-neutral-400">
+        <p className="text-lg text-neutral-400">
           Create and test custom mediators through ConvoArena and multi-agent simulations.
         </p>
-        <div className="text-xl text-neutral-300 font-bold">
+        <div className="text-lg text-neutral-300 font-bold">
             Please only sign in after reading the  &nbsp;
             <a href= "https://docs.google.com/document/d/1tX9w_9RFuES2jxlGTDY2lXpRenc354hjzYMeH8LzngU/edit?usp=sharing"
                 target = "_blank"
@@ -52,7 +52,7 @@ export default function LandingPage() {
         <div className="flex flex-col items-center gap-3 pt-2">
           <button
             onClick={handleSignIn}
-            className="px-6 py-3 rounded-lg bg-neutral-100 text-neutral-950 text-lg font-semibold hover:bg-white active:scale-[0.98] transition-all duration-150 cursor-pointer"
+            className="px-6 py-3 rounded-lg bg-neutral-100 text-neutral-950 text-md font-semibold hover:bg-white active:scale-[0.98] transition-all duration-150 cursor-pointer"
           >
             Sign in with Google
           </button>
