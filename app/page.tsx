@@ -33,7 +33,7 @@ export default function LandingPage() {
         <h1 className="text-5xl font-semibold tracking-tight max-w-4xl leading-tight">
           Mediator Toolkit: Build and Test Civic Discourse Mediators
         </h1>
-        <div className="text-lg text-neutral-300 font-bold">
+        <div className="text-md text-neutral-300 font-bold">
             Please only sign in after reading the  &nbsp;
             <a href= "https://docs.google.com/document/d/1tX9w_9RFuES2jxlGTDY2lXpRenc354hjzYMeH8LzngU/edit?usp=sharing"
                 target = "_blank"
@@ -46,6 +46,18 @@ export default function LandingPage() {
             </a>.
         </div>
 
+        <div className="w-full max-w-xl space-y-2">
+          <p className="text-md font-medium text-neutral-300">Watch the Tutorial Video!</p>
+          <div className="aspect-video rounded-lg border border-neutral-800 bg-neutral-900/50 overflow-hidden shadow-lg">
+            <iframe
+              src="https://drive.google.com/file/d/1ELPMxibpd6Fm9m254UIjp1HoSAnNpJHD/preview"
+              className="w-full h-full"
+              allow="autoplay; fullscreen"
+              allowFullScreen
+            />
+          </div>
+        </div>
+
         <div className="flex flex-col items-center gap-3 pt-2">
           <button
             onClick={handleSignIn}
@@ -55,6 +67,7 @@ export default function LandingPage() {
           </button>
           {error && <p className="text-sm text-red-400">{error}</p>}
         </div>
+
       </main>
 
       {/* Footer */}

@@ -82,6 +82,8 @@ export default function Home() {
   const [lastSavedContent, setLastSavedContent] = useState<string | null>(null)
   const [lastSavedName, setLastSavedName] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+  const [showSaveAlert, setShowSaveAlert] = useState(false)
+  const [showTutorial, setShowTutorial] = useState(false)
 
   async function fetchSavedTemplates() {
     try {
@@ -127,6 +129,7 @@ export default function Home() {
         setLastSavedContent(mediatorData)
         setLastSavedName(templateName.trim())
         await fetchSavedTemplates()
+        setShowSaveAlert(true)
       }
     } finally {
       setSaving(false)
@@ -181,6 +184,10 @@ export default function Home() {
   const isDirty = mediatorData !== null && (mediatorData !== lastSavedContent || templateName !== lastSavedName)
   const [topicId, setTopicId] = useState<number>(Number(Object.keys(TOPICS)[0]))
 
+  useEffect(() => {
+    if (isDirty) setShowSaveAlert(false)
+  }, [isDirty])
+
   async function loadDefaultTemplate() {
     const [defaultsText, topicText] = await Promise.all([
       fetch(`${API_BASE}/templates/defaults/mediator.yaml`).then(res => res.text()),
@@ -207,6 +214,7 @@ export default function Home() {
     if (authReady && !localStorage.getItem('tourLoaded')) {
       localStorage.setItem('tourLoaded', '1')
       startTour()
+      setShowTutorial(true);
     }
   }, [authReady])
 
@@ -521,6 +529,7 @@ export default function Home() {
               <h1 className="text-3xl font-semibold tracking-tight">Mediator Toolkit</h1>
               <p className="text-base text-neutral-500 mt-1">Create, audit, and test custom mediators.</p>
             </div>
+
             <div className="flex items-center gap-3 mt-1">
               {userEmail && <span className="text-sm text-neutral-400">{userEmail}</span>}
               <button
@@ -538,16 +547,40 @@ export default function Home() {
             </div>
           </div>
 
-          {/* competition instructions banner */}
-          <a
-            href="https://docs.google.com/document/d/1tX9w_9RFuES2jxlGTDY2lXpRenc354hjzYMeH8LzngU/edit?usp=sharing"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center justify-between gap-3 rounded-md border border-blue-400/50 bg-blue-500/10 px-4 py-3 text-sm text-blue-200 hover:border-blue-300 hover:bg-blue-500/20 hover:text-blue-100 transition-colors cursor-pointer"
-          >
-            <span>Read the competition instructions before building and submitting your mediator.</span>
-            <span className="shrink-0 font-medium underline underline-offset-2">Open instructions →</span>
-          </a>
+          {/* competition instructions + tutorial video banner */}
+          <div className="rounded-md border border-blue-400/50 bg-blue-500/10 overflow-hidden text-sm text-blue-200">
+            <a
+              href="https://docs.google.com/document/d/1tX9w_9RFuES2jxlGTDY2lXpRenc354hjzYMeH8LzngU/edit?usp=sharing"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-between gap-3 px-4 py-3 hover:bg-blue-500/20 hover:text-blue-100 transition-colors cursor-pointer"
+            >
+              <span>Read the competition instructions before building and submitting your mediator.</span>
+              <span className="shrink-0 font-medium underline underline-offset-2">Open instructions →</span>
+            </a>
+            <button
+              onClick={() => setShowTutorial(v => !v)}
+              className="w-full flex items-center justify-between gap-3 px-4 py-3 border-t border-blue-400/10 hover:bg-blue-500/20 hover:text-blue-100 transition-colors cursor-pointer"
+            >
+              <span className="font-medium underline underline-offset-2">Watch the Tutorial Video!</span>
+              <svg
+                viewBox="0 0 20 20"
+                fill="currentColor"
+                className={`w-4 h-4 shrink-0 transition-transform ${showTutorial ? 'rotate-180' : ''}`}
+              >
+                <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clipRule="evenodd" />
+              </svg>
+            </button>
+            {showTutorial && (
+              <div className="aspect-video border-t border-blue-400/30">
+                <iframe
+                  src="https://drive.google.com/file/d/1ELPMxibpd6Fm9m254UIjp1HoSAnNpJHD/preview"
+                  className="w-full h-full"
+                  allow="autoplay; fullscreen"
+                />
+              </div>
+            )}
+          </div>
 
           {/* Save / Load */}
           <div className="flex items-center gap-2">
@@ -600,6 +633,21 @@ export default function Home() {
               </select>
             )}
           </div>
+
+          {showSaveAlert && (
+            <div className="flex items-start justify-between gap-3 rounded-md border border-emerald-600/40 bg-emerald-500/10 px-3 py-2.5 text-sm text-emerald-300">
+              <p>
+                Template saved! Remember to also submit the template to the appropiate track following the competition instructions.
+              </p>
+              <button
+                onClick={() => setShowSaveAlert(false)}
+                className="text-emerald-400 hover:text-emerald-200 cursor-pointer leading-none"
+                aria-label="Dismiss"
+              >
+                ×
+              </button>
+            </div>
+          )}
 
           {/* Mediator configuration and prompt editors */}
           <div className="space-y-4">
