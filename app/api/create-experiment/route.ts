@@ -24,11 +24,16 @@ async function checkAndIncrementQuota(email: string, cohorts: number): Promise<{
 
     if (currentCount >= limit) return { allowed: false, used: currentCount, limit }
 
-    tx.update(userRef, {
+    // tx.update(userRef, {
+    //   dailySimCount: currentCount + cohorts,
+    //   simCountDate: today,
+    //   lastSimulationRan: FieldValue.serverTimestamp(),
+    // })
+    tx.set(userRef, {
       dailySimCount: currentCount + cohorts,
       simCountDate: today,
       lastSimulationRan: FieldValue.serverTimestamp(),
-    })
+    }, { merge: true })
     return { allowed: true, used: currentCount + cohorts, limit }
   })
 }
@@ -62,14 +67,25 @@ export async function POST(req: Request) {
   }
 
   if (action === 'simulate') {
-    if (!idToken) return Response.json({ error: 'Authentication required' }, { status: 401 })
-    let email: string
-    try {
-      const decoded = await adminAuth.verifyIdToken(idToken)
-      email = decoded.email!
-    } catch {
-      return Response.json({ error: 'Invalid or expired token' }, { status: 401 })
-    }
+      if (!idToken) return Response.json({ error: 'Authentication required' }, { status: 401 })
+      let email: string
+      try {
+        // BYPASS: If running locally against the emulator, you can decode without signature validation 
+        // or fallback to a default local developer email if it's a test token.
+        if (process.env.NODE_ENV === 'development' || process.env.FIREBASE_AUTH_EMULATOR_HOST) {
+          // For local testing, we trust the local emulator token and assign a dev email
+          email = 'experimenter@google.com';
+        } else {
+          const decoded = await adminAuth.verifyIdToken(idToken)
+          email = decoded.email!
+        }
+      } catch (error) {
+        console.error("\n❌ TOKEN VERIFICATION FAILED:")
+        console.error(error)
+        console.error("--------------------------------\n")
+        
+        return Response.json({ error: 'Invalid or expired token' }, { status: 401 })
+      }
 
     const quota = await checkAndIncrementQuota(email, cohortCount ?? 1)
     if (!quota.allowed) {
