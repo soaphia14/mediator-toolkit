@@ -6,6 +6,11 @@ import { signInWithPopup } from 'firebase/auth'
 import { doc, getDoc, setDoc } from 'firebase/firestore'
 import { auth, db, googleProvider } from './lib/firebase'
 
+const INSTRUCTIONS_URL =
+  'https://docs.google.com/document/d/1tX9w_9RFuES2jxlGTDY2lXpRenc354hjzYMeH8LzngU/edit?usp=sharing'
+const CONSENT_URL = 'https://forms.gle/4hEYhY9E8SzvYNhi6'
+const VIDEO_URL = 'https://drive.google.com/file/d/1ELPMxibpd6Fm9m254UIjp1HoSAnNpJHD/preview'
+
 export default function LandingPage() {
   const router = useRouter()
   const [error, setError] = useState<string | null>(null)
@@ -28,53 +33,82 @@ export default function LandingPage() {
 
   return (
     <div className="min-h-screen bg-neutral-950 text-neutral-100 flex flex-col">
-      {/* Hero */}
-      <main className="flex-1 flex flex-col items-center justify-center px-8 text-center space-y-6">
-        <h1 className="text-5xl font-semibold tracking-tight max-w-4xl leading-tight">
-          Mediator Toolkit: Build and Test Civic Discourse Mediators
-        </h1>
-        <div className="text-md text-neutral-300 font-bold">
-            Please only sign in after reading the  &nbsp;
-            <a href= "https://docs.google.com/document/d/1tX9w_9RFuES2jxlGTDY2lXpRenc354hjzYMeH8LzngU/edit?usp=sharing"
-                target = "_blank"
-                className="text-blue-400 underline hover:text-blue-300">
-                instructions
-            </a> &nbsp; and completing the &nbsp;
-            <a href = "https://forms.gle/4hEYhY9E8SzvYNhi6" target="_blank"
-                className="text-blue-400 underline hover:text-blue-300">
-                consent form
-            </a>.
+      <main className="flex-1 flex flex-col items-center justify-center px-8 py-12 text-center space-y-8">
+        <div className="space-y-4">
+          <h1 className="text-5xl font-semibold tracking-tight max-w-2xl leading-tight">
+            Build and test AI mediators
+          </h1>
+          <p className="text-lg text-neutral-500 max-w-xl mx-auto">
+            Create and test custom mediators through ConvoArena and multi-agent simulations.
+          </p>
         </div>
 
-        <div className="w-full max-w-xl space-y-2">
-          <p className="text-md font-medium text-neutral-300">Watch the Tutorial Video!</p>
-          <div className="aspect-video rounded-lg border border-neutral-800 bg-neutral-900/50 overflow-hidden shadow-lg">
-            <iframe
-              src="https://drive.google.com/file/d/1ELPMxibpd6Fm9m254UIjp1HoSAnNpJHD/preview"
-              className="w-full h-full"
-              allow="autoplay; fullscreen"
-              allowFullScreen
-            />
-          </div>
+        <div className="w-full max-w-xl text-left space-y-5">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-neutral-400">
+            Steps
+          </h2>
+          <ol className="space-y-5 text-sm text-neutral-300">
+          <li className="space-y-3">
+            <p>
+              <span className="font-semibold text-neutral-100">1.</span>{' '}
+              Watch this brief video introducing the competition:
+            </p>
+            <div className="aspect-video rounded-lg border border-neutral-800 bg-neutral-900/50 overflow-hidden">
+              <iframe
+                src={VIDEO_URL}
+                className="w-full h-full"
+                allow="autoplay; fullscreen"
+                allowFullScreen
+              />
+            </div>
+          </li>
+          <li>
+            <span className="font-semibold text-neutral-100">2.</span>{' '}
+            <a
+              href={INSTRUCTIONS_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline underline-offset-2 text-neutral-200 hover:text-white"
+            >
+              Read the instructions
+            </a>{' '}
+            for more details
+          </li>
+          <li>
+            <span className="font-semibold text-neutral-100">3.</span>{' '}
+            Complete the{' '}
+            <a
+              href={CONSENT_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline underline-offset-2 text-neutral-200 hover:text-white"
+            >
+              Consent Form
+            </a>
+          </li>
+          <li className="space-y-3">
+            <p>
+              <span className="font-semibold text-neutral-100">4.</span>{' '}
+              Sign in to start developing your mediator
+            </p>
+            <div className="flex flex-col items-start gap-3">
+              <button
+                onClick={handleSignIn}
+                className="px-6 py-3 rounded-lg bg-neutral-100 text-neutral-950 text-sm font-semibold hover:bg-white active:scale-[0.98] transition-all duration-150 cursor-pointer"
+              >
+                Sign in with Google
+              </button>
+              {error && <p className="text-sm text-red-400">{error}</p>}
+            </div>
+          </li>
+          </ol>
         </div>
-
-        <div className="flex flex-col items-center gap-3 pt-2">
-          <button
-            onClick={handleSignIn}
-            className="px-6 py-3 rounded-lg bg-neutral-100 text-neutral-950 text-md font-semibold hover:bg-white active:scale-[0.98] transition-all duration-150 cursor-pointer"
-          >
-            Sign in with Google
-          </button>
-          {error && <p className="text-sm text-red-400">{error}</p>}
-        </div>
-
       </main>
 
-      {/* Footer */}
-      <footer className="border-t border-neutral-800 px-8 py-5 text-center text-xs text-neutral-600">
-        Mediator Toolkit - TrAuSt
+      <footer className="border-t border-neutral-800 px-8 py-5 text-center text-xs text-neutral-600 space-y-1">
+        <p>Mediator Toolkit - TrAuSt</p>
+        <p>The toolkit builds in part on the ConvoKit and Deliberate Labs open source projects.</p>
       </footer>
-
     </div>
   )
 }
