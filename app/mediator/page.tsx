@@ -67,6 +67,11 @@ function PromptBlockLegend({ textOnly }: { textOnly?: boolean }) {
 
 const topicMap = (name: string) => name.toLowerCase().replaceAll(' ', '_')
 
+const SUBMISSION_FORMS = {
+  track1: 'https://docs.google.com/forms/d/e/1FAIpQLSfTt_sYtTiiq_DszbId2VyqSLUr0tsfcRZqiC3uHi0YXh-3ew/viewform?usp=dialog',
+  track2: 'https://docs.google.com/forms/d/e/1FAIpQLSdfl4JQUFvxKaIAd2uXZCmMZEPu7NUl4_omg26YgupUqqjvCA/viewform?usp=publish-editor',
+} as const
+
 const POLL_INTERVAL_MS = 10000
 const MAX_WAIT_TIME_MS = 300000
 
@@ -605,6 +610,20 @@ export default function Home() {
             >
               {saving ? 'Saving…' : isDirty ? 'Save *' : 'Saved'}
             </button>
+            <select
+              id="tour-submit"
+              defaultValue=""
+              onChange={e => {
+                const formUrl = SUBMISSION_FORMS[e.target.value as keyof typeof SUBMISSION_FORMS]
+                if (formUrl) window.open(formUrl, '_blank', 'noopener,noreferrer')
+                e.target.value = ''
+              }}
+              className="px-3 py-1.5 rounded-md border border-blue-400/50 bg-blue-500/10 text-sm text-blue-300 hover:border-blue-300 hover:text-blue-200 transition-colors cursor-pointer"
+            >
+              <option value="" disabled>Submit…</option>
+              <option value="track1">Track 1</option>
+              <option value="track2">Track 2</option>
+            </select>
             <button
               id="tour-load-default"
               onClick={() => {

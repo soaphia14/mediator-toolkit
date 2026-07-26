@@ -34,18 +34,15 @@ export default function LandingPage() {
   return (
     <div className="min-h-screen bg-neutral-950 text-neutral-100 flex flex-col">
       <main className="flex-1 flex flex-col items-center justify-center px-8 py-12 text-center space-y-8">
-        <div className="space-y-4">
-          <h1 className="text-5xl font-semibold tracking-tight max-w-2xl leading-tight">
-            Build and test AI mediators
+        <div>
+          <h1 className="text-5xl font-semibold tracking-tight max-w-4xl leading-tight">
+            Mediator Toolkit: Build and Test Civic Discourse Mediators
           </h1>
-          <p className="text-lg text-neutral-500 max-w-xl mx-auto">
-            Create and test custom mediators through ConvoArena and multi-agent simulations.
-          </p>
         </div>
 
         <div className="w-full max-w-xl text-left space-y-5">
           <h2 className="text-sm font-semibold uppercase tracking-wide text-neutral-400">
-            Steps
+            Steps for the Mediator Competition
           </h2>
           <ol className="space-y-5 text-sm text-neutral-300">
           <li className="space-y-3">
