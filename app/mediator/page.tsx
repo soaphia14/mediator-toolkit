@@ -219,7 +219,6 @@ export default function Home() {
     if (authReady && !localStorage.getItem('tourLoaded')) {
       localStorage.setItem('tourLoaded', '1')
       startTour()
-      setShowTutorial(true);
     }
   }, [authReady])
 
