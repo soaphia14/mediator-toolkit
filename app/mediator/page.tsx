@@ -18,11 +18,25 @@ import { text } from 'stream/consumers'
 
 const idle: ActionState = { status: 'idle', result: null }
 
+const WORKED_EXAMPLES_URL =
+  'https://docs.google.com/document/d/1tX9w_9RFuES2jxlGTDY2lXpRenc354hjzYMeH8LzngU/edit?tab=t.uulhszxtacl9'
+
+function WorkedExamplesLink() {
+  return (
+    <a href={WORKED_EXAMPLES_URL} target="_blank" rel="noopener noreferrer" className="underline hover:text-neutral-300">
+      worked examples
+    </a>
+  )
+}
+
 function PromptEditorDescription({ description }: { description?: string }) {
   return (
     <div className="rounded-md border border-neutral-800 bg-neutral-900/40 px-3 py-2.5 text-sm text-neutral-500 space-y-1.5">
       <p className="font-medium text-neutral-400">Prompt Purpose</p>
       {description}
+      <p>
+        See <WorkedExamplesLink />.
+      </p>
     </div>
   )
 }
@@ -34,7 +48,7 @@ function PromptBlockLegend({ textOnly }: { textOnly?: boolean }) {
   )
   return (
     <div className="rounded-md border border-neutral-800 bg-neutral-900/40 px-3 py-2.5 text-sm text-neutral-500 space-y-1.5">
-      <p className="font-medium text-neutral-400">To construct your prompt, you can mix and match the following types of prompt blocks. You can edit the free-form text directly, while the other blocks will be automatically replaced with the corresponding conversation information when the mediator runs. See <a href="https://docs.google.com/document/d/1x708N-3WtQFVz3O-YLYCcKDJnrKPmK6hgm3PWxT5L5A/edit?tab=t.uulhszxtacl9" target="_blank" className="underline hover:text-neutral-300">worked example</a>. <br /><br /></p>
+      <p className="font-medium text-neutral-400">To construct your prompt, you can mix and match the following types of prompt blocks. You can edit the free-form text directly, while the other blocks will be automatically replaced with the corresponding conversation information when the mediator runs.<br /><br /></p>
       <div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1.5 items-baseline">
         <span className="font-medium text-neutral-300">Freeform Text</span>
         <span>{textOnly ? 'instructions for gathering information about the topic, participants, or anything else before each discussion' : 'custom instructions you write directly'}</span>
@@ -674,7 +688,7 @@ export default function Home() {
               <div className="border-b border-neutral-800 pb-3">
                 <h2 className="text-lg font-semibold tracking-tight">Prompt Editors</h2>
               </div>
-              <p className="text-sm text-neutral-500">Here you can edit the prompts to guide the mediator's interventions. The <span className="text-neutral-400">Intervention Prompt</span> controls what the mediator says; the <span className="text-neutral-400">Should Intervene</span> prompts the LLM to return true/false on whether it should intervene. The <span className="text-neutral-400">Initialization Prompt</span> instructs the LLM to gather information that can be used in discussions. Take a look at our <a href="https://docs.google.com/document/d/1x708N-3WtQFVz3O-YLYCcKDJnrKPmK6hgm3PWxT5L5A/edit?tab=t.uulhszxtacl9" target="_blank" className="underline hover:text-neutral-300">worked example</a> to see how these work. <a href="https://www.promptingguide.ai/" target="_blank" className="underline hover:text-neutral-300">Learn more about prompt engineering.</a></p>
+              <p className="text-sm text-neutral-500">Here you can edit the prompts to guide the mediator's interventions. The <span className="text-neutral-400">Intervention Prompt</span> controls what the mediator says; the <span className="text-neutral-400">Should Intervene</span> prompts the LLM to return true/false on whether it should intervene. The <span className="text-neutral-400">Initialization Prompt</span> instructs the LLM to gather information that can be used in discussions. Take a look at our <WorkedExamplesLink /> to see how these work. <a href="https://www.promptingguide.ai/" target="_blank" className="underline hover:text-neutral-300">Learn more about prompt engineering.</a></p>
             </div>
 
             <div className="rounded-lg border border-neutral-800">
