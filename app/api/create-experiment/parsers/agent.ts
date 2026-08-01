@@ -27,6 +27,8 @@ interface ChatPromptConfig {
   generationConfig: GenerationConfig
   chatSettings: ChatSettings
   numRetries: number
+  includePersona: string[] | null
+  includeThoughtHistory: string[] | null
 }
 
 type GenericPromptConfig = {
@@ -37,6 +39,8 @@ type GenericPromptConfig = {
   prompt: PromptItem[]
   generationConfig: GenerationConfig
   numRetries: number
+  includePersona: string[] | null
+  includeThoughtHistory: string[] | null
 }
 
 export interface AgentParticipantTemplate {
@@ -104,6 +108,8 @@ function _chatPrompt(tpl: Record<string, any>, stageId: string, stageIdsInOrder:
     generationConfig: buildGeneration(tpl, "chat_generation"),
     chatSettings: buildChatSettings(tpl),
     numRetries: tpl.num_retries,
+    includePersona: [stageId],
+    includeThoughtHistory: [stageId],
   }
 }
 
@@ -119,7 +125,7 @@ function _chatPrompt(tpl: Record<string, any>, stageId: string, stageIdsInOrder:
 //   }
 // }
 
-function _post_survey_stage(tpl: Record<string, any>, stageId: string, stageIdsInOrder: string[]): GenericPromptConfig {
+function _post_survey_stage(tpl: Record<string, any>, stageId: string, stageIdsInOrder: string[], personaStages: string[], thoughtHistoryStages: string[]): GenericPromptConfig {
   return {
     id: stageId,
     type: 'survey',
@@ -128,6 +134,8 @@ function _post_survey_stage(tpl: Record<string, any>, stageId: string, stageIdsI
     prompt: buildPromptItems(tpl, stageId, stageIdsInOrder, _post_survey_prompt(tpl)),
     generationConfig: buildGeneration(tpl, "post_survey_generation"),
     numRetries: tpl.num_retries,
+    includePersona: personaStages,
+    includeThoughtHistory: thoughtHistoryStages,
   }
 }
 
@@ -142,7 +150,7 @@ export function buildAgent(chat_stage_id: string, pre_survey_stage_id: string, p
     promptMap: { 
       [chat_stage_id]: _chatPrompt(tpl, chat_stage_id, stageIdsInOrder),
       // [pre_survey_stage_id]: _pre_survey_stage(tpl, pre_survey_stage_id, stageIdsInOrder),
-      [post_survey_stage_id]: _post_survey_stage(tpl, post_survey_stage_id, stageIdsInOrder),
+      [post_survey_stage_id]: _post_survey_stage(tpl, post_survey_stage_id, stageIdsInOrder, [chat_stage_id], [chat_stage_id]),
     },
   }
 }
