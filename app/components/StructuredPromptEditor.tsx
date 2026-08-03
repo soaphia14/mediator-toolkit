@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useContext, useState, useRef, useEffect } from 'react'
+import { createContext, useContext, useState, useRef, useEffect, type DragEvent } from 'react'
 
 // ============================================================
 // Types
@@ -79,6 +79,19 @@ function treeMoveIn(root: PromptItem[], targetArr: PromptItem[], index: number, 
   return copy
 }
 
+// `to` is an insertion slot in 0..root.length, i.e. the gap the item is dropped
+// into, measured against the list *before* the item is removed.
+function treeReorderIn(root: PromptItem[], targetArr: PromptItem[], from: number, to: number): PromptItem[] {
+  if (root !== targetArr) return root
+  if (from < 0 || from >= root.length) return root
+  if (to < 0 || to > root.length) return root
+  if (to === from || to === from + 1) return root
+  const copy = [...root]
+  const [moved] = copy.splice(from, 1)
+  copy.splice(to > from ? to - 1 : to, 0, moved)
+  return copy
+}
+
 // ============================================================
 // Editor context
 // ============================================================
@@ -89,6 +102,7 @@ interface EditorCtx {
   addItem: (targetArr: PromptItem[], newItem: PromptItem) => void
   deleteItem: (targetArr: PromptItem[], index: number) => void
   moveItem: (targetArr: PromptItem[], index: number, dir: number) => void
+  reorderItem: (targetArr: PromptItem[], from: number, to: number) => void
 }
 
 const EditorContext = createContext<EditorCtx | null>(null)
@@ -106,6 +120,7 @@ const ICON_CHARS: Record<string, string> = {
   arrow_upward: '↑',
   arrow_downward: '↓',
   close: '×',
+  drag_handle: '⠿',
 }
 
 function IconButton({ icon, title, onClick }: {
@@ -279,8 +294,61 @@ function ItemEditor({ item }: { item: PromptItem }) {
 // Item list
 // ============================================================
 
+function DropIndicator({ active }: { active: boolean }) {
+  return (
+    <div
+      aria-hidden
+      className={`h-0.5 rounded-full transition-colors ${active ? 'bg-neutral-400' : 'bg-transparent'}`}
+    />
+  )
+}
+
 function PromptItemList({ items, isNested = false }: { items: PromptItem[]; isNested?: boolean }) {
-  const { deleteItem, moveItem, locked } = useEditorCtx()
+  const { deleteItem, moveItem, reorderItem, locked } = useEditorCtx()
+
+  // Index currently being dragged, and the insertion slot (0..items.length) it
+  // would land in. `armedIndex` is the item whose drag handle is held down —
+  // only that row is draggable, so text selection inside textareas still works.
+  const [armedIndex, setArmedIndex] = useState<number | null>(null)
+  const [dragIndex, setDragIndex] = useState<number | null>(null)
+  const [dropIndex, setDropIndex] = useState<number | null>(null)
+
+  const resetDrag = () => {
+    setArmedIndex(null)
+    setDragIndex(null)
+    setDropIndex(null)
+  }
+
+  // Disarm on any mouseup, including one that lands outside the handle — a row
+  // left armed would otherwise start dragging when the user selects text in it.
+  // No mouseup is delivered while a drag is in flight, so this cannot fire
+  // mid-drag; onDragEnd covers that case.
+  useEffect(() => {
+    if (armedIndex === null) return
+    const disarm = () => setArmedIndex(null)
+    document.addEventListener('mouseup', disarm)
+    return () => document.removeEventListener('mouseup', disarm)
+  }, [armedIndex])
+
+  const handleDragOver = (e: DragEvent<HTMLDivElement>, index: number) => {
+    if (dragIndex === null) return
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+    const rect = e.currentTarget.getBoundingClientRect()
+    const dropsBelow = e.clientY > rect.top + rect.height / 2
+    setDropIndex(index + (dropsBelow ? 1 : 0))
+  }
+
+  // The two slots bordering the dragged item are no-ops, so no line is drawn there.
+  const showsIndicator = (slot: number) =>
+    dragIndex !== null && dropIndex === slot && slot !== dragIndex && slot !== dragIndex + 1
+
+  const handleDrop = (e: DragEvent<HTMLDivElement>) => {
+    if (dragIndex === null || dropIndex === null) return
+    e.preventDefault()
+    reorderItem(items, dragIndex, dropIndex)
+    resetDrag()
+  }
 
   if (items.length === 0) {
     return (
@@ -291,26 +359,72 @@ function PromptItemList({ items, isNested = false }: { items: PromptItem[]; isNe
   }
 
   return (
-    <div className="flex flex-col gap-1.5">
+    <div
+      className="flex flex-col"
+      // Rows handle their own dragover/drop; these container handlers catch
+      // releases that land in the gaps between rows.
+      onDragOver={e => { if (dragIndex !== null) e.preventDefault() }}
+      onDrop={handleDrop}
+      onDragLeave={e => {
+        // Only clear when the pointer leaves the list as a whole, not when it
+        // crosses between two rows inside it.
+        if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setDropIndex(null)
+      }}
+    >
       {items.map((item, index) => (
-        <div
-          key={index}
-          className="group rounded-lg border border-neutral-700 bg-neutral-800"
-        >
-          <div className="flex items-start gap-2 p-2.5">
-            <div className="min-w-0 flex-1">
-              <ItemEditor item={item} />
-            </div>
-            {!locked && (
-              <div className="flex shrink-0 items-center gap-0.5 ">
-                <IconButton icon="arrow_upward" onClick={() => moveItem(items, index, -1)} />
-                <IconButton icon="arrow_downward" onClick={() => moveItem(items, index, 1)} />
-                <IconButton icon="close" onClick={() => deleteItem(items, index)} />
+        <div key={index}>
+          <div className="py-[3px]">
+            <DropIndicator active={showsIndicator(index)} />
+          </div>
+          <div
+            draggable={!locked && armedIndex === index}
+            onDragStart={e => {
+              setDragIndex(index)
+              setDropIndex(index)
+              e.dataTransfer.effectAllowed = 'move'
+              // Firefox requires data to be set for a drag to start at all.
+              e.dataTransfer.setData('text/plain', String(index))
+            }}
+            onDragEnd={resetDrag}
+            onDragOver={e => handleDragOver(e, index)}
+            onDrop={handleDrop}
+            className={`group rounded-lg border border-neutral-700 bg-neutral-800 transition-opacity ${dragIndex === index ? 'opacity-40' : ''}`}
+          >
+            <div className="flex items-start gap-2 p-2.5">
+              {!locked && (
+                <button
+                  type="button"
+                  title="Drag to reorder"
+                  aria-label="Drag to reorder"
+                  onMouseDown={() => setArmedIndex(index)}
+                  onKeyDown={e => {
+                    // Keyboard equivalent of dragging, so the handle is not a
+                    // mouse-only control.
+                    if (e.key === 'ArrowUp') { e.preventDefault(); moveItem(items, index, -1) }
+                    if (e.key === 'ArrowDown') { e.preventDefault(); moveItem(items, index, 1) }
+                  }}
+                  className="flex h-6 w-4 shrink-0 cursor-grab items-center justify-center rounded text-sm leading-none text-neutral-600 transition-colors hover:text-neutral-300 active:cursor-grabbing"
+                >
+                  {ICON_CHARS.drag_handle}
+                </button>
+              )}
+              <div className="min-w-0 flex-1">
+                <ItemEditor item={item} />
               </div>
-            )}
+              {!locked && (
+                <div className="flex shrink-0 items-center gap-0.5 ">
+                  <IconButton icon="arrow_upward" onClick={() => moveItem(items, index, -1)} />
+                  <IconButton icon="arrow_downward" onClick={() => moveItem(items, index, 1)} />
+                  <IconButton icon="close" onClick={() => deleteItem(items, index)} />
+                </div>
+              )}
+            </div>
           </div>
         </div>
       ))}
+      <div className="py-[3px]">
+        <DropIndicator active={showsIndicator(items.length)} />
+      </div>
     </div>
   )
 }
@@ -341,6 +455,7 @@ export function StructuredPromptEditor({
     addItem: (targetArr, newItem) => onUpdate(treeAddTo(prompt, targetArr, newItem)),
     deleteItem: (targetArr, index) => onUpdate(treeRemoveFrom(prompt, targetArr, index)),
     moveItem: (targetArr, index, dir) => onUpdate(treeMoveIn(prompt, targetArr, index, dir)),
+    reorderItem: (targetArr, from, to) => onUpdate(treeReorderIn(prompt, targetArr, from, to)),
   }
 
   return (
