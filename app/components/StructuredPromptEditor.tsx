@@ -79,6 +79,16 @@ function treeMoveIn(root: PromptItem[], targetArr: PromptItem[], index: number, 
   return copy
 }
 
+function treeReorder(root: PromptItem[], targetArr: PromptItem[], from: number, to: number): PromptItem[] {
+  if (root !== targetArr) return root
+  if (from === to) return root
+  if (from < 0 || to < 0 || from >= root.length || to >= root.length) return root
+  const copy = [...root]
+  const [moved] = copy.splice(from, 1)
+  copy.splice(to, 0, moved)
+  return copy
+}
+
 // ============================================================
 // Editor context
 // ============================================================
@@ -89,6 +99,7 @@ interface EditorCtx {
   addItem: (targetArr: PromptItem[], newItem: PromptItem) => void
   deleteItem: (targetArr: PromptItem[], index: number) => void
   moveItem: (targetArr: PromptItem[], index: number, dir: number) => void
+  reorderItem: (targetArr: PromptItem[], from: number, to: number) => void
 }
 
 const EditorContext = createContext<EditorCtx | null>(null)
@@ -279,8 +290,32 @@ function ItemEditor({ item }: { item: PromptItem }) {
 // Item list
 // ============================================================
 
+function DragHandle({ onArm, onDisarm }: { onArm: () => void; onDisarm: () => void }) {
+  return (
+    <div
+      title="Drag to reorder"
+      // `draggable` is armed only while the handle is held, so text selection
+      // inside the item's textarea keeps working the rest of the time.
+      onMouseDown={onArm}
+      onMouseUp={onDisarm}
+      className="w-6 h-6 shrink-0 flex items-center justify-center rounded text-neutral-600 select-none cursor-grab active:cursor-grabbing hover:text-neutral-300 hover:bg-neutral-700 transition-colors"
+    >
+      ⠿
+    </div>
+  )
+}
+
 function PromptItemList({ items, isNested = false }: { items: PromptItem[]; isNested?: boolean }) {
-  const { deleteItem, moveItem, locked } = useEditorCtx()
+  const { deleteItem, moveItem, reorderItem, locked } = useEditorCtx()
+  const [armedIndex, setArmedIndex] = useState<number | null>(null)
+  const [dragIndex, setDragIndex] = useState<number | null>(null)
+  const [overIndex, setOverIndex] = useState<number | null>(null)
+
+  const endDrag = () => {
+    setArmedIndex(null)
+    setDragIndex(null)
+    setOverIndex(null)
+  }
 
   if (items.length === 0) {
     return (
@@ -292,25 +327,60 @@ function PromptItemList({ items, isNested = false }: { items: PromptItem[]; isNe
 
   return (
     <div className="flex flex-col gap-1.5">
-      {items.map((item, index) => (
-        <div
-          key={index}
-          className="group rounded-lg border border-neutral-700 bg-neutral-800"
-        >
-          <div className="flex items-start gap-2 p-2.5">
-            <div className="min-w-0 flex-1">
-              <ItemEditor item={item} />
-            </div>
-            {!locked && (
-              <div className="flex shrink-0 items-center gap-0.5 ">
-                <IconButton icon="arrow_upward" onClick={() => moveItem(items, index, -1)} />
-                <IconButton icon="arrow_downward" onClick={() => moveItem(items, index, 1)} />
-                <IconButton icon="close" onClick={() => deleteItem(items, index)} />
+      {items.map((item, index) => {
+        const isDragging = dragIndex === index
+        const showLine = dragIndex !== null && overIndex === index && !isDragging
+        const lineAbove = showLine && dragIndex > index
+        const lineBelow = showLine && dragIndex < index
+
+        return (
+          <div
+            key={index}
+            draggable={armedIndex === index}
+            onDragStart={e => {
+              setDragIndex(index)
+              e.dataTransfer.effectAllowed = 'move'
+              e.dataTransfer.setData('text/plain', String(index))
+            }}
+            onDragEnd={endDrag}
+            onDragOver={e => {
+              if (dragIndex === null) return
+              e.preventDefault()
+              e.dataTransfer.dropEffect = 'move'
+              if (overIndex !== index) setOverIndex(index)
+            }}
+            onDrop={e => {
+              e.preventDefault()
+              if (dragIndex !== null) reorderItem(items, dragIndex, index)
+              endDrag()
+            }}
+            className={`group rounded-lg border bg-neutral-800 transition-colors ${
+              isDragging ? 'opacity-40 border-neutral-500' : 'border-neutral-700'
+            } ${lineAbove ? 'border-t-2 border-t-blue-400' : ''} ${
+              lineBelow ? 'border-b-2 border-b-blue-400' : ''
+            }`}
+          >
+            <div className="flex items-start gap-2 p-2.5">
+              {!locked && (
+                <DragHandle
+                  onArm={() => setArmedIndex(index)}
+                  onDisarm={() => setArmedIndex(null)}
+                />
+              )}
+              <div className="min-w-0 flex-1">
+                <ItemEditor item={item} />
               </div>
-            )}
+              {!locked && (
+                <div className="flex shrink-0 items-center gap-0.5 ">
+                  <IconButton icon="arrow_upward" onClick={() => moveItem(items, index, -1)} />
+                  <IconButton icon="arrow_downward" onClick={() => moveItem(items, index, 1)} />
+                  <IconButton icon="close" onClick={() => deleteItem(items, index)} />
+                </div>
+              )}
+            </div>
           </div>
-        </div>
-      ))}
+        )
+      })}
     </div>
   )
 }
@@ -341,6 +411,7 @@ export function StructuredPromptEditor({
     addItem: (targetArr, newItem) => onUpdate(treeAddTo(prompt, targetArr, newItem)),
     deleteItem: (targetArr, index) => onUpdate(treeRemoveFrom(prompt, targetArr, index)),
     moveItem: (targetArr, index, dir) => onUpdate(treeMoveIn(prompt, targetArr, index, dir)),
+    reorderItem: (targetArr, from, to) => onUpdate(treeReorder(prompt, targetArr, from, to)),
   }
 
   return (
