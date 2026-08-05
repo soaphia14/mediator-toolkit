@@ -5,17 +5,22 @@ const CORS_HEADERS = { 'Access-Control-Allow-Origin': '*' }
 export async function POST(request: Request) {
   const createExperimentUrl = new URL(`${API_BASE}/api/create-experiment`, request.url)
 
-  const res = await fetch(createExperimentUrl, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      mediatorTemplate: '{}',
-      mode: 'human-agent',
-    }),
-  })
+  try {
+    const res = await fetch(createExperimentUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        mediatorTemplate: '{}',
+        mode: 'human-agent',
+      }),
+    })
 
-  const data = await res.json()
-  return Response.json(data, { status: res.status, headers: CORS_HEADERS })
+    const data = await res.json()
+    return Response.json(data, { status: res.status, headers: CORS_HEADERS })
+  } catch (e) {
+    console.error('Error in website-artifact:', e)
+    return Response.json({ error: String(e) }, { status: 500, headers: CORS_HEADERS })
+  }
 }
 
 export async function OPTIONS() {
