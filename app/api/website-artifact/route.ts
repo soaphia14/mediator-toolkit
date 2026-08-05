@@ -1,3 +1,4 @@
+import fs from 'fs'
 import path from 'path'
 import { generate } from '../create-experiment/generator'
 
@@ -10,8 +11,9 @@ export async function POST() {
   try {
     const chosen = TOPICS[Math.floor(Math.random() * TOPICS.length)]
     const experimentTemplatePath = path.join(process.cwd(), 'public', 'templates', 'topics', chosen, 'experiment.yaml')
+    const mediatorTemplate = fs.readFileSync( "public/templates/competition/mediator.yaml", 'utf8')
 
-    const result = await generate('participant-1', 'participant-2', experimentTemplatePath, '{}', 'human-agent')
+    const result = await generate('participant-1', 'participant-2', experimentTemplatePath, mediatorTemplate, 'human-agent')
     return Response.json(result, { headers: CORS_HEADERS })
   } catch (e) {
     console.error('Error in website-artifact:', e)
