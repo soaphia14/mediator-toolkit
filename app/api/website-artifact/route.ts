@@ -1,22 +1,18 @@
-import { API_BASE } from '../../lib/config'
+import path from 'path'
+import { generate } from '../create-experiment/generator'
 
 const CORS_HEADERS = { 'Access-Control-Allow-Origin': '*' }
 
-export async function POST(request: Request) {
-  const createExperimentUrl = new URL(`${API_BASE}/api/create-experiment`, request.url)
+// randomize over the same 2 topics create-experiment uses for development
+const TOPICS = ['congestion_pricing', 'covenant_marriage']
 
+export async function POST() {
   try {
-    const res = await fetch(createExperimentUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        mediatorTemplate: '{}',
-        mode: 'human-agent',
-      }),
-    })
+    const chosen = TOPICS[Math.floor(Math.random() * TOPICS.length)]
+    const experimentTemplatePath = path.join(process.cwd(), 'public', 'templates', 'topics', chosen, 'experiment.yaml')
 
-    const data = await res.json()
-    return Response.json(data, { status: res.status, headers: CORS_HEADERS })
+    const result = await generate('participant-1', 'participant-2', experimentTemplatePath, '{}', 'human-agent')
+    return Response.json(result, { headers: CORS_HEADERS })
   } catch (e) {
     console.error('Error in website-artifact:', e)
     return Response.json({ error: String(e) }, { status: 500, headers: CORS_HEADERS })
