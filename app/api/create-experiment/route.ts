@@ -3,6 +3,8 @@ import fs from 'fs'
 import { generate, type Mode } from './generator'
 import { adminAuth, adminDb } from '../../lib/firebaseAdmin'
 import { FieldValue } from 'firebase-admin/firestore'
+import { loadTemplate } from './utils'
+import { MEDIATOR_DEFAULT, COMPETITION_MEDIATOR } from './config'
 
 const MODES: Mode[] = ['human-human', 'human-agent', 'agent-agent']
 
@@ -35,8 +37,9 @@ async function checkAndIncrementQuota(email: string, cohorts: number): Promise<{
 
 export async function POST(req: Request) {
   const body = await req.json().catch(() => ({}))
-  const { mediatorTemplate, p1 = 'participant-1', p2 = 'participant-2', topic = 'covenant_marriage', mode, numCohorts, numUtterances, action = 'create', idToken } = body as {
+  const { mediatorTemplate, assistantTemplate, p1 = 'participant-1', p2 = 'participant-2', topic = 'covenant_marriage', mode, numCohorts, numUtterances, action = 'create', idToken } = body as {
     mediatorTemplate?: string
+    assistantTemplate?: string
     p1?: string
     p2?: string
     topic?: string
@@ -53,7 +56,13 @@ export async function POST(req: Request) {
   const parsedUtterances = parseInt(String(numUtterances), 10)
   const utteranceCount = Number.isFinite(parsedUtterances) && parsedUtterances >= 1 ? parsedUtterances : undefined
 
-  if (!mediatorTemplate) {
+  // The assistant toolkit only lets the user edit the assistant, not the mediator —
+  // fall back to the competition mediator content (mirrors what the mediator page's
+  // "Load Default" merges client-side) so the experiment still has a working mediator.
+  const resolvedMediatorTemplate = mediatorTemplate
+    ?? (assistantTemplate ? JSON.stringify({ ...loadTemplate(MEDIATOR_DEFAULT), ...loadTemplate(COMPETITION_MEDIATOR) }) : undefined)
+
+  if (!resolvedMediatorTemplate) {
     return Response.json({ error: 'mediatorTemplate is required' }, { status: 400 })
   }
 
@@ -88,7 +97,7 @@ export async function POST(req: Request) {
   const experimentTemplatePath = path.join(topicsDir, chosen, 'experiment.yaml')
 
   try {
-    const result = await generate(p1, p2, experimentTemplatePath, mediatorTemplate, mode, cohortCount, utteranceCount, action)
+    const result = await generate(p1, p2, experimentTemplatePath, resolvedMediatorTemplate, mode, cohortCount, utteranceCount, action, assistantTemplate)
     return Response.json(result)
   } catch (e) {
     console.error('Error in create-experiment:', e)

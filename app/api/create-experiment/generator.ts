@@ -7,6 +7,8 @@ import {
 import { parseMediatorTemplate, buildMediator } from './parsers/mediator'
 import { buildAgent } from './parsers/agent'
 import type { AgentParticipantTemplate } from './parsers/agent'
+import { parseAssistantTemplate, buildAssistant } from './parsers/assistant'
+import type { AgentAssistantTemplate } from './parsers/assistant'
 import { buildTopic, buildStages, buildExperiment } from './parsers/experiment'
 import { loadTemplate, replaceDefaults, fillAgentStance, agentConfig, createParticipant, excludeNone } from './utils'
 import { url } from 'inspector/promises'
@@ -68,7 +70,8 @@ const BIAS_VARIABLE_CONFIG = {
 }
 
 export async function generate(p1: string, p2: string, experimentTemplatePath: string, mediatorTemplateContent: string,
-                          mode: Mode, numCohorts?: number, numUtterances?: number, action?: 'create' | 'simulate') {
+                          mode: Mode, numCohorts?: number, numUtterances?: number, action?: 'create' | 'simulate',
+                          assistantTemplateContent?: string) {
   const experimentTemplate = replaceDefaults(
     loadTemplate(experimentTemplatePath),
     loadTemplate(EXPERIMENT_DEFAULT),
@@ -86,6 +89,10 @@ export async function generate(p1: string, p2: string, experimentTemplatePath: s
   const mediatorTemplate = parseMediatorTemplate(mediatorTemplateContent)
 
   const mediatorR1 = buildMediator(chatStageId, mediatorTemplate, stageIdsInOrder, topicInfo)
+
+  const assistants: AgentAssistantTemplate[] = assistantTemplateContent
+    ? [buildAssistant(chatStageId, parseAssistantTemplate(assistantTemplateContent), stageIdsInOrder, topicInfo)]
+    : []
 
   const exp = experimentTemplate.experiment ?? {}
   const participantSlots = participantSlotsFor(mode)
@@ -151,7 +158,7 @@ export async function generate(p1: string, p2: string, experimentTemplatePath: s
 
   const agents = cohortAgents.flat() 
 
-  const [template, cohortAlias] = buildExperiment(experimentTemplate, topicInfo, stages, stageIdsInOrder, mediatorR1, agents, mode, isSim)
+  const [template, cohortAlias] = buildExperiment(experimentTemplate, topicInfo, stages, stageIdsInOrder, mediatorR1, agents, mode, isSim, assistants)
   template.experiment.variableConfigs = [BIAS_VARIABLE_CONFIG]
 
   const authHeaders = {
