@@ -292,3 +292,5 @@ Icon[]
 # hide local testing notebooks and output
 notebook/
 output/
+
+screenshot/
