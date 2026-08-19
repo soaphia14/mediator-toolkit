@@ -1,6 +1,7 @@
 import path from 'path'
 import fs from 'fs'
 import { generate, type Mode } from './generator'
+import { MEDIATOR_PRESET } from './config'
 import { adminAuth, adminDb } from '../../lib/firebaseAdmin'
 import { FieldValue } from 'firebase-admin/firestore'
 
@@ -35,8 +36,13 @@ async function checkAndIncrementQuota(email: string, cohorts: number): Promise<{
 
 export async function POST(req: Request) {
   const body = await req.json().catch(() => ({}))
-  const { mediatorTemplate, p1 = 'participant-1', p2 = 'participant-2', topic = 'covenant_marriage', mode, numCohorts, numUtterances, action = 'create', idToken } = body as {
+  const { mediatorTemplate, simulationTemplate, mediator = 'template', numAgents, p1 = 'participant-1', p2 = 'participant-2', topic = 'covenant_marriage', mode, numCohorts, numUtterances, action = 'create', idToken } = body as {
     mediatorTemplate?: string
+    simulationTemplate?: string
+    // Which mediator to run with: the caller's own `mediatorTemplate`, the stock
+    // preset, or none at all.
+    mediator?: 'template' | 'preset' | 'none'
+    numAgents?: string | number
     p1?: string
     p2?: string
     topic?: string
@@ -53,7 +59,17 @@ export async function POST(req: Request) {
   const parsedUtterances = parseInt(String(numUtterances), 10)
   const utteranceCount = Number.isFinite(parsedUtterances) && parsedUtterances >= 1 ? parsedUtterances : undefined
 
-  if (!mediatorTemplate) {
+  const parsedAgents = parseInt(String(numAgents), 10)
+  const agentCount = Number.isFinite(parsedAgents) && parsedAgents >= 2 ? parsedAgents : undefined
+
+  let mediatorContent: string | null
+  if (mediator === 'none') {
+    mediatorContent = null
+  } else if (mediator === 'preset') {
+    mediatorContent = fs.readFileSync(MEDIATOR_PRESET, 'utf8')
+  } else if (mediatorTemplate) {
+    mediatorContent = mediatorTemplate
+  } else {
     return Response.json({ error: 'mediatorTemplate is required' }, { status: 400 })
   }
 
@@ -84,11 +100,13 @@ export async function POST(req: Request) {
   // const topics = fs.readdirSync(topicsDir)
   // const chosen = topics.includes(topic) ? topic : topics[Math.floor(Math.random() * topics.length)]
   const topics = ['congestion_pricing', 'covenant_marriage'] // hardcoded 2 for development, used the other 3 as the testing.
-  const chosen = topics[Math.floor(Math.random() * topics.length)]
+  // A simulation template brings its own topic, so it always runs against the
+  // dedicated "simulation" template; mediator-toolkit runs keep randomizing.
+  const chosen = simulationTemplate ? 'simulation' : topics[Math.floor(Math.random() * topics.length)]
   const experimentTemplatePath = path.join(topicsDir, chosen, 'experiment.yaml')
 
   try {
-    const result = await generate(p1, p2, experimentTemplatePath, mediatorTemplate, mode, cohortCount, utteranceCount, action)
+    const result = await generate(p1, p2, experimentTemplatePath, mediatorContent, mode, cohortCount, utteranceCount, action, simulationTemplate, agentCount)
     return Response.json(result)
   } catch (e) {
     console.error('Error in create-experiment:', e)

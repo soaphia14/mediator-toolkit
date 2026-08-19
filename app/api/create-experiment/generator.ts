@@ -8,6 +8,7 @@ import { parseMediatorTemplate, buildMediator } from './parsers/mediator'
 import { buildAgent } from './parsers/agent'
 import type { AgentParticipantTemplate } from './parsers/agent'
 import { buildTopic, buildStages, buildExperiment } from './parsers/experiment'
+import { parseSimulationTemplate, applySimulationToChatStage } from './parsers/simulation'
 import { loadTemplate, replaceDefaults, fillAgentStance, agentConfig, createParticipant, excludeNone } from './utils'
 import { url } from 'inspector/promises'
 
@@ -32,12 +33,19 @@ function shuffle<T>(arr: T[]): T[] {
 // resolved like the topic experiment.yaml path below.
 const defaultTemplate = (file: string) => path.join(process.cwd(), 'public', 'templates', 'defaults', file)
 
-function participantSlotsFor(mode: Mode): ParticipantSlot[] {
+// Agent templates on disk, cycled through when a run asks for more agents than
+// there are templates. The templates differ only by persona, so repeating one
+// costs nothing: each slot still draws its own stance.
+const AGENT_TEMPLATE_FILES = ['agent-1.yaml', 'agent-2.yaml']
+
+function participantSlotsFor(mode: Mode, numAgents?: number): ParticipantSlot[] {
   if (mode === 'agent-agent') {
-    return [
-      { slot: 'p1', type: 'agent', template: defaultTemplate('agent-1.yaml') },
-      { slot: 'p2', type: 'agent', template: defaultTemplate('agent-2.yaml') },
-    ]
+    const count = numAgents && numAgents >= 2 ? numAgents : AGENT_TEMPLATE_FILES.length
+    return Array.from({ length: count }, (_, i) => ({
+      slot: `p${i + 1}`,
+      type: 'agent' as const,
+      template: defaultTemplate(AGENT_TEMPLATE_FILES[i % AGENT_TEMPLATE_FILES.length]),
+    }))
   }
   if (mode === 'human-agent') {
     return [
@@ -67,28 +75,43 @@ const BIAS_VARIABLE_CONFIG = {
   numToSelect: 1,
 }
 
-export async function generate(p1: string, p2: string, experimentTemplatePath: string, mediatorTemplateContent: string,
-                          mode: Mode, numCohorts?: number, numUtterances?: number, action?: 'create' | 'simulate') {
+export async function generate(p1: string, p2: string, experimentTemplatePath: string, mediatorTemplateContent: string | null,
+                          mode: Mode, numCohorts?: number, numUtterances?: number, action?: 'create' | 'simulate',
+                          simulationTemplateContent?: string, numAgents?: number) {
+  // Optional: when the simulation toolkit supplies a template, it owns the chat
+  // stage description (and the conversation limits) instead of the topic YAML.
+  const simulation = simulationTemplateContent
+    ? parseSimulationTemplate(simulationTemplateContent)
+    : null
+
   const experimentTemplate = replaceDefaults(
     loadTemplate(experimentTemplatePath),
     loadTemplate(EXPERIMENT_DEFAULT),
   )
   const topicInfo = buildTopic(experimentTemplate.topic)
 
+  // Simulations are just the conversation, so the surveys around it are dropped
+  // and the run goes profile -> debate. Mediator-toolkit runs keep them.
+  const SIM_SKIPPED_STAGES = [PRE_SURVEY_STAGE_ID, POST_SURVEY_STAGE_ID]
   const stages = buildStages(experimentTemplate, topicInfo)
+    .filter((s) => !(simulation && SIM_SKIPPED_STAGES.includes(s.id)))
   const stageIdsInOrder = stages.map((s) => s.id)
 
   // one mediator + one chat supported for now
   const chatStageId = stages.find((s) => s.kind === 'chat')?.id ?? STAGE_R1
   const preSurveyStageId = stages.find((s) => s.kind === 'survey' && s.id === PRE_SURVEY_STAGE_ID)?.id ?? PRE_SURVEY_STAGE_ID
-  const postSurveyStageId = [...stages].reverse().find((s) => s.kind === 'survey')?.id ?? POST_SURVEY_STAGE_ID
+  // Null when the run has no survey stage, so no prompt is built for one.
+  const postSurveyStageId = [...stages].reverse().find((s) => s.kind === 'survey')?.id
+    ?? (simulation ? null : POST_SURVEY_STAGE_ID)
 
-  const mediatorTemplate = parseMediatorTemplate(mediatorTemplateContent)
-
-  const mediatorR1 = buildMediator(chatStageId, mediatorTemplate, stageIdsInOrder, topicInfo)
+  // A run may deliberately have no mediator, in which case the experiment is
+  // created with an empty `agentMediators` list.
+  const mediatorR1 = mediatorTemplateContent
+    ? buildMediator(chatStageId, parseMediatorTemplate(mediatorTemplateContent), stageIdsInOrder, topicInfo)
+    : null
 
   const exp = experimentTemplate.experiment ?? {}
-  const participantSlots = participantSlotsFor(mode)
+  const participantSlots = participantSlotsFor(mode, numAgents)
   const slotToPid: Record<string, string> = { p1, p2 }
 
   const agentSlots = participantSlots.filter((s) => s.type === 'agent').map((s) => s.slot)
@@ -105,6 +128,10 @@ export async function generate(p1: string, p2: string, experimentTemplatePath: s
     } else {
       chatStage.numUtterances = null
     }
+    // The chat cannot start until every slot in the run has arrived.
+    if (chatStage.progress) chatStage.progress.minParticipants = participantSlots.length
+    // Applied last so the simulation template wins over the defaults above.
+    if (simulation) applySimulationToChatStage(chatStage, simulation)
   }
 
   const numCohortsResolved = (mode === 'agent-agent' && action === 'simulate')
@@ -118,8 +145,10 @@ export async function generate(p1: string, p2: string, experimentTemplatePath: s
   const cohortAgentConfigs: string[][] = []
 
   for (let ci = 0; ci < numCohortsResolved; ci++) {
+    // Simulations want a real disagreement, so stances alternate strong-for /
+    // strong-against before being shuffled across the slots.
     const ratings = isSim
-      ? shuffle([randint(5, 7), randint(1, 3)])
+      ? shuffle(agentSlots.map((_, i) => (i % 2 === 0 ? randint(5, 7) : randint(1, 3))))
       : agentSlots.map(() => randint(1, 7))
     const stance: Record<string, any> = {}
     agentSlots.forEach((slot, i) => {
@@ -133,7 +162,9 @@ export async function generate(p1: string, p2: string, experimentTemplatePath: s
       const slot = pSlot.slot
       if (pSlot.type === 'agent') {
         const tpl = loadTemplate(pSlot.template!)
-        if (isSim) tpl.persona.id = `${tpl.persona.id}-c${ci}`
+        // Slot is part of the id because agent templates repeat once a run asks
+        // for more agents than there are templates.
+        if (isSim) tpl.persona.id = `${tpl.persona.id}-${slot}-c${ci}`
         const s = stance[slot]
         const [filled, finalStance] = fillAgentStance(tpl, topicInfo, s.rating, s.rating)
         stance[slot] = { side: finalStance.side, strength: finalStance.strength } // removing rating and concession info
@@ -152,7 +183,18 @@ export async function generate(p1: string, p2: string, experimentTemplatePath: s
   const agents = cohortAgents.flat() 
 
   const [template, cohortAlias] = buildExperiment(experimentTemplate, topicInfo, stages, stageIdsInOrder, mediatorR1, agents, mode, isSim)
-  template.experiment.variableConfigs = [BIAS_VARIABLE_CONFIG]
+  // Nothing to randomize a bias for when the run has no mediator.
+  template.experiment.variableConfigs = mediatorR1 ? [BIAS_VARIABLE_CONFIG] : []
+
+  // A cohort holds exactly the run's participants, however many that is.
+  template.experiment.defaultCohortConfig.minParticipantsPerCohort = participantSlots.length
+  template.experiment.defaultCohortConfig.maxParticipantsPerCohort = participantSlots.length
+
+  // The description also labels the experiment in ConvoArena's list (it leads
+  // the chat stage description separately, see applySimulationToChatStage).
+  if (simulation?.description) {
+    template.experiment.metadata.description = simulation.description
+  }
 
   const authHeaders = {
     Authorization: `Bearer ${API_KEY}`,
@@ -182,8 +224,8 @@ export async function generate(p1: string, p2: string, experimentTemplatePath: s
           name: `[toolkit-sim] ${topicInfo.name} #${i + 1}`,
           description: `Simulation for ${topicInfo.name}.`,
           participantConfig: {
-            minParticipantsPerCohort: cfg.minParticipantsPerCohort ?? 2,
-            maxParticipantsPerCohort: cfg.maxParticipantsPerCohort ?? 2,
+            minParticipantsPerCohort: participantSlots.length,
+            maxParticipantsPerCohort: participantSlots.length,
             includeAllParticipantsInCohortCount: cfg.includeAllParticipantsInCohortCount ?? true,
             botProtection: cfg.botProtection ?? true,
           },
@@ -233,10 +275,12 @@ export async function generate(p1: string, p2: string, experimentTemplatePath: s
   const experimentUrl = `${FRONTEND_BASE}/#/e/${expId}`
 
   const biasFor = (i: number) => {
-    const vm = cohortBias[i]
-    if (!vm) return null
-    const parse = (s?: string) => { try { return s != null ? JSON.parse(s) : null } catch { return s ?? null } }
-    return { side: parse(vm.target_bias_position)[0], }
+    // Absent whenever the run has no mediator to be biased in the first place.
+    const raw = cohortBias[i]?.target_bias_position
+    if (!raw) return null
+    const parse = (s: string) => { try { return JSON.parse(s) } catch { return s } }
+    const parsed = parse(raw)
+    return { side: Array.isArray(parsed) ? parsed[0] : parsed }
   }
 
   const cohorts = cohortIds.map((cid, i) => {

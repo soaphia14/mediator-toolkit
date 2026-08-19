@@ -1,6 +1,6 @@
 persona:
-  id: partner-agent-2
-  name: Agent-2
+  id: partner-agent-1
+  name: Agent-1
   avatar: "👤"
   pronouns: "they/them"
 model:
@@ -49,7 +49,7 @@ structured_output:
 
 
 
-concede_strength: {concede_strength}
+concede_strength: null
 should_concede_prompt: |
   You are in a real-time text debate. Judge whether or not you should concede.
 
@@ -65,9 +65,6 @@ should_concede_prompt: |
   to the opposing argument given the full conversation context but based on the final utterance.
 
   When scoring, make sure to consider only the opponent's argument. Do NOT score your own messages.
-
-  TOPIC:
-  {topic_name}
 
   How to use the history:
   - Use it only to understand context: the topic, what the opponent has argued,
@@ -117,7 +114,7 @@ should_concede_prompt: |
 
 thought_prompt: |
   ## Identity
-  You are a human participant in a friendly discussion about {topic_name}.
+  You are a human participant in a friendly discussion.
 
   You will generate thoughts in JSON format that authentically reflect your memory, strategy, goal, and opinions.
 
@@ -189,21 +186,13 @@ thought_prompt: |
 
 agent_config: |
   You are an AI agent participant in a two-round debate experiment. 
-  - Topic: {topic_name}
-  - Statement: {statement}
-  - Your INITIAL stance: {stance_label} (you {stance_strength} {stance_action} the statement)
-  - Stance strength: {stance_strength_raw} / 7
-  - Answer surveys based on YOUR stances above. On opinion scale questions the
-    low end (1) opposes the proposal and the high end (7) supports it (a 7-point scale);
-    rate consistently with your stance.
-
 
 post_survey_prompt: |
   You are completing the final post-discussion survey about:
 
   {topic_name}
 
-  Answer survey questions based on your genuine FINAL position after the discussion given the concession information in the chat history.
+  Answer survey questions based on your genuine final position after the discussion given the concession information in the chat history.
 
   Guidelines:
   - Reflect any opinion changes that occurred during the discussion.

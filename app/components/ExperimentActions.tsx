@@ -23,11 +23,14 @@ export function ActionButton({ label, loadingLabel, loading, disabled, onClick }
 type ParticipantLink = {url: string; type: string}
 type CohortLinks = { participant_urls?: ParticipantLink[] }
 
-export function ResultBox({ title, state, links, showMessage }: {
+export function ResultBox({ title, state, links, showMessage, linkPrefix }: {
   title: string
   state: ActionState
   links?: { cohorts?: CohortLinks[]; mode?: string }
   showMessage?: boolean
+  // Prepended to each participant link, so results from several experiments
+  // shown together stay distinguishable (e.g. "Exp 2 - Participant 1").
+  linkPrefix?: string
 }) {
   const isError = state.status === 'error'
   const message = showMessage && state.result && typeof state.result === 'object'
@@ -58,7 +61,7 @@ export function ResultBox({ title, state, links, showMessage }: {
                 rel="noreferrer"
                 className="block text-sm text-neutral-300 hover:text-white underline underline-offset-2 transition-colors break-all"
               >
-                Participant {pIdx + 1} ({item.type}) ↗
+                {linkPrefix ? `${linkPrefix} - ` : ''}Participant {pIdx + 1} ({item.type}) ↗
               </a>
             ))}
           </div>

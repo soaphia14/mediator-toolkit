@@ -7,9 +7,9 @@ import { auth } from '../lib/firebase'
 import { API_BASE } from '../lib/config'
 import * as yaml from 'js-yaml'
 import { Nav } from '../components/Nav'
-import { PairingsEditor, newPairingId, type Pairing } from '../components/PairingsEditor'
+import { PairingsEditor, newPairingId, summarizePairing, type Pairing } from '../components/PairingsEditor'
 import { BlockCustomization, DEFAULT_BLOCKS, type Block } from '../components/BlockCustomization'
-import { ActionButton } from '../components/ExperimentActions'
+import { ActionButton, ResultBox, type ActionState } from '../components/ExperimentActions'
 
 const SUBMISSION_FORMS = {
   track1: 'https://docs.google.com/forms/d/e/1FAIpQLSfTt_sYtTiiq_DszbId2VyqSLUr0tsfcRZqiC3uHi0YXh-3ew/viewform?usp=dialog',
@@ -74,6 +74,12 @@ export default function SimulationPage() {
   const [showAsYaml, setShowAsYaml] = useState(false)
   const [runs, setRuns] = useState<SimRun[]>([{ experiment: '', repeats: '1' }])
   const [notice, setNotice] = useState<string | null>(null)
+  const [simulating, setSimulating] = useState(false)
+  const [creating, setCreating] = useState<string | null>(null)
+  // One entry per pairing that was built, in pairing order.
+  const [createResults, setCreateResults] = useState<{ label: string; prefix: string; state: ActionState }[]>([])
+  // One entry per run row that was submitted, in the order they were listed.
+  const [simResults, setSimResults] = useState<{ label: string; state: ActionState }[]>([])
 
   const isDirty = simulationData !== null && (simulationData !== lastSavedContent || templateName !== lastSavedName)
 
@@ -208,6 +214,121 @@ export default function SimulationPage() {
         return JSON.stringify(data, null, 2)
       } catch { return prev }
     })
+  }
+
+  function simulationYaml(): string {
+    try { return yaml.dump(JSON.parse(simulationData ?? '')) } catch { return simulationData ?? '' }
+  }
+
+  // Each selected row becomes its own experiment: the pairing decides how many
+  // agents talk and whether a mediator joins, and "Runs" becomes the cohort
+  // count, so one row repeated N times is N cohorts of the same setup.
+  async function handleSimulate() {
+    const queued = runs
+      .map(run => ({ run, pairingIndex: pairings.findIndex(p => p.id === run.experiment) }))
+      .filter(({ pairingIndex }) => pairingIndex >= 0)
+
+    if (queued.length === 0) {
+      setNotice('Pick an experiment to run first.')
+      return
+    }
+
+    // A conversation needs at least two agents; the backend has no one to pair
+    // the lone agent with otherwise.
+    const short = queued.find(({ pairingIndex }) => summarizePairing(pairings[pairingIndex]).agentCount < 2)
+    if (short) {
+      setNotice(`Experiment ${short.pairingIndex + 1} needs at least 2 agents to simulate.`)
+      return
+    }
+
+    const idToken = await auth.currentUser?.getIdToken()
+    if (!idToken) return
+
+    const simulationTemplate = simulationYaml()
+    setNotice(null)
+    setSimResults([])
+    setSimulating(true)
+    try {
+      for (const { run, pairingIndex } of queued) {
+        const { agentCount, hasMediator } = summarizePairing(pairings[pairingIndex])
+        const label = `Experiment ${pairingIndex + 1}`
+        try {
+          const res = await fetch(`${API_BASE}/api/create-experiment`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              simulationTemplate,
+              mediator: hasMediator ? 'preset' : 'none',
+              numAgents: agentCount,
+              mode: 'agent-agent',
+              action: 'simulate',
+              numCohorts: run.repeats || '1',
+              idToken,
+            }),
+          })
+          const data = await res.json()
+          setSimResults(prev => [...prev, { label, state: { status: res.ok ? 'done' : 'error', result: data } }])
+        } catch (e) {
+          setSimResults(prev => [...prev, { label, state: { status: 'error', result: String(e) } }])
+        }
+      }
+    } finally {
+      setSimulating(false)
+    }
+  }
+
+  // Builds one cohort of agents per pairing and hands back links to watch them,
+  // rather than running a batch. Unlike Simulate it needs no sign-in and spends
+  // no quota, so it is the cheap way to eyeball every setup at once.
+  async function handleCreateAgentAgent() {
+    const eligible = pairings
+      .map((pairing, index) => ({ index, ...summarizePairing(pairing) }))
+      .filter(p => p.agentCount >= 2)
+
+    if (eligible.length === 0) {
+      setNotice(
+        pairings.length === 0
+          ? 'Add an experiment under Pairings first.'
+          : 'Create (agent-agent) needs an experiment with at least 2 agents.',
+      )
+      return
+    }
+
+    // Pairings too small to hold a conversation are skipped rather than
+    // blocking the ones that can run.
+    const skipped = pairings.length - eligible.length
+    setNotice(skipped > 0
+      ? `Skipping ${skipped} experiment${skipped === 1 ? '' : 's'} with fewer than 2 agents.`
+      : null)
+
+    const simulationTemplate = simulationYaml()
+    setCreateResults([])
+    setCreating('agent-agent')
+    try {
+      for (const { index, agentCount, hasMediator } of eligible) {
+        const label = `Create · Experiment ${index + 1}`
+        const prefix = `Exp ${index + 1}`
+        try {
+          const res = await fetch(`${API_BASE}/api/create-experiment`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              simulationTemplate,
+              mediator: hasMediator ? 'preset' : 'none',
+              numAgents: agentCount,
+              mode: 'agent-agent',
+              action: 'create',
+            }),
+          })
+          const data = await res.json()
+          setCreateResults(prev => [...prev, { label, prefix, state: { status: res.ok ? 'done' : 'error', result: data } }])
+        } catch (e) {
+          setCreateResults(prev => [...prev, { label, prefix, state: { status: 'error', result: String(e) } }])
+        }
+      }
+    } finally {
+      setCreating(null)
+    }
   }
 
   function downloadSimulation() {
@@ -444,8 +565,21 @@ export default function SimulationPage() {
                 key={mode}
                 label={`Create (${mode})`}
                 loadingLabel="Creating…"
-                loading={false}
-                onClick={() => setNotice(`Create (${mode}) is not wired to the backend yet.`)}
+                loading={creating === mode}
+                onClick={mode === 'agent-agent'
+                  ? handleCreateAgentAgent
+                  : () => setNotice(`Create (${mode}) is not wired to the backend yet.`)}
+              />
+            ))}
+            {createResults.map(({ label, prefix, state }, i) => (
+              <ResultBox
+                key={i}
+                title={label}
+                state={state}
+                linkPrefix={prefix}
+                links={state.status === 'done'
+                  ? (state.result as { cohorts?: { participant_urls?: { url: string; type: string }[] }[] })
+                  : undefined}
               />
             ))}
           </div>
@@ -513,9 +647,12 @@ export default function SimulationPage() {
           <ActionButton
             label="Simulate"
             loadingLabel="Simulating…"
-            loading={false}
-            onClick={() => setNotice('Simulate is not wired to the backend yet.')}
+            loading={simulating}
+            onClick={handleSimulate}
           />
+          {simResults.map(({ label, state }, i) => (
+            <ResultBox key={i} title={label} state={state} showMessage />
+          ))}
         </div>
 
         {notice && (

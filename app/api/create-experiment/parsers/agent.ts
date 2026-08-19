@@ -143,14 +143,17 @@ function _post_survey_stage(tpl: Record<string, any>, stageId: string, stageIdsI
 
 // ── Public ────────────────────────────────────────────────────────────────────
 
-export function buildAgent(chat_stage_id: string, pre_survey_stage_id: string, post_survey_stage_id: string, agentTemplate: Record<string, any>, stageIdsInOrder: string[]): AgentParticipantTemplate {
+export function buildAgent(chat_stage_id: string, pre_survey_stage_id: string, post_survey_stage_id: string | null, agentTemplate: Record<string, any>, stageIdsInOrder: string[]): AgentParticipantTemplate {
   const tpl = agentTemplate
   return {
     persona: buildPersona(tpl),
-    promptMap: { 
+    promptMap: {
       [chat_stage_id]: _chatPrompt(tpl, chat_stage_id, stageIdsInOrder),
       // [pre_survey_stage_id]: _pre_survey_stage(tpl, pre_survey_stage_id, stageIdsInOrder),
-      [post_survey_stage_id]: _post_survey_stage(tpl, post_survey_stage_id, stageIdsInOrder, [chat_stage_id], [chat_stage_id]),
+      // Runs without a post-discussion survey get no prompt for one.
+      ...(post_survey_stage_id
+        ? { [post_survey_stage_id]: _post_survey_stage(tpl, post_survey_stage_id, stageIdsInOrder, [chat_stage_id], [chat_stage_id]) }
+        : {}),
     },
   }
 }

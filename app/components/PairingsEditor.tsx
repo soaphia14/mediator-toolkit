@@ -24,6 +24,21 @@ export const AGENT_OPTIONS = [
   { value: 'agent3', label: 'Agent3' },
 ] as const
 
+// What a pairing means to a run: how many agents sit in the conversation, and
+// whether a mediator joins them. Which specific agent/mediator was picked is
+// ignored for now — agents are generated with random stances and the mediator
+// comes from the stock preset.
+export function summarizePairing(pairing: Pairing) {
+  const agentValues = new Set<string>(AGENT_OPTIONS.map(o => o.value))
+  const mediatorValues = new Set<string>(
+    MEDIATOR_OPTIONS.filter(o => o.value !== 'no_mediator').map(o => o.value),
+  )
+  return {
+    agentCount: pairing.members.filter(m => agentValues.has(m)).length,
+    hasMediator: pairing.members.some(m => mediatorValues.has(m)),
+  }
+}
+
 function ordinal(n: number) {
   const rem100 = n % 100
   if (rem100 >= 11 && rem100 <= 13) return `${n}th`

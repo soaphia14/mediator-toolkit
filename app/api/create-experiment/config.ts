@@ -13,7 +13,7 @@ export const CREATE_PARTICIPANT_URL = LOCAL
   : 'https://us-central1-traust-491612.cloudfunctions.net/createParticipant'
 
 export const FRONTEND_BASE = LOCAL
-  ? 'https://localhost:4201/'
+  ? 'https://localhost:4201'
   : 'https://convoarena.infosci.cornell.edu'
 
 export const API_KEY = process.env.DL_API_KEY ?? ''
@@ -21,6 +21,10 @@ export const API_KEY = process.env.DL_API_KEY ?? ''
 export const PROJECT_ROOT = process.cwd()
 
 export const MEDIATOR_DEFAULT = path.join(PROJECT_ROOT, 'public', 'templates', 'defaults', 'mediator.yaml')
+// Stock mediator used when a caller (e.g. the simulation toolkit) runs without
+// authoring one. Same file the mediator toolkit seeds its editor with, and it
+// is layered over MEDIATOR_DEFAULT by buildMediator just like an authored one.
+export const MEDIATOR_PRESET = path.join(PROJECT_ROOT, 'public', 'templates', 'competition', 'mediator.yaml')
 export const EXPERIMENT_DEFAULT = path.join(PROJECT_ROOT, 'public', 'templates', 'defaults', 'experiment.yaml')
 
 export const STAGE_R1 = 'chat-round-1'

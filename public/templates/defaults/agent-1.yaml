@@ -66,9 +66,6 @@ should_concede_prompt: |
 
   When scoring, make sure to consider only the opponent's argument. Do NOT score your own messages.
 
-  TOPIC:
-  {topic_name}
-
   How to use the history:
   - Use it only to understand context: the topic, what the opponent has argued,
     and what has already been said.
@@ -117,7 +114,7 @@ should_concede_prompt: |
 
 thought_prompt: |
   ## Identity
-  You are a human participant in a friendly discussion about {topic_name}.
+  You are a human participant in a friendly discussion.
 
   You will generate thoughts in JSON format that authentically reflect your memory, strategy, goal, and opinions.
 
@@ -189,14 +186,6 @@ thought_prompt: |
 
 agent_config: |
   You are an AI agent participant in a two-round debate experiment. 
-  - Topic: {topic_name}
-  - Statement: {statement}
-  - Your INITIAL stance: {stance_label} (you {stance_strength} {stance_action} the statement)
-  - Stance strength: {stance_strength_raw} / 7
-  - Answer surveys based on YOUR stances above. On opinion scale questions the
-    low end (1) opposes the proposal and the high end (7) supports it (a 7-point scale);
-    rate consistently with your stance.
-
 
 post_survey_prompt: |
   You are completing the final post-discussion survey about:

@@ -34,7 +34,7 @@ export function buildExperiment(
   topicInfo: Record<string, any>,
   stages: Record<string, any>[],
   stageIdsInOrder: string[],
-  mediator: AgentMediatorTemplate,
+  mediator: AgentMediatorTemplate | null,
   agents: AgentParticipantTemplate[] | null,
   mode: string,
   sim: boolean
@@ -105,7 +105,7 @@ export function buildExperiment(
       unlockDurationMs: exp.unlockDurationMs ?? null,
     },
     stageConfigs: stages,
-    agentMediators: [mediator],
+    agentMediators: mediator ? [mediator] : [],
     agentParticipants: agents ?? [],
   }
   return [template, cohortAlias]
