@@ -560,20 +560,11 @@ export default function Home() {
             </div>
           </div>
 
-          {/* competition instructions + tutorial video banner */}
+          {/* tutorial video banner */}
           <div className="rounded-md border border-blue-400/50 bg-blue-500/10 overflow-hidden text-sm text-blue-200">
-            <a
-              href="https://docs.google.com/document/d/1tX9w_9RFuES2jxlGTDY2lXpRenc354hjzYMeH8LzngU/edit?usp=sharing"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center justify-between gap-3 px-4 py-3 hover:bg-blue-500/20 hover:text-blue-100 transition-colors cursor-pointer"
-            >
-              <span>Read the competition instructions before building and submitting your mediator.</span>
-              <span className="shrink-0 font-medium underline underline-offset-2">Open instructions →</span>
-            </a>
             <button
               onClick={() => setShowTutorial(v => !v)}
-              className="w-full flex items-center justify-between gap-3 px-4 py-3 border-t border-blue-400/10 hover:bg-blue-500/20 hover:text-blue-100 transition-colors cursor-pointer"
+              className="w-full flex items-center justify-between gap-3 px-4 py-3 hover:bg-blue-500/20 hover:text-blue-100 transition-colors cursor-pointer"
             >
               <span className="font-medium underline underline-offset-2">Watch the Tutorial Video!</span>
               <svg
