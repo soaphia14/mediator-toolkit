@@ -8,6 +8,7 @@ import { API_BASE } from '../lib/config'
 import * as yaml from 'js-yaml'
 import { StructuredPromptEditor, type PromptItem } from '../components/StructuredPromptEditor'
 import { ActionButton, ResultBox, type ActionState } from '../components/ExperimentActions'
+import { MediatorSection } from '../components/MediatorSection'
 
 const idle: ActionState = { status: 'idle', result: null }
 
@@ -22,14 +23,11 @@ function WorkedExamplesLink() {
   )
 }
 
-function PromptEditorDescription() {
+function PromptEditorDescription({ description }: { description: string }) {
   return (
     <div className="rounded-md border border-neutral-800 bg-neutral-900/40 px-3 py-2.5 text-sm text-neutral-500 space-y-1.5">
       <p className="font-medium text-neutral-400">Prompt Purpose</p>
-      A prompt that determines how your assistant privately helps a single participant during the discussion. The assistant only responds to that participant — it never posts to the shared conversation.
-      <p>
-        See <WorkedExamplesLink />.
-      </p>
+      {description}
     </div>
   )
 }
@@ -54,6 +52,8 @@ function PromptBlockLegend() {
         <span>the discussion up to this moment</span>
         {legend('bg-[#dce1fd]', 'Participant Info')}
         <span>the assisted participant's profile info</span>
+        {legend('bg-[#dce1fd]', 'Participant Chat Input')}
+        <span>the participant's current, unsent chat draft</span>
         {legend('bg-[#f08673]', 'Target Bias Position')}
         <span>[Use only for the Covert Influence Task] the direction of the covert influence (either Supporting or Opposing the debate statement)</span>
       </div>
@@ -115,6 +115,7 @@ export default function AssistantPage() {
   const [creating, setCreating] = useState<'human-human' | 'human-agent' | 'agent-agent' | null>(null)
   const [numCohorts, setNumCohorts] = useState('5')
   const [numUtterances, setNumUtterances] = useState('15')
+  const [activePromptTab, setActivePromptTab] = useState<'response' | 'should-respond'>('response')
 
   useEffect(() => {
     if (simState.status !== 'loading' || simStartTime === null) return
@@ -143,6 +144,29 @@ export default function AssistantPage() {
       try {
         const data = JSON.parse(prev ?? '')
         data.prompt = reindexed
+        return JSON.stringify(data, null, 2)
+      } catch { return prev }
+    })
+  }
+
+  const updateShouldRespondPrompt = (prompt: PromptItem[]) => {
+    const reindexed = prompt.map((item, i) => ({ ...item, id: i }))
+    setAssistantData(prev => {
+      try {
+        const data = JSON.parse(prev ?? '')
+        data.should_respond_prompt = reindexed
+        return JSON.stringify(data, null, 2)
+      } catch { return prev }
+    })
+  }
+
+  const updateAssistantField = (path: string[], value: string | boolean | number) => {
+    setAssistantData(prev => {
+      try {
+        const data = JSON.parse(prev ?? '')
+        let obj = data
+        for (let i = 0; i < path.length - 1; i++) obj = obj[path[i]]
+        obj[path[path.length - 1]] = value
         return JSON.stringify(data, null, 2)
       } catch { return prev }
     })
@@ -318,19 +342,63 @@ export default function AssistantPage() {
           {/* Prompt editor */}
           <div className="space-y-4">
             <div className="border-b border-neutral-800 pb-3">
-              <h2 className="text-lg font-semibold tracking-tight">Prompt Editor</h2>
+              <h2 className="text-lg font-semibold tracking-tight">Prompt Editors</h2>
             </div>
-            <p className="text-sm text-neutral-500">Here you can edit the prompt that guides your assistant's private guidance to one participant. Take a look at our <WorkedExamplesLink /> to see how these work. <a href="https://www.promptingguide.ai/" target="_blank" className="underline hover:text-neutral-300">Learn more about prompt engineering.</a></p>
+            <p className="text-sm text-neutral-500">Here you can edit the prompts that guide your assistant. The <span className="text-neutral-400">Assistant Prompt</span> controls the guidance it sends the participant; the <span className="text-neutral-400">Should Intervene</span> prompt decides whether now is a good time to send it. Take a look at our <WorkedExamplesLink /> to see how these work. <a href="https://www.promptingguide.ai/" target="_blank" className="underline hover:text-neutral-300">Learn more about prompt engineering.</a></p>
 
-            <PromptEditorDescription />
-            <PromptBlockLegend />
-            <StructuredPromptEditor
-              label="Assistant Prompt Editor"
-              prompt={(assistantParsed?.prompt as PromptItem[]) ?? []}
-              stageId=""
-              onUpdate={updateAssistantPrompt}
-            />
+            <div className="rounded-lg border border-neutral-800">
+              <div className="flex border-b border-neutral-800 bg-neutral-900/60">
+                {(['response', 'should-respond'] as const).map(tab => (
+                  <button
+                    key={tab}
+                    onClick={() => setActivePromptTab(tab)}
+                    className={`px-4 py-2.5 text-sm font-medium transition-colors ${activePromptTab === tab ? 'text-neutral-100 border-b-2 border-neutral-400 -mb-px' : 'text-neutral-500 hover:text-neutral-300'}`}
+                  >
+                    {tab === 'response' ? 'Assistant Prompt' : 'Should Intervene'}
+                  </button>
+                ))}
+              </div>
+              <div className="p-4">
+                {activePromptTab === 'response' ? (
+                  <div className="space-y-4">
+                    <PromptEditorDescription description="A prompt that determines how your assistant privately helps a single participant during the discussion. The assistant only responds to that participant — it never posts to the shared conversation. It generates a message every time the Should Intervene Prompt decides the assistant should respond." />
+                    <PromptBlockLegend />
+                    <StructuredPromptEditor
+                      label="Assistant Prompt Editor"
+                      prompt={(assistantParsed?.prompt as PromptItem[]) ?? []}
+                      stageId=""
+                      onUpdate={updateAssistantPrompt}
+                    />
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <PromptEditorDescription description="Your assistant uses this prompt after each update to the participant's draft or the conversation to decide whether this is a good time to offer guidance. When the response is true, the assistant uses the Assistant Prompt to generate a message; when false, it waits." />
+                    <PromptBlockLegend />
+                    <StructuredPromptEditor
+                      label="Should Intervene Prompt Editor"
+                      prompt={(assistantParsed?.should_respond_prompt as PromptItem[]) ?? []}
+                      stageId=""
+                      onUpdate={updateShouldRespondPrompt}
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
+
+          <div className="border-b border-neutral-800 pb-3">
+            <h2 className="text-lg font-semibold tracking-tight">Assistant Configuration</h2>
+          </div>
+
+          <MediatorSection
+            title="Assistant Persona"
+            mediatorParsed={assistantParsed}
+            onUpdate={updateAssistantField}
+            fields={[
+              { label: 'Name', description: 'Displayed name of the assistant.', path: ['persona', 'name'], type: 'text' },
+              { label: 'Min Call Interval (ms)', description: 'The minimum time the assistant must wait between calls to check whether it should respond.', path: ['persona', 'min_call_interval_ms'], type: 'number', min: 0, step: 1000 },
+            ]}
+          />
 
         </div>
       </div>

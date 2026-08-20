@@ -15,19 +15,24 @@ import {
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
+interface AssistantPersona extends Persona {
+  minCallIntervalMs: number | null
+}
+
 interface ChatPromptConfig {
   id: string
   type: 'chat'
   prompt: { default: PromptItem[] }
   order: Record<string, unknown>
   addTo: Record<string, unknown>
+  shouldRespondPrompt: PromptItem[]
   structuredOutputConfig: StructuredOutputConfig
   generationConfig: GenerationConfig
   numRetries: number
 }
 
 export interface AgentAssistantTemplate {
-  persona: Persona
+  persona: AssistantPersona
   promptMap: Record<string, ChatPromptConfig>
 }
 
@@ -40,6 +45,7 @@ function _chatPrompt(tpl: Record<string, any>, stageId: string, stageIdsInOrder:
     prompt: { default: buildPromptItems(tpl, stageId, stageIdsInOrder) },
     order: {},
     addTo: {},
+    shouldRespondPrompt: buildPromptItems({ ...tpl, prompt: tpl.should_respond_prompt, context: tpl.should_respond_context }, stageId, stageIdsInOrder),
     structuredOutputConfig: buildStructuredOutput(tpl),
     generationConfig: buildGeneration(tpl, 'generation'),
     numRetries: tpl.num_retries,
@@ -61,7 +67,7 @@ export function buildAssistant(stageId: string, assistantTemplate: Record<string
   let tpl = replaceDefaults(assistantTemplate, loadAssistantTemplate(ASSISTANT_DEFAULT))
   tpl = substituteTokens(tpl, { '{topic_name}': `Debate Topic: ${topicInfo.name}`, '{topic_statement}': `Debate Statement: ${topicInfo.statement}` })
   return {
-    persona: buildPersona(tpl),
+    persona: { ...buildPersona(tpl), minCallIntervalMs: tpl.persona.min_call_interval_ms ?? null },
     promptMap: { [stageId]: _chatPrompt(tpl, stageId, stageIdsInOrder) },
   }
 }

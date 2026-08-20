@@ -11,6 +11,7 @@ export enum PromptItemType {
   CONTEXT = 'CONTEXT',
   PROFILE_INFO = 'PROFILE_INFO',
   PARTICIPANT_INFO = 'PARTICIPANT_INFO',
+  PARTICIPANT_CHAT_INPUT = 'PARTICIPANT_CHAT_INPUT',
   INITIALIZATION_CONTEXT = 'INITIALIZATION_CONTEXT',
   PRELOADED_CONTEXT='PRELOADED_CONTEXT',
   BIASED = 'BIASED',
@@ -37,6 +38,10 @@ export interface ProfileInfoPromptItem extends PromptItem {
 
 export interface ParticipantInfoPromptItem extends PromptItem {
   type: PromptItemType.PARTICIPANT_INFO
+}
+
+export interface ParticipantChatInputPromptItem extends PromptItem {
+  type: PromptItemType.PARTICIPANT_CHAT_INPUT
 }
 
 export interface InitializationContextPromptItem extends PromptItem {
@@ -198,6 +203,10 @@ function AddMenu({ targetArr, textOnly }: { targetArr: PromptItem[], textOnly?: 
                 Participant Info
               </div>
               <div className="my-0.5 border-t border-neutral-700/60" />
+              <div className={itemClass} role="button" onClick={() => pick({ type: PromptItemType.PARTICIPANT_CHAT_INPUT } as ParticipantChatInputPromptItem)}>
+                Participant Chat Input
+              </div>
+              <div className="my-0.5 border-t border-neutral-700/60" />
               <div className={itemClass} role="button" onClick={() => pick({ type: PromptItemType.INITIALIZATION_CONTEXT } as InitializationContextPromptItem)}>
                 Initialization Result
               </div>
@@ -281,6 +290,12 @@ function ItemEditor({ item }: { item: PromptItem }) {
       return (
         <div className="cursor-default rounded bg-[#dce1fd] px-3 py-1.5 text-sm font-medium text-neutral-900">
           Participant Info
+        </div>
+      )
+    case PromptItemType.PARTICIPANT_CHAT_INPUT:
+      return (
+        <div className="cursor-default rounded bg-[#dce1fd] px-3 py-1.5 text-sm font-medium text-neutral-900">
+          Participant Chat Input
         </div>
       )
     case PromptItemType.INITIALIZATION_CONTEXT:
