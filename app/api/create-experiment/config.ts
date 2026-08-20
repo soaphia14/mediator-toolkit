@@ -13,7 +13,7 @@ export const CREATE_PARTICIPANT_URL = LOCAL
   : 'https://us-central1-traust-491612.cloudfunctions.net/createParticipant'
 
 export const FRONTEND_BASE = LOCAL
-  ? 'https://localhost:4201/'
+  ? 'https://localhost:4201'
   : 'https://convoarena.infosci.cornell.edu'
 
 export const API_KEY = process.env.DL_API_KEY ?? ''

@@ -6,9 +6,10 @@ import { signInWithPopup } from 'firebase/auth'
 import { doc, getDoc, setDoc } from 'firebase/firestore'
 import { auth, db, googleProvider } from './lib/firebase'
 
-const INSTRUCTIONS_URL =
-  'https://docs.google.com/document/d/1tX9w_9RFuES2jxlGTDY2lXpRenc354hjzYMeH8LzngU/edit?usp=sharing'
-const CONSENT_URL = 'https://forms.gle/4hEYhY9E8SzvYNhi6'
+// TODO: replace with the real competition bracket/results link
+const RESULTS_URL = 'https://traust.infosci.cornell.edu/bracket.html'
+// TODO: replace with the interest form used on the site's "Contact" tab
+const NOTIFY_FORM_URL = 'https://docs.google.com/forms/d/e/1FAIpQLSeO5WBoxy79WUFZmPL08vA24Huuoam71VDBMc9WUuMlPWpWYw/viewform'
 const VIDEO_URL = 'https://drive.google.com/file/d/1ELPMxibpd6Fm9m254UIjp1HoSAnNpJHD/preview'
 
 export default function LandingPage() {
@@ -40,15 +41,53 @@ export default function LandingPage() {
           </h1>
         </div>
 
-        <div className="w-full max-w-xl text-left space-y-5">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-neutral-400">
-            Steps for the Mediator Competition
-          </h2>
-          <ol className="space-y-5 text-sm text-neutral-300">
-          <li className="space-y-3">
-            <p>
-              <span className="font-semibold text-neutral-100">1.</span>{' '}
-              Watch this brief video introducing the competition:
+        <div className="w-full max-w-xl text-left space-y-6">
+          <p className="text-base text-neutral-200">
+            Our first mediator competition is over,{' '}
+            <a
+              href={RESULTS_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline underline-offset-2 text-neutral-100 hover:text-white"
+            >
+              check out the results here
+            </a>
+            !
+          </p>
+
+          <p className="text-sm text-neutral-300">Visitors are welcome to:</p>
+          <ul className="space-y-5 text-sm text-neutral-300 list-disc pl-5">
+            <li className="space-y-3">
+              <p>
+                Add their name to{' '}
+                <a
+                  href={NOTIFY_FORM_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="underline underline-offset-2 text-neutral-200 hover:text-white"
+                >
+                  our form
+                </a>{' '}
+                to be notified about our next competition
+              </p>
+            </li>
+            <li className="space-y-3">
+              <p>Sign in to explore the toolkit</p>
+              <div className="flex flex-col items-start gap-3">
+                <button
+                  onClick={handleSignIn}
+                  className="px-6 py-3 rounded-lg bg-neutral-100 text-neutral-950 text-sm font-semibold hover:bg-white active:scale-[0.98] transition-all duration-150 cursor-pointer"
+                >
+                  Sign in with Google
+                </button>
+                {error && <p className="text-sm text-red-400">{error}</p>}
+              </div>
+            </li>
+          </ul>
+
+          <div className="space-y-3">
+            <p className="text-sm text-neutral-300">
+              A brief video introducing the competition:
             </p>
             <div className="aspect-video rounded-lg border border-neutral-800 bg-neutral-900/50 overflow-hidden">
               <iframe
@@ -58,47 +97,7 @@ export default function LandingPage() {
                 allowFullScreen
               />
             </div>
-          </li>
-          <li>
-            <span className="font-semibold text-neutral-100">2.</span>{' '}
-            <a
-              href={INSTRUCTIONS_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="underline underline-offset-2 text-neutral-200 hover:text-white"
-            >
-              Read the instructions
-            </a>{' '}
-            for more details
-          </li>
-          <li>
-            <span className="font-semibold text-neutral-100">3.</span>{' '}
-            Complete the{' '}
-            <a
-              href={CONSENT_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="underline underline-offset-2 text-neutral-200 hover:text-white"
-            >
-              Consent Form
-            </a>
-          </li>
-          <li className="space-y-3">
-            <p>
-              <span className="font-semibold text-neutral-100">4.</span>{' '}
-              Sign in to start developing your mediator
-            </p>
-            <div className="flex flex-col items-start gap-3">
-              <button
-                onClick={handleSignIn}
-                className="px-6 py-3 rounded-lg bg-neutral-100 text-neutral-950 text-sm font-semibold hover:bg-white active:scale-[0.98] transition-all duration-150 cursor-pointer"
-              >
-                Sign in with Google
-              </button>
-              {error && <p className="text-sm text-red-400">{error}</p>}
-            </div>
-          </li>
-          </ol>
+          </div>
         </div>
       </main>
 
