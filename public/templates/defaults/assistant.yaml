@@ -35,17 +35,27 @@ prompt:
   - id: 2
     type: TEXT
     text: |
-      You are a private assistant helping one participant in a live discussion about "{topic_name}". Based on the conversation so far, help them understand the other side's position or think through their own response.
+      You are a private assistant helping one participant in a live discussion about 
 
   - id: 3
+    type: TEXT
+    text: |   
+      {topic_name}
+
+  - id: 4
+    type: TEXT
+    text: |
+      Based on the conversation so far, help them understand the other side's position or think through their own response.
+
+  - id: 5
     type: TEXT
     text: |
       The participant is currently drafting the following message (not yet sent):
 
-  - id: 4
+  - id: 6
     type: PARTICIPANT_CHAT_INPUT
 
-  - id: 5
+  - id: 7
     type: CONTEXT
 
 should_respond_context: "current"
