@@ -16,6 +16,7 @@ export enum PromptItemType {
   PRELOADED_CONTEXT='PRELOADED_CONTEXT',
   BIASED = 'BIASED',
   TOPIC_NAME = 'TOPIC_NAME',
+  ARTICLE_PAGE= 'ARTICLE_PAGE'
 }
 
 export interface PromptItem {
@@ -46,6 +47,11 @@ export interface ParticipantChatInputPromptItem extends PromptItem {
 
 export interface InitializationContextPromptItem extends PromptItem {
   type: PromptItemType.INITIALIZATION_CONTEXT
+}
+
+// Wikipedia Specific
+export interface ArticlePagePromptItem extends PromptItem {
+  type: PromptItemType.ARTICLE_PAGE
 }
 
 // Legacy
@@ -145,7 +151,7 @@ function IconButton({ icon, title, onClick }: {
   )
 }
 
-function AddMenu({ targetArr, textOnly }: { targetArr: PromptItem[], textOnly?: boolean }) {
+function AddMenu({ targetArr, textOnly, wpMode }: { targetArr: PromptItem[], textOnly?: boolean, wpMode?: boolean }) {
   const { addItem, locked } = useEditorCtx()
   if (locked) return null
   const [open, setOpen] = useState(false)
@@ -176,28 +182,48 @@ function AddMenu({ targetArr, textOnly }: { targetArr: PromptItem[], textOnly?: 
           <div className={itemClass} role="button" onClick={() => pick({ type: PromptItemType.TEXT, text: '' } as TextPromptItem)}>
             Freeform Text
           </div>
-          <div className="my-0.5 border-t border-neutral-700/60" />
-          <div className={itemClass} role="button" onClick={() => pick({ type: PromptItemType.TEXT, text: '{topic_name}' } as TextPromptItem)}>
-            Debate Topic
-          </div>
-          <div className="my-0.5 border-t border-neutral-700/60" />
-          <div className={itemClass} role="button" onClick={() => pick({ type: PromptItemType.TEXT, text: '{topic_statement}' } as TextPromptItem)}>
-            Debate Statement
-          </div>
-          <div className="my-0.5 border-t border-neutral-700/60" />
-          <div className={itemClass} role="button" onClick={() => pick({ type: PromptItemType.CONTEXT, context: 'before' } as ContextPromptItem)}>
-            Participant Initial Positions
-          </div>
+          {!wpMode && (
+            <>
+              <div className="my-0.5 border-t border-neutral-700/60" />
+              <div className={itemClass} role="button" onClick={() => pick({ type: PromptItemType.TEXT, text: '{topic_name}' } as TextPromptItem)}>
+                Debate Topic
+              </div>
+              <div className="my-0.5 border-t border-neutral-700/60" />
+              <div className={itemClass} role="button" onClick={() => pick({ type: PromptItemType.TEXT, text: '{topic_statement}' } as TextPromptItem)}>
+                Debate Statement
+              </div>
+            </>
+          )}
+          {wpMode && (
+            <>
+              <div className="my-0.5 border-t border-neutral-700/60" />
+              <div className={itemClass} role="button" onClick={() => pick({ type: PromptItemType.ARTICLE_PAGE } as ArticlePagePromptItem)}>
+                Article Page
+              </div>
+            </>
+          )}
+          {!wpMode && (
+            <>
+              <div className="my-0.5 border-t border-neutral-700/60" />
+              <div className={itemClass} role="button" onClick={() => pick({ type: PromptItemType.CONTEXT, context: 'before' } as ContextPromptItem)}>
+                Participant Initial Positions
+              </div>
+            </>
+          )}
           {!textOnly && (
             <>
               <div className="my-0.5 border-t border-neutral-700/60" />
               <div className={itemClass} role="button" onClick={() => pick({ type: PromptItemType.CONTEXT, context: 'current' } as ContextPromptItem)}>
                 Conversation Context
               </div>
-              <div className="my-0.5 border-t border-neutral-700/60" />
-              <div className={itemClass} role="button" onClick={() => pick({ type: PromptItemType.PROFILE_INFO } as ProfileInfoPromptItem)}>
-                Profile Info
-              </div>
+              {!wpMode && (
+                <>
+                  <div className="my-0.5 border-t border-neutral-700/60" />
+                  <div className={itemClass} role="button" onClick={() => pick({ type: PromptItemType.PROFILE_INFO } as ProfileInfoPromptItem)}>
+                    Profile Info
+                  </div>
+                </>
+              )}
               <div className="my-0.5 border-t border-neutral-700/60" />
               <div className={itemClass} role="button" onClick={() => pick({ type: PromptItemType.PARTICIPANT_INFO } as ParticipantInfoPromptItem)}>
                 Participant Info
@@ -206,10 +232,14 @@ function AddMenu({ targetArr, textOnly }: { targetArr: PromptItem[], textOnly?: 
               <div className={itemClass} role="button" onClick={() => pick({ type: PromptItemType.PARTICIPANT_CHAT_INPUT } as ParticipantChatInputPromptItem)}>
                 Participant Chat Input
               </div>
-              <div className="my-0.5 border-t border-neutral-700/60" />
-              <div className={itemClass} role="button" onClick={() => pick({ type: PromptItemType.INITIALIZATION_CONTEXT } as InitializationContextPromptItem)}>
-                Initialization Result
-              </div>
+              {!wpMode && (
+                <>
+                  <div className="my-0.5 border-t border-neutral-700/60" />
+                  <div className={itemClass} role="button" onClick={() => pick({ type: PromptItemType.INITIALIZATION_CONTEXT } as InitializationContextPromptItem)}>
+                    Initialization Result
+                  </div>
+                </>
+              )}
             </>
           )}
           {/* {textOnly && (
@@ -220,10 +250,14 @@ function AddMenu({ targetArr, textOnly }: { targetArr: PromptItem[], textOnly?: 
               </div>
             </>
           )} */}
-          <div className="my-0.5 border-t border-neutral-700/60" />
-          <div className={itemClass} role="button" onClick={() => pick({ type: PromptItemType.BIASED } as BiasedPromptItem)}>
-            Target Bias Position
-          </div>
+          {!wpMode && (
+            <>
+              <div className="my-0.5 border-t border-neutral-700/60" />
+              <div className={itemClass} role="button" onClick={() => pick({ type: PromptItemType.BIASED } as BiasedPromptItem)}>
+                Target Bias Position
+              </div>
+            </>
+          )}
         </div>
       )}
     </div>
@@ -278,6 +312,12 @@ function ItemEditor({ item }: { item: PromptItem }) {
       return (
         <div className="cursor-default rounded bg-[#dce1fd] px-3 py-1.5 text-sm font-medium text-neutral-900">
           {(item as ContextPromptItem).context === 'before' ? 'Participant Initial Positions: the participants responses to the pre-conversation survey about the debate statement' : 'Conversation Context: the discussion up to this moment'}
+        </div>
+      )
+    case PromptItemType.ARTICLE_PAGE:
+      return (
+        <div className="cursor-default rounded bg-[#fde8c8] px-3 py-1.5 text-sm font-medium text-neutral-900">
+          Article Page
         </div>
       )
     case PromptItemType.PROFILE_INFO:
@@ -426,6 +466,7 @@ export interface StructuredPromptEditorProps {
   label?: string
   locked?: boolean
   textOnly?: boolean
+  wpMode?: boolean
 }
 
 export function StructuredPromptEditor({
@@ -434,6 +475,7 @@ export function StructuredPromptEditor({
   label = 'Prompt editor',
   locked = false,
   textOnly = false,
+  wpMode = false,
 }: StructuredPromptEditorProps) {
   const ctx: EditorCtx = {
     locked,
@@ -449,7 +491,7 @@ export function StructuredPromptEditor({
       <div className="rounded-lg border border-neutral-700 bg-neutral-900">
         <div className="flex items-center justify-between px-3 py-2 border-b border-neutral-700/60">
           <span className="text-xs font-semibold uppercase tracking-widest text-neutral-500">{label}</span>
-          <AddMenu targetArr={prompt} textOnly={textOnly}/>
+          <AddMenu targetArr={prompt} textOnly={textOnly} wpMode={wpMode}/>
         </div>
         <div className="p-3">
           <PromptItemList items={prompt} />

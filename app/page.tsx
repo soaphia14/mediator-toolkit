@@ -19,12 +19,12 @@ export default function LandingPage() {
 
           <div className="mt-10 w-full grid grid-cols-1 sm:grid-cols-2 gap-5">
             <Link
-              href="/login/assistant"
+              href="/login/assistant-wp"
               className="group rounded-2xl border border-neutral-800 bg-neutral-900/40 backdrop-blur-sm p-8 flex flex-col items-start gap-2 text-left hover:border-neutral-600 hover:bg-neutral-900/70 transition-all duration-150"
             >
-              <span className="text-lg font-semibold">Assistant Toolkit</span>
+              <span className="text-lg font-semibold">Assistant WP Toolkit</span>
               <span className="text-sm text-neutral-400">
-                Build and test conversational assistants
+                Build and test assistants for Wikipedia
               </span>
               <span className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-neutral-100 group-hover:gap-2 transition-all duration-150">
                 Go to Assistant Toolkit

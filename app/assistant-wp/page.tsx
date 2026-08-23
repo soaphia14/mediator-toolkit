@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo, useRef } from 'react'
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { onAuthStateChanged, signOut } from 'firebase/auth'
 import { auth } from '../lib/firebase'
@@ -9,6 +9,7 @@ import * as yaml from 'js-yaml'
 import { StructuredPromptEditor, type PromptItem } from '../components/StructuredPromptEditor'
 import { ActionButton, ResultBox, type ActionState } from '../components/ExperimentActions'
 import { MediatorSection } from '../components/MediatorSection'
+import { SaveSection } from '../components/SaveSection'
 
 const idle: ActionState = { status: 'idle', result: null }
 
@@ -42,20 +43,14 @@ function PromptBlockLegend() {
       <div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1.5 items-baseline">
         <span className="font-medium text-neutral-300">Freeform Text</span>
         <span>custom instructions you write directly</span>
-        {legend('bg-[#fde8c8]', 'Debate Topic')}
-        <span>the topic of the debate</span>
-        {legend('bg-[#fde8c8]', 'Debate Statement')}
-        <span>the statement that the participants take a position on</span>
-        {legend('bg-[#dce1fd]', 'Participant Initial Positions')}
-        <span>the participant's response to the pre-conversation survey about the debate statement</span>
+        {legend('bg-[#fde8c8]', 'Article Page')}
+        <span>the Wikipedia article the talk page discusses</span>
         {legend('bg-[#dce1fd]', 'Conversation Context')}
         <span>the discussion up to this moment</span>
         {legend('bg-[#dce1fd]', 'Participant Info')}
         <span>the assisted participant's profile info</span>
         {legend('bg-[#dce1fd]', 'Participant Chat Input')}
         <span>the participant's current, unsent chat draft</span>
-        {legend('bg-[#f08673]', 'Target Bias Position')}
-        <span>[Use only for the Covert Influence Task] the direction of the covert influence (either Supporting or Opposing the debate statement)</span>
       </div>
     </div>
   )
@@ -71,6 +66,8 @@ export default function AssistantPage() {
   const [simQuota, setSimQuota] = useState<{ used: number; limit: number; simMaxWaitTimeMs: number } | null>(null)
 
   const [assistantData, setAssistantData] = useState<string | null>(null)
+  const [dirty, setDirty] = useState(false)
+  const [showAsYaml, setShowAsYaml] = useState(false)
 
   async function fetchQuota() {
     try {
@@ -85,10 +82,12 @@ export default function AssistantPage() {
     }
   }
 
-  async function loadDefaultTemplate() {
-    const defaultsText = await fetch(`${API_BASE}/templates/defaults/assistant.yaml`).then(res => res.text())
-    setAssistantData(JSON.stringify(yaml.load(defaultsText), null, 2))
-  }
+  const getDefaultContent = useCallback(async () => {
+    const defaultsText = await fetch(`${API_BASE}/templates/wikipedia/assistant.yaml`).then(res => res.text())
+    const parsed = yaml.load(defaultsText) as { persona: { id: string } }
+    if (userEmail) parsed.persona.id = `${userEmail.split('@')[0]}-assistant`
+    return JSON.stringify(parsed, null, 2)
+  }, [userEmail])
 
   useEffect(() => {
     return onAuthStateChanged(auth, (user) => {
@@ -98,10 +97,17 @@ export default function AssistantPage() {
         setAuthReady(true)
         setUserEmail(user.email)
         fetchQuota()
-        loadDefaultTemplate()
       }
     })
   }, [router])
+
+  useEffect(() => {
+    const handler = (e: BeforeUnloadEvent) => {
+      if (dirty) { e.preventDefault(); e.returnValue = '' }
+    }
+    window.addEventListener('beforeunload', handler)
+    return () => window.removeEventListener('beforeunload', handler)
+  }, [dirty])
 
   const [experimentId, setExperimentId] = useState<string | null>('')
   const [createState, setCreateState] = useState<ActionState>(idle)
@@ -350,7 +356,10 @@ export default function AssistantPage() {
             <div className="flex items-center gap-3 mt-1">
               {userEmail && <span className="text-sm text-neutral-400">{userEmail}</span>}
               <button
-                onClick={() => signOut(auth).then(() => router.replace('/'))}
+                onClick={() => {
+                  if (dirty && !window.confirm('You have unsaved changes. Sign out anyway?')) return
+                  signOut(auth).then(() => router.replace('/'))
+                }}
                 className="text-sm px-3 py-1.5 rounded-md border border-neutral-600 text-neutral-400 hover:border-neutral-500 hover:text-neutral-200 transition-colors cursor-pointer"
               >
                 Sign out
@@ -358,12 +367,22 @@ export default function AssistantPage() {
             </div>
           </div>
 
+          {/* Save / Load */}
+          <SaveSection
+            collection="assistants"
+            content={assistantData}
+            onContentChange={setAssistantData}
+            getDefaultContent={getDefaultContent}
+            onDirtyChange={setDirty}
+            enabled={authReady}
+          />
+
           {/* Prompt editor */}
           <div className="space-y-4">
             <div className="border-b border-neutral-800 pb-3">
               <h2 className="text-lg font-semibold tracking-tight">Prompt Editors</h2>
             </div>
-            <p className="text-sm text-neutral-500">Here you can edit the prompts that guide your assistant. The <span className="text-neutral-400">Assistant Prompt</span> controls the guidance it sends the participant; the <span className="text-neutral-400">Should Intervene</span> prompt decides whether now is a good time to send it. Take a look at our <WorkedExamplesLink /> to see how these work. <a href="https://www.promptingguide.ai/" target="_blank" className="underline hover:text-neutral-300">Learn more about prompt engineering.</a></p>
+            <p className="text-sm text-neutral-500">Here you can edit the prompts that guide your assistant. The <span className="text-neutral-400">Assistant Prompt</span> controls the guidance it sends the participant; the <span className="text-neutral-400">Should Intervene</span> prompt decides whether now is a good time to send it.</p>
 
             <div className="rounded-lg border border-neutral-800">
               <div className="flex border-b border-neutral-800 bg-neutral-900/60">
@@ -387,6 +406,7 @@ export default function AssistantPage() {
                       prompt={(assistantParsed?.prompt as PromptItem[]) ?? []}
                       stageId=""
                       onUpdate={updateAssistantPrompt}
+                      wpMode
                     />
                   </div>
                 ) : (
@@ -398,6 +418,7 @@ export default function AssistantPage() {
                       prompt={(assistantParsed?.should_respond_prompt as PromptItem[]) ?? []}
                       stageId=""
                       onUpdate={updateShouldRespondPrompt}
+                      wpMode
                     />
                   </div>
                 )}
@@ -445,8 +466,21 @@ export default function AssistantPage() {
               />
             </label>
           </div>
+          <button
+            onClick={() => setShowAsYaml(v => !v)}
+            className="cursor-pointer text-xs text-neutral-500 hover:text-neutral-300 transition-colors"
+          >
+            {showAsYaml ? '▾ Hide YAML' : '▸ Show YAML'}
+          </button>
+          {showAsYaml && (
+            <textarea
+              disabled
+              value={(() => { try { return yaml.dump(JSON.parse(assistantData ?? '')) } catch { return assistantData ?? '' } })()}
+              className="w-full h-96 p-2 rounded-lg border border-neutral-700 bg-neutral-900 text-sm text-neutral-200 resize-y font-mono"
+            />
+          )}
         </div>
-        <div className="space-y-3">
+        {/* <div className="space-y-3">
           <div className="border-b border-neutral-800 pb-3 mb-3">
             <h2 className="text-lg font-semibold tracking-tight">Assistant Testing</h2>
           </div>
@@ -485,9 +519,9 @@ export default function AssistantPage() {
               }
             />
           )}
-        </div>
+        </div> */}
 
-        <div className="space-y-3">
+        {/* <div className="space-y-3">
           <div className="border-b border-neutral-800 pb-3 mb-3 flex items-center justify-between">
             <h2 className="text-lg font-semibold tracking-tight">Assistant Simulation</h2>
           </div>
@@ -553,7 +587,7 @@ export default function AssistantPage() {
               onClick={handleCreateSim}
             />
           </div>
-        </div>
+        </div> */}
 
         {simState.result !== null && (
           <ResultBox title="Simulation" state={simState} showMessage />

@@ -20,7 +20,7 @@ export default function LandingPage() {
       if (!snap.exists()) {
         await setDoc(ref, { email, createdAt: new Date().toISOString() })
       }
-      router.push('/assistant')
+      router.push('/assistant-wp')
     } catch (e: any) {
       setError(e.message ?? 'Sign in failed')
     }
@@ -31,7 +31,7 @@ export default function LandingPage() {
       <main className="flex-1 flex flex-col items-center justify-center px-8 py-12 text-center space-y-8">
         <div>
           <h1 className="text-5xl font-semibold tracking-tight max-w-4xl leading-tight">
-            Assistant Toolkit: Build and Test
+            Assistant WP Toolkit: Build and Test
           </h1>
         </div>
 
@@ -52,7 +52,7 @@ export default function LandingPage() {
       </main>
 
       <footer className="border-t border-neutral-800 px-8 py-5 text-center text-xs text-neutral-600 space-y-1">
-        <p>Assistant Toolkit - TrAuSt</p>
+        <p>Assistant WP Toolkit - TrAuSt</p>
         <p>The toolkit builds in part on the ConvoKit and Deliberate Labs open source projects.</p>
       </footer>
     </div>
