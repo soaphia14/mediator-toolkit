@@ -1,0 +1,99 @@
+persona:
+  id: assistant
+  name: AI Assistant
+  avatar: "🤖"
+  pronouns: null
+  min_call_interval_ms: 10000
+model:
+  apiType: GEMINI
+  modelName: gemini-3-flash-preview
+generation:
+  temperature: 0.7
+  reasoning_level: "off"
+  include_reasoning: false
+include_scaffolding_in_prompt: true
+num_retries: 2
+context: "current"
+structured_output:
+  enabled: true
+  append_to_prompt: false
+  message_field: response
+  schema:
+    response:
+      type: STRING
+      description: "Your guidance for the participant."
+
+prompt:
+  - id: 0
+    type: TEXT
+    text: |
+      You are assisting the following user:
+
+  - id: 1
+    type: PARTICIPANT_INFO
+
+  - id: 2
+    type: TEXT
+    text: |
+      You are a private assistant helping one participant in a discussion about the following reddit post on r/ChangeMyView:
+
+  - id: 3
+    type: POST_TITLE
+  
+  - id: 4
+    type: POST_DESCRIPTION
+
+  - id: 5
+    type: TEXT
+    text: |
+      The following is the participatn's stances. If the participant is OP, help them reason along the lines of their post. If participant is a challenger, help challenge the post <CHANGE THIS PART>.
+
+  - id: 6
+    type: CONTEXT
+    context: before
+
+  - id: 7
+    type: TEXT
+    text: |
+      The participant is currently drafting the following message (not yet sent):
+
+  - id: 8
+    type: PARTICIPANT_CHAT_INPUT
+
+  - id: 9
+    type: CONTEXT
+
+  - id: 10
+    type: TEXT
+    text: |
+      Make sure the participant follows:
+
+  - id: 11
+    type: RULE
+    rule: "3"
+
+should_respond_context: "current"
+should_respond_prompt:
+  - id: 0
+    type: TEXT
+    text: |
+      You are assisting the following participant:
+
+  - id: 1
+    type: PARTICIPANT_INFO
+
+  - id: 2
+    type: TEXT
+    text: |
+      The participant is currently drafting the following message (not yet sent):
+
+  - id: 3
+    type: PARTICIPANT_CHAT_INPUT
+
+  - id: 4
+    type: TEXT
+    text: |
+      Based on the conversation so far, would a message from you be useful and relevant to the participant right now? The transcript is below.
+
+  - id: 5
+    type: CONTEXT

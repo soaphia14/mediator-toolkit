@@ -32,14 +32,20 @@ function PromptBlockLegend() {
       <div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1.5 items-baseline">
         <span className="font-medium text-neutral-300">Freeform Text</span>
         <span>custom instructions you write directly</span>
-        {legend('bg-[#fde8c8]', 'Article Page')}
-        <span>the Wikipedia article the talk page discusses</span>
+        {legend('bg-[#fde8c8]', 'Post Title')}
+        <span>the title of the Reddit post the thread is discussing</span>
+        {legend('bg-[#fde8c8]', 'Post Description')}
+        <span>the body text of that Reddit post</span>
+        {legend('bg-[#dce1fd]', 'Participant Initial Positions')}
+        <span>the participant's response to the pre-conversation survey</span>
         {legend('bg-[#dce1fd]', 'Conversation Context')}
         <span>the discussion up to this moment</span>
         {legend('bg-[#dce1fd]', 'Participant Info')}
         <span>the assisted participant's profile info</span>
         {legend('bg-[#dce1fd]', 'Participant Chat Input')}
         <span>the participant's current, unsent chat draft</span>
+        {legend('bg-[#fde8c8]', 'Rule')}
+        <span>a dropdown to pick which subreddit rule (A-E, 1-5) applies</span>
       </div>
     </div>
   )
@@ -72,7 +78,7 @@ export default function AssistantPage() {
   }
 
   const getDefaultContent = useCallback(async () => {
-    const defaultsText = await fetch(`${API_BASE}/templates/wikipedia/assistant.yaml`).then(res => res.text())
+    const defaultsText = await fetch(`${API_BASE}/templates/reddit/assistant.yaml`).then(res => res.text())
     const parsed = yaml.load(defaultsText) as { persona: { id: string } }
     if (userEmail) parsed.persona.id = `${userEmail.split('@')[0]}-assistant`
     return JSON.stringify(parsed, null, 2)
@@ -338,7 +344,7 @@ export default function AssistantPage() {
           {/* Header */}
           <div className="flex items-start justify-between">
             <div>
-              <h1 className="text-3xl font-semibold tracking-tight">Assistant Toolkit - Wikipedia</h1>
+              <h1 className="text-3xl font-semibold tracking-tight">Assistant Toolkit - Reddit</h1>
               <p className="text-base text-neutral-500 mt-1">Create and test custom private discussion assistants.</p>
             </div>
 
@@ -358,7 +364,7 @@ export default function AssistantPage() {
 
           {/* Save / Load */}
           <SaveSection
-            collection="assistants"
+            collection="assistants-reddit"
             content={assistantData}
             onContentChange={setAssistantData}
             getDefaultContent={getDefaultContent}
@@ -395,7 +401,7 @@ export default function AssistantPage() {
                       prompt={(assistantParsed?.prompt as PromptItem[]) ?? []}
                       stageId=""
                       onUpdate={updateAssistantPrompt}
-                      assistantMode="wp"
+                      assistantMode="reddit"
                     />
                   </div>
                 ) : (
@@ -407,7 +413,7 @@ export default function AssistantPage() {
                       prompt={(assistantParsed?.should_respond_prompt as PromptItem[]) ?? []}
                       stageId=""
                       onUpdate={updateShouldRespondPrompt}
-                      assistantMode="wp"
+                      assistantMode="reddit"
                     />
                   </div>
                 )}
