@@ -16,7 +16,7 @@ export const CREATE_PARTICIPANT_URL = LOCAL
 
 export const FRONTEND_BASE = LOCAL
  ? 'https://localhost:4201'
- : 'https://convoarenadev.infosci.cornell.edu'
+ : 'https://convoarenadev.web.app/'
 
 export const API_KEY = process.env.DL_API_KEY ?? ''
 
