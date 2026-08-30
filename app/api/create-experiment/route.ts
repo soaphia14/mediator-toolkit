@@ -3,8 +3,6 @@ import fs from 'fs'
 import { generate, type Mode } from './generator'
 import { adminAuth, adminDb } from '../../lib/firebaseAdmin'
 import { FieldValue } from 'firebase-admin/firestore'
-import { loadTemplate } from './utils'
-import { MEDIATOR_DEFAULT, COMPETITION_MEDIATOR } from './config'
 
 const MODES: Mode[] = ['human-human', 'human-agent', 'agent-agent']
 
@@ -37,7 +35,7 @@ async function checkAndIncrementQuota(email: string, cohorts: number): Promise<{
 
 export async function POST(req: Request) {
   const body = await req.json().catch(() => ({}))
-  const { mediatorTemplate, assistantTemplate, p1 = 'participant-1', p2 = 'participant-2', topic = 'covenant_marriage', mode, numCohorts, numUtterances, action = 'create', idToken } = body as {
+  const { mediatorTemplate, assistantTemplate, p1 = 'participant-1', p2 = 'participant-2', topic = 'covenant_marriage', mode, numCohorts, numUtterances, action = 'create', idToken, postTitle, postDescription, experimentTemplateSet, agentAssignment, opParticipant } = body as {
     mediatorTemplate?: string
     assistantTemplate?: string
     p1?: string
@@ -48,6 +46,11 @@ export async function POST(req: Request) {
     numUtterances?: string | number
     action?: 'create' | 'simulate'
     idToken?: string
+    postTitle?: string
+    postDescription?: string
+    experimentTemplateSet?: 'reddit'
+    agentAssignment?: 'participant-1' | 'participant-2' | 'both'
+    opParticipant?: 'participant-1' | 'participant-2'
   }
 
   const parsedCohorts = parseInt(String(numCohorts), 10)
@@ -56,15 +59,8 @@ export async function POST(req: Request) {
   const parsedUtterances = parseInt(String(numUtterances), 10)
   const utteranceCount = Number.isFinite(parsedUtterances) && parsedUtterances >= 1 ? parsedUtterances : undefined
 
-  // The assistant toolkit only lets the user edit the assistant, not the mediator —
-  // fall back to the competition mediator content (mirrors what the mediator page's
-  // "Load Default" merges client-side) so the experiment still has a working mediator.
-  const resolvedMediatorTemplate = mediatorTemplate
-    ?? (assistantTemplate ? JSON.stringify({ ...loadTemplate(MEDIATOR_DEFAULT), ...loadTemplate(COMPETITION_MEDIATOR) }) : undefined)
-
-  if (!resolvedMediatorTemplate) {
-    return Response.json({ error: 'mediatorTemplate is required' }, { status: 400 })
-  }
+  // Only the mediator toolkit sends mediatorTemplate — assistant-toolkit pages send
+  // assistantTemplate instead and never a mediator, so their experiments have none.
 
   if (!mode || !MODES.includes(mode)) {
     return Response.json({ error: `invalid or missing mode: ${mode}` }, { status: 400 })
@@ -88,16 +84,21 @@ export async function POST(req: Request) {
 
   // const experimentTemplatePath = path.join(process.cwd(), 'public', 'templates', 'competition', 'experiment.yaml')
 
-  // randomize templates over the 5 topics intead of fixing one
-  const topicsDir = path.join(process.cwd(), 'public', 'templates', 'topics')
-  // const topics = fs.readdirSync(topicsDir)
-  // const chosen = topics.includes(topic) ? topic : topics[Math.floor(Math.random() * topics.length)]
-  const topics = ['congestion_pricing', 'covenant_marriage'] // hardcoded 2 for development, used the other 3 as the testing.
-  const chosen = topics[Math.floor(Math.random() * topics.length)]
-  const experimentTemplatePath = path.join(topicsDir, chosen, 'experiment.yaml')
+  let experimentTemplatePath: string
+  if (experimentTemplateSet === 'reddit') {
+    experimentTemplatePath = path.join(process.cwd(), 'public', 'templates', 'reddit', 'experiment.yaml')
+  } else {
+    // randomize templates over the 5 topics intead of fixing one
+    const topicsDir = path.join(process.cwd(), 'public', 'templates', 'topics')
+    // const topics = fs.readdirSync(topicsDir)
+    // const chosen = topics.includes(topic) ? topic : topics[Math.floor(Math.random() * topics.length)]
+    const topics = ['congestion_pricing', 'covenant_marriage'] // hardcoded 2 for development, used the other 3 as the testing.
+    const chosen = topics[Math.floor(Math.random() * topics.length)]
+    experimentTemplatePath = path.join(topicsDir, chosen, 'experiment.yaml')
+  }
 
   try {
-    const result = await generate(p1, p2, experimentTemplatePath, resolvedMediatorTemplate, mode, cohortCount, utteranceCount, action, assistantTemplate)
+    const result = await generate(p1, p2, experimentTemplatePath, mediatorTemplate, mode, cohortCount, utteranceCount, action, assistantTemplate, postTitle, postDescription, agentAssignment, experimentTemplateSet, opParticipant)
     return Response.json(result)
   } catch (e) {
     console.error('Error in create-experiment:', e)

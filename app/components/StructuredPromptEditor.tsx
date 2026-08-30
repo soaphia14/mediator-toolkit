@@ -19,7 +19,8 @@ export enum PromptItemType {
   ARTICLE_PAGE= 'ARTICLE_PAGE',
   POST_TITLE = 'POST_TITLE',
   POST_DESCRIPTION = 'POST_DESCRIPTION',
-  RULE = 'RULE'
+  RULE = 'RULE',
+  PARTICIPANT_ROLE = 'PARTICIPANT_ROLE'
 }
 
 export const RULE_OPTIONS = ['A', 'B', 'C', 'D', 'E', '1', '2', '3', '4', '5'] as const
@@ -93,6 +94,10 @@ export interface PostTitlePromptItem extends PromptItem {
 
 export interface PostDescriptionPromptItem extends PromptItem {
   type: PromptItemType.POST_DESCRIPTION
+}
+
+export interface ParticipantRolePromptItem extends PromptItem {
+  type: PromptItemType.PARTICIPANT_ROLE
 }
 
 export interface RulePromptItem extends PromptItem {
@@ -263,9 +268,13 @@ function AddMenu({ targetArr, textOnly, assistantMode }: { targetArr: PromptItem
               <div className={itemClass} role="button" onClick={() => pick({ type: PromptItemType.RULE, rule: 'A' } as RulePromptItem)}>
                 Rule
               </div>
+              <div className="my-0.5 border-t border-neutral-700/60" />
+              <div className={itemClass} role="button" onClick={() => pick({ type: PromptItemType.PARTICIPANT_ROLE } as ParticipantRolePromptItem)}>
+                Participant Role
+              </div>
             </>
           )}
-          {assistantMode !== 'wp' && (
+          {!assistantMode && (
             <>
               <div className="my-0.5 border-t border-neutral-700/60" />
               <div className={itemClass} role="button" onClick={() => pick({ type: PromptItemType.CONTEXT, context: 'before' } as ContextPromptItem)}>
@@ -410,6 +419,12 @@ function ItemEditor({ item }: { item: PromptItem }) {
       return (
         <div className="cursor-default rounded bg-[#fde8c8] px-3 py-1.5 text-sm font-medium text-neutral-900">
           Post Description
+        </div>
+      )
+    case PromptItemType.PARTICIPANT_ROLE:
+      return (
+        <div className="cursor-default rounded bg-[#fde8c8] px-3 py-1.5 text-sm font-medium text-neutral-900">
+          Participant Role
         </div>
       )
     case PromptItemType.RULE:

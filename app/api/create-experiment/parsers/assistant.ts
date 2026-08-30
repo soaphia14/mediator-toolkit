@@ -38,14 +38,14 @@ export interface AgentAssistantTemplate {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function _chatPrompt(tpl: Record<string, any>, stageId: string, stageIdsInOrder: string[]): ChatPromptConfig {
+function _chatPrompt(tpl: Record<string, any>, stageId: string, stageIdsInOrder: string[], postTitle?: string, postDescription?: string, assistedRole?: string): ChatPromptConfig {
   return {
     id: stageId,
     type: 'chat',
-    prompt: { default: buildPromptItems(tpl, stageId, stageIdsInOrder) },
+    prompt: { default: buildPromptItems(tpl, stageId, stageIdsInOrder, [], postTitle, postDescription, assistedRole) },
     order: {},
     addTo: {},
-    shouldRespondPrompt: buildPromptItems({ ...tpl, prompt: tpl.should_respond_prompt, context: tpl.should_respond_context }, stageId, stageIdsInOrder),
+    shouldRespondPrompt: buildPromptItems({ ...tpl, prompt: tpl.should_respond_prompt, context: tpl.should_respond_context }, stageId, stageIdsInOrder, [], postTitle, postDescription, assistedRole),
     structuredOutputConfig: buildStructuredOutput(tpl),
     generationConfig: buildGeneration(tpl, 'generation'),
     numRetries: tpl.num_retries,
@@ -63,11 +63,11 @@ export function parseAssistantTemplate(content: string): Record<string, any> {
   return yaml.load(content) as Record<string, any>
 }
 
-export function buildAssistant(stageId: string, assistantTemplate: Record<string, any>, stageIdsInOrder: string[], topicInfo: Record<string, any>): AgentAssistantTemplate {
+export function buildAssistant(stageId: string, assistantTemplate: Record<string, any>, stageIdsInOrder: string[], topicInfo: Record<string, any>, postTitle?: string, postDescription?: string, assistedRole?: string): AgentAssistantTemplate {
   let tpl = replaceDefaults(assistantTemplate, loadAssistantTemplate(ASSISTANT_DEFAULT))
   tpl = substituteTokens(tpl, { '{topic_name}': `Debate Topic: ${topicInfo.name}`, '{topic_statement}': `Debate Statement: ${topicInfo.statement}` })
   return {
     persona: { ...buildPersona(tpl), minCallIntervalMs: tpl.persona.min_call_interval_ms ?? null },
-    promptMap: { [stageId]: _chatPrompt(tpl, stageId, stageIdsInOrder) },
+    promptMap: { [stageId]: _chatPrompt(tpl, stageId, stageIdsInOrder, postTitle, postDescription, assistedRole) },
   }
 }

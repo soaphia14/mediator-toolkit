@@ -10,6 +10,7 @@ import { StructuredPromptEditor, type PromptItem } from '../components/Structure
 import { ActionButton, ResultBox, type ActionState } from '../components/ExperimentActions'
 import { MediatorSection } from '../components/MediatorSection'
 import { SaveSection } from '../components/SaveSection'
+import { CMV_POSTS } from './topics'
 
 const idle: ActionState = { status: 'idle', result: null }
 
@@ -36,16 +37,16 @@ function PromptBlockLegend() {
         <span>the title of the Reddit post the thread is discussing</span>
         {legend('bg-[#fde8c8]', 'Post Description')}
         <span>the body text of that Reddit post</span>
-        {legend('bg-[#dce1fd]', 'Participant Initial Positions')}
-        <span>the participant's response to the pre-conversation survey</span>
+        {legend('bg-[#fde8c8]', 'Rule')}
+        <span>a dropdown to pick which subreddit rule (A-E, 1-5) applies</span>
+        {legend('bg-[#fde8c8]', 'Participant Role')}
+        <span>whether the assisted participant is OP or Challenger</span>
         {legend('bg-[#dce1fd]', 'Conversation Context')}
         <span>the discussion up to this moment</span>
         {legend('bg-[#dce1fd]', 'Participant Info')}
         <span>the assisted participant's profile info</span>
         {legend('bg-[#dce1fd]', 'Participant Chat Input')}
         <span>the participant's current, unsent chat draft</span>
-        {legend('bg-[#fde8c8]', 'Rule')}
-        <span>a dropdown to pick which subreddit rule (A-E, 1-5) applies</span>
       </div>
     </div>
   )
@@ -63,6 +64,17 @@ export default function AssistantPage() {
   const [assistantData, setAssistantData] = useState<string | null>(null)
   const [dirty, setDirty] = useState(false)
   const [showAsYaml, setShowAsYaml] = useState(false)
+  const [selectedTopicIndex, setSelectedTopicIndex] = useState<number | null>(0)
+  const [p1HasAssistant, setP1HasAssistant] = useState(true)
+  const [p2HasAssistant, setP2HasAssistant] = useState(false)
+  const [opParticipant, setOpParticipant] = useState<'participant-1' | 'participant-2'>('participant-1')
+  const agentAssignment = p1HasAssistant && p2HasAssistant
+    ? 'both'
+    : p1HasAssistant
+      ? 'participant-1'
+      : p2HasAssistant
+        ? 'participant-2'
+        : undefined
 
   async function fetchQuota() {
     try {
@@ -229,10 +241,23 @@ export default function AssistantPage() {
       if (action === 'simulate') {
         idToken = await auth.currentUser?.getIdToken()
       }
+      const selectedTopic = selectedTopicIndex !== null ? CMV_POSTS[selectedTopicIndex] : undefined
       const res = await fetch(`${API_BASE}/api/create-experiment`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ assistantTemplate: assistantData, mode, numCohorts, numUtterances, action, idToken }),
+        body: JSON.stringify({
+          assistantTemplate: assistantData,
+          mode,
+          numCohorts,
+          numUtterances,
+          action,
+          idToken,
+          postTitle: selectedTopic?.title,
+          postDescription: selectedTopic?.description,
+          experimentTemplateSet: 'reddit',
+          agentAssignment,
+          opParticipant,
+        }),
       })
       const data = await res.json()
       setCreateState({ status: res.ok ? 'done' : 'error', result: data })
@@ -406,7 +431,7 @@ export default function AssistantPage() {
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    <PromptEditorDescription description="Your assistant uses this prompt after each update to the participant's draft or the conversation to decide whether this is a good time to offer guidance. When the response is true, the assistant uses the Assistant Prompt to generate a message; when false, it waits." />
+                    <PromptEditorDescription description="Your assistant uses this prompt after each update to the participant's draft or the conversation to decide whether this is a good time to offer guidance. When the response is true, the assistant uses the Assistant Prompt to generate a message; when false, it displays 'Nothing further to add at this point in the conversation.''." />
                     <PromptBlockLegend />
                     <StructuredPromptEditor
                       label="Should Intervene Prompt Editor"
@@ -475,10 +500,115 @@ export default function AssistantPage() {
             />
           )}
         </div>
-        {/* <div className="space-y-3">
+
+        <div className="space-y-3">
+          <div className="border-b border-neutral-800 pb-3 mb-3">
+            <h2 className="text-lg font-semibold tracking-tight">CMV Topic</h2>
+          </div>
+          <div className="space-y-2">
+            {CMV_POSTS.map((post, i) => (
+              <div
+                key={i}
+                onClick={() => setSelectedTopicIndex(i)}
+                className={`w-full flex flex-col items-start gap-1 px-4 py-2.5 rounded-lg border text-sm transition-colors cursor-pointer ${selectedTopicIndex === i
+                    ? 'border-neutral-400 bg-neutral-800 text-neutral-100'
+                    : 'border-neutral-700 bg-neutral-900 text-neutral-300 hover:bg-neutral-800 hover:border-neutral-600'
+                  }`}
+              >
+                <span>{post.title}</span>
+                <a
+                  href={post.link}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={e => e.stopPropagation()}
+                  className="shrink-0 text-xs text-neutral-500 hover:text-neutral-300 underline underline-offset-2"
+                >
+                  View post ↗
+                </a>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="space-y-3">
+          <div className="border-b border-neutral-800 pb-3 mb-3">
+            <h2 className="text-lg font-semibold tracking-tight">Test Settings</h2>
+          </div>
+          <p className="text-sm font-medium text-neutral-300">Assistant given to:</p>
+          <div className="space-y-2">
+            {([
+              { checked: p1HasAssistant, setChecked: setP1HasAssistant, label: 'Participant 1' },
+              { checked: p2HasAssistant, setChecked: setP2HasAssistant, label: 'Participant 2' },
+            ] as const).map(option => (
+              <label
+                key={option.label}
+                className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg border text-sm transition-colors cursor-pointer ${option.checked
+                    ? 'border-neutral-400 bg-neutral-800 text-neutral-100'
+                    : 'border-neutral-700 bg-neutral-900 text-neutral-300 hover:bg-neutral-800 hover:border-neutral-600'
+                  }`}
+              >
+                <input
+                  type="checkbox"
+                  checked={option.checked}
+                  onChange={e => option.setChecked(e.target.checked)}
+                  className="sr-only"
+                />
+                <span
+                  aria-hidden
+                  className={`w-4 h-4 shrink-0 rounded border flex items-center justify-center transition-colors ${option.checked
+                      ? 'border-neutral-300 bg-neutral-100'
+                      : 'border-neutral-600 bg-transparent'
+                    }`}
+                >
+                  {option.checked && (
+                    <svg viewBox="0 0 16 16" className="w-3 h-3 text-neutral-950" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M3 8l3.5 3.5L13 5" />
+                    </svg>
+                  )}
+                </span>
+                {option.label}
+              </label>
+            ))}
+          </div>
+          <p className="text-sm font-medium text-neutral-300">OP in conversation:</p>
+          <p className="text-xs text-neutral-500">
+            This will affect the roles of the agent participants.
+          </p>
+          <div className="space-y-2">
+            {([
+              { value: 'participant-1', label: 'Participant 1' },
+              { value: 'participant-2', label: 'Participant 2' },
+            ] as const).map(option => (
+              <div
+                key={option.value}
+                onClick={() => setOpParticipant(option.value)}
+                className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg border text-sm transition-colors cursor-pointer ${opParticipant === option.value
+                    ? 'border-neutral-400 bg-neutral-800 text-neutral-100'
+                    : 'border-neutral-700 bg-neutral-900 text-neutral-300 hover:bg-neutral-800 hover:border-neutral-600'
+                  }`}
+              >
+                <span
+                  aria-hidden
+                  className={`w-4 h-4 shrink-0 rounded-full border flex items-center justify-center transition-colors ${opParticipant === option.value
+                      ? 'border-neutral-300'
+                      : 'border-neutral-600'
+                    }`}
+                >
+                  {opParticipant === option.value && (
+                    <span className="w-2 h-2 rounded-full bg-neutral-100" />
+                  )}
+                </span>
+                {option.label}
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="space-y-3">
           <div className="border-b border-neutral-800 pb-3 mb-3">
             <h2 className="text-lg font-semibold tracking-tight">Assistant Testing</h2>
           </div>
+          <p className="text-xs text-neutral-500">
+            Names follow (participant 1 - participant 2), e.g. "human-agent" means participant 1 is human and participant 2 is an agent participant.
+          </p>
           <div className="space-y-3">
             <ActionButton
               label="Create (human-agent)"
@@ -514,9 +644,9 @@ export default function AssistantPage() {
               }
             />
           )}
-        </div> */}
+        </div>
 
-        {/* <div className="space-y-3">
+        <div className="space-y-3">
           <div className="border-b border-neutral-800 pb-3 mb-3 flex items-center justify-between">
             <h2 className="text-lg font-semibold tracking-tight">Assistant Simulation</h2>
           </div>
@@ -582,7 +712,7 @@ export default function AssistantPage() {
               onClick={handleCreateSim}
             />
           </div>
-        </div> */}
+        </div>
 
         {simState.result !== null && (
           <ResultBox title="Simulation" state={simState} showMessage />

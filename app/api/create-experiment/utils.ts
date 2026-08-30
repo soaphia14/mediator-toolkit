@@ -64,8 +64,11 @@ function _stanceFromRating(rating: number): [string, string] {
 export function fillAgentStance(
   agentTemplate: Record<string, any>,
   topicInfo: Record<string, any>,
-  rating: number, 
-  concede_strength: number
+  rating: number,
+  concede_strength: number,
+  postTitle?: string,
+  postDescription?: string,
+  redditRole?: string,
 ): [Record<string, any>, Record<string, any>] {
   const [side, strength] = _stanceFromRating(rating)
   const [label, action] = side === 'support' ? ['AGREEMENT', 'support'] : ['DISAGREEMENT', 'oppose']
@@ -78,6 +81,9 @@ export function fillAgentStance(
     '{stance_action}': action,
     '{stance_strength}': strength,
     '{stance_strength_raw}': rating.toString(),
+    '{post_title}': postTitle ?? '',
+    '{post_description}': postDescription ?? '',
+    '{reddit_role}': redditRole ?? '',
   }
   for (const item of agentTemplate.prompt ?? []) {
     if (item.type === 'TEXT') {
@@ -121,6 +127,7 @@ export function agentConfig(template: AgentParticipantTemplate, promptContext = 
     agentId: template.persona.id,
     promptContext: promptContext,
     modelSettings: { apiType: model.apiType, modelName: model.modelName },
+    assistantId: template.persona.assistantId,
   }
 }
 

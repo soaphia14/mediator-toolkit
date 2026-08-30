@@ -31,20 +31,22 @@ function shuffle<T>(arr: T[]): T[] {
 // The toolkit picks the mode via the request/button, so we build the participant
 // slots from `mode`. The agent template path is data here (mirrors the `participants`
 // block generator.py reads from YAML: `template: templates/defaults/agent-N.yaml`),
-// resolved like the topic experiment.yaml path below.
-const defaultTemplate = (file: string) => path.join(process.cwd(), 'public', 'templates', 'defaults', file)
+// resolved like the topic experiment.yaml path below. Reddit-toolkit requests use the
+// reddit-specific agent templates instead, which reference {post_title}/{post_description}.
+const agentTemplate = (file: string, templateSet?: 'reddit') =>
+  path.join(process.cwd(), 'public', 'templates', templateSet === 'reddit' ? 'reddit' : 'defaults', file)
 
-function participantSlotsFor(mode: Mode): ParticipantSlot[] {
+function participantSlotsFor(mode: Mode, templateSet?: 'reddit'): ParticipantSlot[] {
   if (mode === 'agent-agent') {
     return [
-      { slot: 'p1', type: 'agent', template: defaultTemplate('agent-1.yaml') },
-      { slot: 'p2', type: 'agent', template: defaultTemplate('agent-2.yaml') },
+      { slot: 'p1', type: 'agent', template: agentTemplate('agent-1.yaml', templateSet) },
+      { slot: 'p2', type: 'agent', template: agentTemplate('agent-2.yaml', templateSet) },
     ]
   }
   if (mode === 'human-agent') {
     return [
       { slot: 'p1', type: 'human' },
-      { slot: 'p2', type: 'agent', template: defaultTemplate('agent-1.yaml') },
+      { slot: 'p2', type: 'agent', template: agentTemplate('agent-1.yaml', templateSet) },
     ]
   }
   return [
@@ -69,16 +71,20 @@ const BIAS_VARIABLE_CONFIG = {
   numToSelect: 1,
 }
 
-export async function generate(p1: string, p2: string, experimentTemplatePath: string, mediatorTemplateContent: string,
+export async function generate(p1: string, p2: string, experimentTemplatePath: string, mediatorTemplateContent: string | undefined,
                           mode: Mode, numCohorts?: number, numUtterances?: number, action?: 'create' | 'simulate',
-                          assistantTemplateContent?: string) {
+                          assistantTemplateContent?: string, postTitle?: string, postDescription?: string,
+                          agentAssignment?: 'participant-1' | 'participant-2' | 'both', templateSet?: 'reddit',
+                          opParticipant?: 'participant-1' | 'participant-2') {
+  
+  console.log("API KEY", API_KEY)
   const experimentTemplate = replaceDefaults(
     loadTemplate(experimentTemplatePath),
     loadTemplate(EXPERIMENT_DEFAULT),
   )
   const topicInfo = buildTopic(experimentTemplate.topic)
 
-  const stages = buildStages(experimentTemplate, topicInfo)
+  const stages = buildStages(experimentTemplate, topicInfo, postTitle, postDescription)
   const stageIdsInOrder = stages.map((s) => s.id)
 
   // one mediator + one chat supported for now
@@ -86,16 +92,44 @@ export async function generate(p1: string, p2: string, experimentTemplatePath: s
   const preSurveyStageId = stages.find((s) => s.kind === 'survey' && s.id === PRE_SURVEY_STAGE_ID)?.id ?? PRE_SURVEY_STAGE_ID
   const postSurveyStageId = [...stages].reverse().find((s) => s.kind === 'survey')?.id ?? POST_SURVEY_STAGE_ID
 
-  const mediatorTemplate = parseMediatorTemplate(mediatorTemplateContent)
+  const mediatorR1 = mediatorTemplateContent
+    ? buildMediator(chatStageId, parseMediatorTemplate(mediatorTemplateContent), stageIdsInOrder, topicInfo)
+    : undefined
 
-  const mediatorR1 = buildMediator(chatStageId, mediatorTemplate, stageIdsInOrder, topicInfo)
+  const roleFor = (slot: string): 'OP' | 'Challenger' | undefined =>
+    opParticipant ? ((slot === 'p1' && opParticipant === 'participant-1') || (slot === 'p2' && opParticipant === 'participant-2') ? 'OP' : 'Challenger') : undefined
 
-  const assistants: AgentAssistantTemplate[] = assistantTemplateContent
-    ? [buildAssistant(chatStageId, parseAssistantTemplate(assistantTemplateContent), stageIdsInOrder, topicInfo)]
-    : []
+  // one shared assistant normally; but when both participants get the assistant and we know
+  // who's OP, build two role-specific assistants (one can't correctly serve both roles at once).
+  const assistants: AgentAssistantTemplate[] = []
+  const assistantIdForSlot: Record<string, string> = {}
+  if (assistantTemplateContent) {
+    const parsedAssistant = parseAssistantTemplate(assistantTemplateContent)
+    if (agentAssignment === 'both' && opParticipant) {
+      const opSlot = opParticipant === 'participant-1' ? 'p1' : 'p2'
+      const challengerSlot = opSlot === 'p1' ? 'p2' : 'p1'
+      const opAssistant = buildAssistant(chatStageId, parsedAssistant, stageIdsInOrder, topicInfo, postTitle, postDescription, 'OP')
+      opAssistant.persona.id = `${opAssistant.persona.id}-op`
+      const challengerAssistant = buildAssistant(chatStageId, parsedAssistant, stageIdsInOrder, topicInfo, postTitle, postDescription, 'Challenger')
+      challengerAssistant.persona.id = `${challengerAssistant.persona.id}-challenger`
+      assistants.push(opAssistant, challengerAssistant)
+      assistantIdForSlot[opSlot] = opAssistant.persona.id
+      assistantIdForSlot[challengerSlot] = challengerAssistant.persona.id
+    } else {
+      const singleSlot = agentAssignment === 'participant-1' ? 'p1' : agentAssignment === 'participant-2' ? 'p2' : undefined
+      const assistant = buildAssistant(chatStageId, parsedAssistant, stageIdsInOrder, topicInfo, postTitle, postDescription, singleSlot ? roleFor(singleSlot) : undefined)
+      assistants.push(assistant)
+      if (singleSlot) {
+        assistantIdForSlot[singleSlot] = assistant.persona.id
+      } else {
+        assistantIdForSlot.p1 = assistant.persona.id
+        assistantIdForSlot.p2 = assistant.persona.id
+      }
+    }
+  }
 
   const exp = experimentTemplate.experiment ?? {}
-  const participantSlots = participantSlotsFor(mode)
+  const participantSlots = participantSlotsFor(mode, templateSet)
   const slotToPid: Record<string, string> = { p1, p2 }
 
   const agentSlots = participantSlots.filter((s) => s.type === 'agent').map((s) => s.slot)
@@ -111,6 +145,14 @@ export async function generate(p1: string, p2: string, experimentTemplatePath: s
       if (numUtterances != null) chatStage.numUtterances = numUtterances  // else keep template default
     } else {
       chatStage.numUtterances = null
+    }
+
+    if (assistants.length > 0 && chatStage.progress) {
+      const isHumanSlot = (slot: string) => participantSlots.find((s) => s.slot === slot)?.type === 'human'
+      const mapping: Record<string, string> = {}
+      if ((agentAssignment === 'participant-1' || agentAssignment === 'both') && isHumanSlot('p1') && assistantIdForSlot.p1) mapping[p1] = assistantIdForSlot.p1
+      if ((agentAssignment === 'participant-2' || agentAssignment === 'both') && isHumanSlot('p2') && assistantIdForSlot.p2) mapping[p2] = assistantIdForSlot.p2
+      chatStage.progress.pIdToAssistantId = mapping
     }
   }
 
@@ -141,12 +183,24 @@ export async function generate(p1: string, p2: string, experimentTemplatePath: s
       if (pSlot.type === 'agent') {
         const tpl = loadTemplate(pSlot.template!)
         if (isSim) tpl.persona.id = `${tpl.persona.id}-c${ci}`
+
+        const wantsAssistant = agentAssignment === 'both'
+          || (agentAssignment === 'participant-1' && slot === 'p1')
+          || (agentAssignment === 'participant-2' && slot === 'p2')
+        if (wantsAssistant && assistantIdForSlot[slot]) {
+          tpl.persona.assistant_id = assistantIdForSlot[slot]
+        }
+
+        const redditRole = roleFor(slot)
+
         const s = stance[slot]
-        const [filled, finalStance] = fillAgentStance(tpl, topicInfo, s.rating, s.rating)
+        const [filled, finalStance] = fillAgentStance(tpl, topicInfo, s.rating, s.rating, postTitle, postDescription, redditRole)
         stance[slot] = { side: finalStance.side, strength: finalStance.strength } // removing rating and concession info
 
         configs.push(filled.agent_config ?? '')
-        pair.push(buildAgent(chatStageId, preSurveyStageId, postSurveyStageId, filled, stageIdsInOrder))
+        const built = buildAgent(chatStageId, preSurveyStageId, postSurveyStageId, filled, stageIdsInOrder)
+        pair.push(built)
+
       } else {
         humanSlots[slot] = slotToPid[slot] ?? slot
       }
@@ -158,9 +212,9 @@ export async function generate(p1: string, p2: string, experimentTemplatePath: s
 
   const agents = cohortAgents.flat() 
 
-  const [template, cohortAlias] = buildExperiment(experimentTemplate, topicInfo, stages, stageIdsInOrder, mediatorR1, agents, mode, isSim, assistants)
+  const [template, cohortAlias] = buildExperiment(experimentTemplate, topicInfo, stages, stageIdsInOrder, mediatorR1, agents, mode, isSim, assistants, postTitle, postDescription)
   template.experiment.variableConfigs = [BIAS_VARIABLE_CONFIG]
-
+  
   const authHeaders = {
     Authorization: `Bearer ${API_KEY}`,
     'Content-Type': 'application/json',
@@ -257,22 +311,25 @@ export async function generate(p1: string, p2: string, experimentTemplatePath: s
     if (mode === 'human-human') {
       const participant_urls: Record<string, string>[] = []
       for (const [slot, url] of Object.entries(humanUrls)) {
-        participant_urls.push({ url: url, type: 'human', })
+        const role = roleFor(slot)
+        participant_urls.push({ url: url, type: 'human', ...(role ? { role } : {}) })
       }
       return { cohort_id: cid, participant_urls: participant_urls, mediator_bias: biasFor(i) }
-    } 
+    }
     else if (mode === 'human-agent') {
       const participant_urls: Record<string, string>[] = []
       for (const [slot, url] of Object.entries(humanUrls)) {
         const human_url = `${url}`
-        participant_urls.push({ url: human_url, type: 'human', })
+        const role = roleFor(slot)
+        participant_urls.push({ url: human_url, type: 'human', ...(role ? { role } : {}) })
       }
       return { cohort_id: cid, participant_urls: participant_urls, agent_stances: agentStances[i].p2, mediator_bias: biasFor(i) }
     }
     else if (mode === 'agent-agent' && action === 'create') {
       const participant_urls: Record<string, string>[] = []
       for (const [slot, url] of Object.entries(agentUrls[i])) {
-        participant_urls.push({ url: url, type: 'agent', })
+        const role = roleFor(slot)
+        participant_urls.push({ url: url, type: 'agent', ...(role ? { role } : {}) })
       }
       return { participant_urls: participant_urls, agent_stances: agentStances[i], mediator_bias: biasFor(i) }
     }
