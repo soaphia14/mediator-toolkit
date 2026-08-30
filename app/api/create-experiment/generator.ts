@@ -34,7 +34,7 @@ function shuffle<T>(arr: T[]): T[] {
 // resolved like the topic experiment.yaml path below. Reddit-toolkit requests use the
 // reddit-specific agent templates instead, which reference {post_title}/{post_description}.
 const agentTemplate = (file: string, templateSet?: 'reddit' | 'wikipedia') =>
-  path.join(process.cwd(), 'public', 'templates', templateSet === 'reddit' ? 'reddit' : 'defaults', file)
+  path.join(process.cwd(), 'public', 'templates', templateSet === 'reddit' || templateSet === 'wikipedia' ? templateSet : 'defaults', file)
 
 function participantSlotsFor(mode: Mode, templateSet?: 'reddit' | 'wikipedia'): ParticipantSlot[] {
   if (mode === 'agent-agent') {

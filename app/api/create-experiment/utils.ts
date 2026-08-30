@@ -84,6 +84,8 @@ export function fillAgentStance(
     '{post_title}': postTitle ?? '',
     '{post_description}': postDescription ?? '',
     '{reddit_role}': redditRole ?? '',
+    '{article_title}': postTitle ?? '',
+    '{article_body}': postDescription ?? '',
   }
   for (const item of agentTemplate.prompt ?? []) {
     if (item.type === 'TEXT') {
