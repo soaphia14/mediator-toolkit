@@ -28,6 +28,8 @@ export function buildStages(experimentTemplate: Record<string, any>, topicInfo: 
     '{favor_agree}': topicInfo.favor_agree,
     '{post_title}': postTitle ?? '',
     '{post_description}': postDescription ?? '',
+    '{article_title}': postTitle ?? '',
+    '{article_body}': postDescription ?? '',
   }
   return experimentTemplate.stageConfigs.map((s: any) => substituteTokens(s, subs))
 }
@@ -51,6 +53,8 @@ export function buildExperiment(
     '{statement}': topicInfo.statement,
     '{post_title}': postTitle ?? '',
     '{post_description}': postDescription ?? '',
+    '{article_title}': postTitle ?? '',
+    '{article_body}': postDescription ?? '',
   }
   const exp = substituteTokens(experimentTemplate.experiment, subs)
   const meta = exp.metadata ?? {}

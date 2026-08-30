@@ -33,10 +33,10 @@ function shuffle<T>(arr: T[]): T[] {
 // block generator.py reads from YAML: `template: templates/defaults/agent-N.yaml`),
 // resolved like the topic experiment.yaml path below. Reddit-toolkit requests use the
 // reddit-specific agent templates instead, which reference {post_title}/{post_description}.
-const agentTemplate = (file: string, templateSet?: 'reddit') =>
+const agentTemplate = (file: string, templateSet?: 'reddit' | 'wikipedia') =>
   path.join(process.cwd(), 'public', 'templates', templateSet === 'reddit' ? 'reddit' : 'defaults', file)
 
-function participantSlotsFor(mode: Mode, templateSet?: 'reddit'): ParticipantSlot[] {
+function participantSlotsFor(mode: Mode, templateSet?: 'reddit' | 'wikipedia'): ParticipantSlot[] {
   if (mode === 'agent-agent') {
     return [
       { slot: 'p1', type: 'agent', template: agentTemplate('agent-1.yaml', templateSet) },
@@ -74,7 +74,7 @@ const BIAS_VARIABLE_CONFIG = {
 export async function generate(p1: string, p2: string, experimentTemplatePath: string, mediatorTemplateContent: string | undefined,
                           mode: Mode, numCohorts?: number, numUtterances?: number, action?: 'create' | 'simulate',
                           assistantTemplateContent?: string, postTitle?: string, postDescription?: string,
-                          agentAssignment?: 'participant-1' | 'participant-2' | 'both', templateSet?: 'reddit',
+                          agentAssignment?: 'participant-1' | 'participant-2' | 'both', templateSet?: 'reddit' | 'wikipedia',
                           opParticipant?: 'participant-1' | 'participant-2') {
   
   console.log("API KEY", API_KEY)

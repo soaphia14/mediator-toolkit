@@ -48,7 +48,7 @@ export async function POST(req: Request) {
     idToken?: string
     postTitle?: string
     postDescription?: string
-    experimentTemplateSet?: 'reddit'
+    experimentTemplateSet?: 'reddit' | 'wikipedia'
     agentAssignment?: 'participant-1' | 'participant-2' | 'both'
     opParticipant?: 'participant-1' | 'participant-2'
   }
@@ -87,6 +87,8 @@ export async function POST(req: Request) {
   let experimentTemplatePath: string
   if (experimentTemplateSet === 'reddit') {
     experimentTemplatePath = path.join(process.cwd(), 'public', 'templates', 'reddit', 'experiment.yaml')
+  } else if (experimentTemplateSet === 'wikipedia') {
+    experimentTemplatePath = path.join(process.cwd(), 'public', 'templates', 'wikipedia', 'experiment.yaml')
   } else {
     // randomize templates over the 5 topics intead of fixing one
     const topicsDir = path.join(process.cwd(), 'public', 'templates', 'topics')

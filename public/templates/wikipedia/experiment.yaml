@@ -1,5 +1,5 @@
 topic:
-  name: "reddit-cmv"
+  name: "wikipedia"
   statement: ""
 experiment:
   participants:
@@ -23,8 +23,8 @@ experiment:
 
   num_cohorts: 5
   metadata:
-    publicName: "{post_title}"
-    description: 'Post Title: {post_title}'
+    publicName: "Wikipedia - {article_title}"
+    description: ''
     tags:
       - toolkit
   permissions:
@@ -43,7 +43,7 @@ experiment:
   unlockDurationMs: null
 
 stageConfigs:
-  - id: pre-survey
+  - id: profile
     kind: profile
     name: "Profile Setup"
     descriptions:
@@ -58,13 +58,13 @@ stageConfigs:
       agentJoinTimeMs: 5000
       lockCohortAtTwoParticipants: false
       waitStageHasTimer: false
-    profileType: REDDIT
+    profileType: ANONYMOUS_ANIMAL
 
-  - id: post-info
+  - id: article-info
     kind: info
-    name: "CMV Post"
+    name: "Wikipedia Page"
     descriptions:
-      primaryText: "Please read the following post for context on the discussion."
+      primaryText: "Please read the following article for context on the discussion."
       infoText: ""
       helpText: ""
     progress:
@@ -76,8 +76,8 @@ stageConfigs:
       lockCohortAtTwoParticipants: false
       waitStageHasTimer: false
     infoLines:
-      - "# {post_title}"
-      - "{post_description}"
+      - "# {article_title}"
+      - "{article_body}"
     youtubeVideoId: ""
 
   - id: chat-round-1
@@ -139,16 +139,3 @@ stageConfigs:
           - id: "no"
             imageId: ""
             text: "No"
-      - kind: mc
-        id: q3_a
-        questionTitle: "If you are the OP, would you award a delta?"
-        options:
-          - id: "delta_yes"
-            imageId: ""
-            text: "Yes"
-          - id: "delta_no"
-            imageId: ""
-            text: "No"
-          - id: "delta_not_op"
-            imageId: ""
-            text: "N/A - Not OP"

@@ -139,8 +139,10 @@ export function buildPromptItems(tpl: Record<string, any>, stageId: string, stag
       items.push({ type: 'TEXT', text: rule ? `Rule Title: ${rule.title}\nRule Description: ${rule.description}` : '' })
     } else if (kind === 'PARTICIPANT_ROLE') {
       items.push({ type: 'TEXT', text: `Role: ${assistedRole ?? ''}` })
+    } else if (kind === 'ARTICLE_PAGE') {
+      items.push({ type: 'TEXT', text: `${postTitle ?? ''}\n${postDescription ?? ''}` })
     } else {
-      throw new Error(`Unknown prompt item type ${kind}. Must be 'CONTEXT', 'PROFILE_INFO', 'PARTICIPANT_INFO', 'PARTICIPANT_CHAT_INPUT', 'PROFILE_CONTEXT', 'INITIALIZATION_CONTEXT', 'BIASED', 'POST_TITLE', 'POST_DESCRIPTION', 'RULE', 'PARTICIPANT_ROLE' or 'TEXT'.`)
+      throw new Error(`Unknown prompt item type ${kind}. Must be 'CONTEXT', 'PROFILE_INFO', 'PARTICIPANT_INFO', 'PARTICIPANT_CHAT_INPUT', 'PROFILE_CONTEXT', 'INITIALIZATION_CONTEXT', 'BIASED', 'POST_TITLE', 'POST_DESCRIPTION', 'RULE', 'PARTICIPANT_ROLE', 'ARTICLE_PAGE' or 'TEXT'.`)
     }
   }
   return [...items, ...stageSpecificPrompts]
