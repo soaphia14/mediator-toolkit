@@ -198,13 +198,13 @@ function AddMenu({ targetArr, textOnly }: { targetArr: PromptItem[], textOnly?: 
             <>
               <div className="my-0.5 border-t border-neutral-700/60" />
               <div className={itemClass} role="button" onClick={() => pick({ type: PromptItemType.BIASED } as BiasedPromptItem)}>
-                Target bias position
+                Target position
               </div>
             </>
           )} */}
           <div className="my-0.5 border-t border-neutral-700/60" />
           <div className={itemClass} role="button" onClick={() => pick({ type: PromptItemType.BIASED } as BiasedPromptItem)}>
-            Target Bias Position
+            Target Position
           </div>
         </div>
       )}
@@ -278,7 +278,7 @@ function ItemEditor({ item }: { item: PromptItem }) {
     case PromptItemType.BIASED:
       return (
         <div className="cursor-default rounded bg-[#f08673] px-3 py-1.5 text-sm font-medium text-neutral-900">
-          Target Bias Position
+          Target Position
         </div>
       )
     default:
