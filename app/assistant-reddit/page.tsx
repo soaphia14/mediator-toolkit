@@ -611,6 +611,20 @@ export default function AssistantPage() {
             />
           </div>
         </div>
+        {simState.result !== null && (
+          <ResultBox title="Simulation" state={simState} showMessage />
+        )}
+
+        {simState.status === 'done' && simExport !== null && (
+          <div className="flex flex-wrap gap-3">
+            <ActionButton
+              label="Download ConvoKit corpus (zip)"
+              loadingLabel="Converting…"
+              loading={convokitLoading}
+              onClick={downloadConvokit}
+            />
+          </div>
+        )}
 
         <div className="space-y-3">
           <div className="border-b border-neutral-800 pb-3 mb-3">
@@ -712,20 +726,7 @@ export default function AssistantPage() {
           </div>
         </div>
 
-        {simState.result !== null && (
-          <ResultBox title="Simulation" state={simState} showMessage />
-        )}
-
-        {simState.status === 'done' && simExport !== null && (
-          <div className="flex flex-wrap gap-3">
-            <ActionButton
-              label="Download ConvoKit corpus (zip)"
-              loadingLabel="Converting…"
-              loading={convokitLoading}
-              onClick={downloadConvokit}
-            />
-          </div>
-        )}
+        
 
       </div>
     </div>
