@@ -82,8 +82,6 @@ should_respond_prompt:
       Cases to intervene include:
       - If the participant is in a position to respond in the conversation
       - If the participant's chat input may lead to incivility
-      - If the conversation has stalled or is repeating itself without moving toward a resolution
-      - If the participant seems unsure how to respond or their drafted message is vague or weak
       The transcript is below.
 
   - id: 5
