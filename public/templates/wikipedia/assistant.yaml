@@ -78,9 +78,12 @@ should_respond_prompt:
     type: TEXT
     text: |
       Based on the conversation so far, would a message from you be useful and relevant to the participant right now?
+      Lean on the side of intervening when in doubt — a brief, relevant suggestion is preferred over staying silent.
       Cases to intervene include:
       - If the participant is in a position to respond in the conversation
       - If the participant's chat input may lead to incivility
+      - If the conversation has stalled or is repeating itself without moving toward a resolution
+      - If the participant seems unsure how to respond or their drafted message is vague or weak
       The transcript is below.
 
   - id: 5
