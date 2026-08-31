@@ -552,7 +552,7 @@ export default function AssistantPage() {
             />
           )}
         </div>
-         <div className="space-y-3">
+         {/* <div className="space-y-3">
           <div className="border-b border-neutral-800 pb-3 mb-3 flex items-center justify-between">
             <h2 className="text-lg font-semibold tracking-tight">Assistant Simulation</h2>
           </div>
@@ -618,7 +618,7 @@ export default function AssistantPage() {
               onClick={handleCreateSim}
             />
           </div>
-        </div>
+        </div> */}
         {simState.result !== null && (
           <ResultBox title="Simulation" state={simState} showMessage />
         )}

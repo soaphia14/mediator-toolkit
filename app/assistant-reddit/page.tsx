@@ -544,7 +544,7 @@ export default function AssistantPage() {
           )}
         </div>
 
-        <div className="space-y-3">
+        {/* <div className="space-y-3">
           <div className="border-b border-neutral-800 pb-3 mb-3 flex items-center justify-between">
             <h2 className="text-lg font-semibold tracking-tight">Assistant Simulation</h2>
           </div>
@@ -610,7 +610,7 @@ export default function AssistantPage() {
               onClick={handleCreateSim}
             />
           </div>
-        </div>
+        </div> */}
         {simState.result !== null && (
           <ResultBox title="Simulation" state={simState} showMessage />
         )}
@@ -626,35 +626,6 @@ export default function AssistantPage() {
           </div>
         )}
 
-        <div className="space-y-3">
-          <div className="border-b border-neutral-800 pb-3 mb-3">
-            <h2 className="text-lg font-semibold tracking-tight">CMV Topic</h2>
-          </div>
-          <p className="text-sm font-medium text-neutral-300">Only the post is used as the topic for the test, not the actual discussions.</p>
-          <div className="space-y-2">
-            {CMV_POSTS.map((post, i) => (
-              <div
-                key={i}
-                onClick={() => setSelectedTopicIndex(i)}
-                className={`w-full flex flex-col items-start gap-1 px-4 py-2.5 rounded-lg border text-sm transition-colors cursor-pointer ${selectedTopicIndex === i
-                    ? 'border-neutral-400 bg-neutral-800 text-neutral-100'
-                    : 'border-neutral-700 bg-neutral-900 text-neutral-300 hover:bg-neutral-800 hover:border-neutral-600'
-                  }`}
-              >
-                <span>{post.title}</span>
-                <a
-                  href={post.link}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={e => e.stopPropagation()}
-                  className="shrink-0 text-xs text-neutral-500 hover:text-neutral-300 underline underline-offset-2"
-                >
-                  View post ↗
-                </a>
-              </div>
-            ))}
-          </div>
-        </div>
         <div className="space-y-3">
           <div className="border-b border-neutral-800 pb-3 mb-3">
             <h2 className="text-lg font-semibold tracking-tight">Test Settings</h2>
@@ -725,6 +696,36 @@ export default function AssistantPage() {
             ))}
           </div>
         </div>
+        <div className="space-y-3">
+          <div className="border-b border-neutral-800 pb-3 mb-3">
+            <h2 className="text-lg font-semibold tracking-tight">CMV Topic</h2>
+          </div>
+          <p className="text-sm font-medium text-neutral-300">Only the post is used as the topic for the test, not the actual discussions.</p>
+          <div className="space-y-2">
+            {CMV_POSTS.map((post, i) => (
+              <div
+                key={i}
+                onClick={() => setSelectedTopicIndex(i)}
+                className={`w-full flex flex-col items-start gap-1 px-4 py-2.5 rounded-lg border text-sm transition-colors cursor-pointer ${selectedTopicIndex === i
+                    ? 'border-neutral-400 bg-neutral-800 text-neutral-100'
+                    : 'border-neutral-700 bg-neutral-900 text-neutral-300 hover:bg-neutral-800 hover:border-neutral-600'
+                  }`}
+              >
+                <span>{post.title}</span>
+                <a
+                  href={post.link}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={e => e.stopPropagation()}
+                  className="shrink-0 text-xs text-neutral-500 hover:text-neutral-300 underline underline-offset-2"
+                >
+                  View post ↗
+                </a>
+              </div>
+            ))}
+          </div>
+        </div>
+        
 
         
 
