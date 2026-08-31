@@ -59,6 +59,11 @@ export default function AssistantPage() {
   const [dirty, setDirty] = useState(false)
   const [showAsYaml, setShowAsYaml] = useState(false)
   const [selectedArticleIndex, setSelectedArticleIndex] = useState<number | null>(0)
+  const [customTitle, setCustomTitle] = useState('')
+  const [customArticle, setCustomArticle] = useState<{ title: string; body: string; link: string } | null>(null)
+  const [customArticleLoading, setCustomArticleLoading] = useState(false)
+  const [customArticleError, setCustomArticleError] = useState<string | null>(null)
+  const [useCustomArticle, setUseCustomArticle] = useState(false)
   const [p1HasAssistant, setP1HasAssistant] = useState(true)
   const [p2HasAssistant, setP2HasAssistant] = useState(false)
   const agentAssignment = p1HasAssistant && p2HasAssistant
@@ -225,6 +230,26 @@ export default function AssistantPage() {
     }
   }
 
+  async function handleAddCustomArticle() {
+    const title = customTitle.trim()
+    if (!title) return
+    setCustomArticleLoading(true)
+    setCustomArticleError(null)
+    try {
+      const res = await fetch(`${API_BASE}/api/wikipedia-article?title=${encodeURIComponent(title)}`)
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? 'Failed to fetch article')
+      setCustomArticle(data)
+      setUseCustomArticle(true)
+      setSelectedArticleIndex(null)
+    } catch (e) {
+      setCustomArticleError(e instanceof Error ? e.message : String(e))
+      setCustomArticle(null)
+    } finally {
+      setCustomArticleLoading(false)
+    }
+  }
+
   async function handleCreate(mode: 'human-human' | 'human-agent' | 'agent-agent', action: 'create' | 'simulate' = 'create') {
     setSimState(idle)
     setCreating(mode)
@@ -234,7 +259,7 @@ export default function AssistantPage() {
       if (action === 'simulate') {
         idToken = await auth.currentUser?.getIdToken()
       }
-      const selectedArticle = selectedArticleIndex !== null ? ARTICLE_PAGES[selectedArticleIndex] : undefined
+      const selectedArticle = useCustomArticle ? (customArticle ?? undefined) : (selectedArticleIndex !== null ? ARTICLE_PAGES[selectedArticleIndex] : undefined)
       const res = await fetch(`${API_BASE}/api/create-experiment`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -489,75 +514,6 @@ export default function AssistantPage() {
         </div>
         <div className="space-y-3">
           <div className="border-b border-neutral-800 pb-3 mb-3">
-            <h2 className="text-lg font-semibold tracking-tight">Wikipedia Article Page</h2>
-          </div>
-          <div className="space-y-2">
-            {ARTICLE_PAGES.map((article, i) => (
-              <div
-                key={i}
-                onClick={() => setSelectedArticleIndex(i)}
-                className={`w-full flex flex-col items-start gap-1 px-4 py-2.5 rounded-lg border text-sm transition-colors cursor-pointer ${selectedArticleIndex === i
-                    ? 'border-neutral-400 bg-neutral-800 text-neutral-100'
-                    : 'border-neutral-700 bg-neutral-900 text-neutral-300 hover:bg-neutral-800 hover:border-neutral-600'
-                  }`}
-              >
-                <span>{article.title}</span>
-                <a
-                  href={article.link}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={e => e.stopPropagation()}
-                  className="shrink-0 text-xs text-neutral-500 hover:text-neutral-300 underline underline-offset-2"
-                >
-                  View article ↗
-                </a>
-              </div>
-            ))}
-          </div>
-        </div>
-        <div className="space-y-3">
-          <div className="border-b border-neutral-800 pb-3 mb-3">
-            <h2 className="text-lg font-semibold tracking-tight">Test Settings</h2>
-          </div>
-          <p className="text-sm font-medium text-neutral-300">Assistant given to:</p>
-          <div className="space-y-2">
-            {([
-              { checked: p1HasAssistant, setChecked: setP1HasAssistant, label: 'Participant 1' },
-              { checked: p2HasAssistant, setChecked: setP2HasAssistant, label: 'Participant 2' },
-            ] as const).map(option => (
-              <label
-                key={option.label}
-                className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg border text-sm transition-colors cursor-pointer ${option.checked
-                    ? 'border-neutral-400 bg-neutral-800 text-neutral-100'
-                    : 'border-neutral-700 bg-neutral-900 text-neutral-300 hover:bg-neutral-800 hover:border-neutral-600'
-                  }`}
-              >
-                <input
-                  type="checkbox"
-                  checked={option.checked}
-                  onChange={e => option.setChecked(e.target.checked)}
-                  className="sr-only"
-                />
-                <span
-                  aria-hidden
-                  className={`w-4 h-4 shrink-0 rounded border flex items-center justify-center transition-colors ${option.checked
-                      ? 'border-neutral-300 bg-neutral-100'
-                      : 'border-neutral-600 bg-transparent'
-                    }`}
-                >
-                  {option.checked && (
-                    <svg viewBox="0 0 16 16" className="w-3 h-3 text-neutral-950" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M3 8l3.5 3.5L13 5" />
-                    </svg>
-                  )}
-                </span>
-                {option.label}
-              </label>
-            ))}
-          </div>
-        </div>
-        <div className="space-y-3">
-          <div className="border-b border-neutral-800 pb-3 mb-3">
             <h2 className="text-lg font-semibold tracking-tight">Assistant Testing</h2>
           </div>
           <div className="space-y-3">
@@ -596,8 +552,7 @@ export default function AssistantPage() {
             />
           )}
         </div>
-
-        <div className="space-y-3">
+         <div className="space-y-3">
           <div className="border-b border-neutral-800 pb-3 mb-3 flex items-center justify-between">
             <h2 className="text-lg font-semibold tracking-tight">Assistant Simulation</h2>
           </div>
@@ -664,7 +619,113 @@ export default function AssistantPage() {
             />
           </div>
         </div>
+        <div className="space-y-3">
+          <div className="border-b border-neutral-800 pb-3 mb-3">
+            <h2 className="text-lg font-semibold tracking-tight">Test Settings</h2>
+          </div>
 
+          <p className="text-sm font-medium text-neutral-300">Wikipedia Article:</p>
+          <div className="space-y-2">
+            {ARTICLE_PAGES.map((article, i) => (
+              <div
+                key={i}
+                onClick={() => { setSelectedArticleIndex(i); setUseCustomArticle(false) }}
+                className={`w-full flex flex-col items-start gap-1 px-4 py-2.5 rounded-lg border text-sm transition-colors cursor-pointer ${selectedArticleIndex === i && !useCustomArticle
+                    ? 'border-neutral-400 bg-neutral-800 text-neutral-100'
+                    : 'border-neutral-700 bg-neutral-900 text-neutral-300 hover:bg-neutral-800 hover:border-neutral-600'
+                  }`}
+              >
+                <span>{article.title}</span>
+                <a
+                  href={article.link}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={e => e.stopPropagation()}
+                  className="shrink-0 text-xs text-neutral-500 hover:text-neutral-300 underline underline-offset-2"
+                >
+                  View article ↗
+                </a>
+              </div>
+            ))}
+            {customArticle && (
+              <div
+                onClick={() => setUseCustomArticle(true)}
+                className={`w-full flex flex-col items-start gap-1 px-4 py-2.5 rounded-lg border text-sm transition-colors cursor-pointer ${useCustomArticle
+                    ? 'border-neutral-400 bg-neutral-800 text-neutral-100'
+                    : 'border-neutral-700 bg-neutral-900 text-neutral-300 hover:bg-neutral-800 hover:border-neutral-600'
+                  }`}
+              >
+                <span>{customArticle.title}</span>
+                <a
+                  href={customArticle.link}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={e => e.stopPropagation()}
+                  className="shrink-0 text-xs text-neutral-500 hover:text-neutral-300 underline underline-offset-2"
+                >
+                  View article ↗
+                </a>
+              </div>
+            )}
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={customTitle}
+                onChange={e => setCustomTitle(e.target.value)}
+                disabled={customArticleLoading}
+                placeholder="Enter a WP article title…"
+                className="flex-1 px-3 py-2 rounded-lg border border-neutral-700 bg-neutral-900 text-sm text-neutral-200 placeholder-neutral-500 disabled:opacity-40"
+              />
+              <button
+                onClick={handleAddCustomArticle}
+                disabled={!customTitle.trim() || customArticleLoading}
+                className="px-4 py-2 rounded-lg border border-neutral-700 bg-neutral-900 text-neutral-300 hover:bg-neutral-800 hover:border-neutral-600 disabled:opacity-40 disabled:cursor-not-allowed text-sm transition-colors cursor-pointer"
+              >
+                {customArticleLoading ? 'Adding…' : 'Add'}
+              </button>
+            </div>
+            {customArticleError && (
+              <p className="text-xs text-red-400">{customArticleError}</p>
+            )}
+          </div>
+
+          <p className="text-sm font-medium text-neutral-300">Assistant given to:</p>
+          <div className="space-y-2">
+            {([
+              { checked: p1HasAssistant, setChecked: setP1HasAssistant, label: 'Participant 1' },
+              { checked: p2HasAssistant, setChecked: setP2HasAssistant, label: 'Participant 2' },
+            ] as const).map(option => (
+              <label
+                key={option.label}
+                className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg border text-sm transition-colors cursor-pointer ${option.checked
+                    ? 'border-neutral-400 bg-neutral-800 text-neutral-100'
+                    : 'border-neutral-700 bg-neutral-900 text-neutral-300 hover:bg-neutral-800 hover:border-neutral-600'
+                  }`}
+              >
+                <input
+                  type="checkbox"
+                  checked={option.checked}
+                  onChange={e => option.setChecked(e.target.checked)}
+                  className="sr-only"
+                />
+                <span
+                  aria-hidden
+                  className={`w-4 h-4 shrink-0 rounded border flex items-center justify-center transition-colors ${option.checked
+                      ? 'border-neutral-300 bg-neutral-100'
+                      : 'border-neutral-600 bg-transparent'
+                    }`}
+                >
+                  {option.checked && (
+                    <svg viewBox="0 0 16 16" className="w-3 h-3 text-neutral-950" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M3 8l3.5 3.5L13 5" />
+                    </svg>
+                  )}
+                </span>
+                {option.label}
+              </label>
+            ))}
+          </div>
+        </div>
         {simState.result !== null && (
           <ResultBox title="Simulation" state={simState} showMessage />
         )}

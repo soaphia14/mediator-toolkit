@@ -64,7 +64,7 @@ stageConfigs:
     kind: info
     name: "Wikipedia Page"
     descriptions:
-      primaryText: "Please read the following article for context on the discussion."
+      primaryText: "Please read the following article for context on the discussion. This page rendered is incomplete and is just for testing purposes."
       infoText: ""
       helpText: ""
     progress:
@@ -139,3 +139,33 @@ stageConfigs:
           - id: "no"
             imageId: ""
             text: "No"
+      - kind: mc
+        id: q3_a
+        questionTitle: "If you had an assistant, how helpful was it?"
+        options:
+          - id: "helpful_1"
+            imageId: ""
+            text: "1 - Not helpful at all"
+          - id: "helpful_2"
+            imageId: ""
+            text: "2"
+          - id: "helpful_3"
+            imageId: ""
+            text: "3"
+          - id: "helpful_4"
+            imageId: ""
+            text: "4"
+          - id: "helpful_5"
+            imageId: ""
+            text: "5"
+          - id: "helpful_6"
+            imageId: ""
+            text: "6"
+          - id: "helpful_7"
+            imageId: ""
+            text: "7 - Very helpful"
+          - id: "helpful_na"
+            imageId: ""
+            text: "N/A - I did not have an assistant"
+
+        

@@ -500,108 +500,6 @@ export default function AssistantPage() {
             />
           )}
         </div>
-
-        <div className="space-y-3">
-          <div className="border-b border-neutral-800 pb-3 mb-3">
-            <h2 className="text-lg font-semibold tracking-tight">CMV Topic</h2>
-          </div>
-          <div className="space-y-2">
-            {CMV_POSTS.map((post, i) => (
-              <div
-                key={i}
-                onClick={() => setSelectedTopicIndex(i)}
-                className={`w-full flex flex-col items-start gap-1 px-4 py-2.5 rounded-lg border text-sm transition-colors cursor-pointer ${selectedTopicIndex === i
-                    ? 'border-neutral-400 bg-neutral-800 text-neutral-100'
-                    : 'border-neutral-700 bg-neutral-900 text-neutral-300 hover:bg-neutral-800 hover:border-neutral-600'
-                  }`}
-              >
-                <span>{post.title}</span>
-                <a
-                  href={post.link}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={e => e.stopPropagation()}
-                  className="shrink-0 text-xs text-neutral-500 hover:text-neutral-300 underline underline-offset-2"
-                >
-                  View post ↗
-                </a>
-              </div>
-            ))}
-          </div>
-        </div>
-        <div className="space-y-3">
-          <div className="border-b border-neutral-800 pb-3 mb-3">
-            <h2 className="text-lg font-semibold tracking-tight">Test Settings</h2>
-          </div>
-          <p className="text-sm font-medium text-neutral-300">Assistant given to:</p>
-          <div className="space-y-2">
-            {([
-              { checked: p1HasAssistant, setChecked: setP1HasAssistant, label: 'Participant 1' },
-              { checked: p2HasAssistant, setChecked: setP2HasAssistant, label: 'Participant 2' },
-            ] as const).map(option => (
-              <label
-                key={option.label}
-                className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg border text-sm transition-colors cursor-pointer ${option.checked
-                    ? 'border-neutral-400 bg-neutral-800 text-neutral-100'
-                    : 'border-neutral-700 bg-neutral-900 text-neutral-300 hover:bg-neutral-800 hover:border-neutral-600'
-                  }`}
-              >
-                <input
-                  type="checkbox"
-                  checked={option.checked}
-                  onChange={e => option.setChecked(e.target.checked)}
-                  className="sr-only"
-                />
-                <span
-                  aria-hidden
-                  className={`w-4 h-4 shrink-0 rounded border flex items-center justify-center transition-colors ${option.checked
-                      ? 'border-neutral-300 bg-neutral-100'
-                      : 'border-neutral-600 bg-transparent'
-                    }`}
-                >
-                  {option.checked && (
-                    <svg viewBox="0 0 16 16" className="w-3 h-3 text-neutral-950" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M3 8l3.5 3.5L13 5" />
-                    </svg>
-                  )}
-                </span>
-                {option.label}
-              </label>
-            ))}
-          </div>
-          <p className="text-sm font-medium text-neutral-300">OP in conversation:</p>
-          <p className="text-xs text-neutral-500">
-            This will affect the roles of the agent participants.
-          </p>
-          <div className="space-y-2">
-            {([
-              { value: 'participant-1', label: 'Participant 1' },
-              { value: 'participant-2', label: 'Participant 2' },
-            ] as const).map(option => (
-              <div
-                key={option.value}
-                onClick={() => setOpParticipant(option.value)}
-                className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg border text-sm transition-colors cursor-pointer ${opParticipant === option.value
-                    ? 'border-neutral-400 bg-neutral-800 text-neutral-100'
-                    : 'border-neutral-700 bg-neutral-900 text-neutral-300 hover:bg-neutral-800 hover:border-neutral-600'
-                  }`}
-              >
-                <span
-                  aria-hidden
-                  className={`w-4 h-4 shrink-0 rounded-full border flex items-center justify-center transition-colors ${opParticipant === option.value
-                      ? 'border-neutral-300'
-                      : 'border-neutral-600'
-                    }`}
-                >
-                  {opParticipant === option.value && (
-                    <span className="w-2 h-2 rounded-full bg-neutral-100" />
-                  )}
-                </span>
-                {option.label}
-              </div>
-            ))}
-          </div>
-        </div>
         <div className="space-y-3">
           <div className="border-b border-neutral-800 pb-3 mb-3">
             <h2 className="text-lg font-semibold tracking-tight">Assistant Testing</h2>
@@ -711,6 +609,106 @@ export default function AssistantPage() {
               disabled={busy || (simQuota !== null && simQuota.used >= simQuota.limit)}
               onClick={handleCreateSim}
             />
+          </div>
+        </div>
+
+        <div className="space-y-3">
+          <div className="border-b border-neutral-800 pb-3 mb-3">
+            <h2 className="text-lg font-semibold tracking-tight">CMV Topic</h2>
+          </div>
+          <p className="text-sm font-medium text-neutral-300">Only the post is used as the topic for the test, not the actual discussions.</p>
+          <div className="space-y-2">
+            {CMV_POSTS.map((post, i) => (
+              <div
+                key={i}
+                onClick={() => setSelectedTopicIndex(i)}
+                className={`w-full flex flex-col items-start gap-1 px-4 py-2.5 rounded-lg border text-sm transition-colors cursor-pointer ${selectedTopicIndex === i
+                    ? 'border-neutral-400 bg-neutral-800 text-neutral-100'
+                    : 'border-neutral-700 bg-neutral-900 text-neutral-300 hover:bg-neutral-800 hover:border-neutral-600'
+                  }`}
+              >
+                <span>{post.title}</span>
+                <a
+                  href={post.link}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={e => e.stopPropagation()}
+                  className="shrink-0 text-xs text-neutral-500 hover:text-neutral-300 underline underline-offset-2"
+                >
+                  View post ↗
+                </a>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="space-y-3">
+          <div className="border-b border-neutral-800 pb-3 mb-3">
+            <h2 className="text-lg font-semibold tracking-tight">Test Settings</h2>
+          </div>
+          <p className="text-sm font-medium text-neutral-300">OP in conversation:</p>
+          <div className="space-y-2">
+            {([
+              { value: 'participant-1', label: 'Participant 1' },
+              { value: 'participant-2', label: 'Participant 2' },
+            ] as const).map(option => (
+              <div
+                key={option.value}
+                onClick={() => setOpParticipant(option.value)}
+                className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg border text-sm transition-colors cursor-pointer ${opParticipant === option.value
+                    ? 'border-neutral-400 bg-neutral-800 text-neutral-100'
+                    : 'border-neutral-700 bg-neutral-900 text-neutral-300 hover:bg-neutral-800 hover:border-neutral-600'
+                  }`}
+              >
+                <span
+                  aria-hidden
+                  className={`w-4 h-4 shrink-0 rounded-full border flex items-center justify-center transition-colors ${opParticipant === option.value
+                      ? 'border-neutral-300'
+                      : 'border-neutral-600'
+                    }`}
+                >
+                  {opParticipant === option.value && (
+                    <span className="w-2 h-2 rounded-full bg-neutral-100" />
+                  )}
+                </span>
+                {option.label}
+              </div>
+            ))}
+          </div>
+          <p className="text-sm font-medium text-neutral-300">Assistant given to:</p>
+          <div className="space-y-2">
+            {([
+              { checked: p1HasAssistant, setChecked: setP1HasAssistant, label: 'Participant 1' },
+              { checked: p2HasAssistant, setChecked: setP2HasAssistant, label: 'Participant 2' },
+            ] as const).map(option => (
+              <label
+                key={option.label}
+                className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg border text-sm transition-colors cursor-pointer ${option.checked
+                    ? 'border-neutral-400 bg-neutral-800 text-neutral-100'
+                    : 'border-neutral-700 bg-neutral-900 text-neutral-300 hover:bg-neutral-800 hover:border-neutral-600'
+                  }`}
+              >
+                <input
+                  type="checkbox"
+                  checked={option.checked}
+                  onChange={e => option.setChecked(e.target.checked)}
+                  className="sr-only"
+                />
+                <span
+                  aria-hidden
+                  className={`w-4 h-4 shrink-0 rounded border flex items-center justify-center transition-colors ${option.checked
+                      ? 'border-neutral-300 bg-neutral-100'
+                      : 'border-neutral-600 bg-transparent'
+                    }`}
+                >
+                  {option.checked && (
+                    <svg viewBox="0 0 16 16" className="w-3 h-3 text-neutral-950" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M3 8l3.5 3.5L13 5" />
+                    </svg>
+                  )}
+                </span>
+                {option.label}
+              </label>
+            ))}
           </div>
         </div>
 

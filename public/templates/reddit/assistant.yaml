@@ -3,7 +3,7 @@ persona:
   name: AI Assistant
   avatar: "🤖"
   pronouns: null
-  min_call_interval_ms: 10000
+  min_call_interval_ms: 8000
 model:
   apiType: GEMINI
   modelName: gemini-3-flash-preview

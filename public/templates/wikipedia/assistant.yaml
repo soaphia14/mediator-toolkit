@@ -3,7 +3,7 @@ persona:
   name: AI Assistant
   avatar: "🤖"
   pronouns: null
-  min_call_interval_ms: 10000
+  min_call_interval_ms: 8000
 model:
   apiType: GEMINI
   modelName: gemini-3-flash-preview
@@ -77,7 +77,11 @@ should_respond_prompt:
   - id: 4
     type: TEXT
     text: |
-      Based on the conversation so far, would a message from you be useful and relevant to the participant right now? The transcript is below.
+      Based on the conversation so far, would a message from you be useful and relevant to the participant right now?
+      Cases to intervene include:
+      - If the participant is in a position to respond in the conversation
+      - If the participant's chat input may lead to incivility
+      The transcript is below.
 
   - id: 5
     type: CONTEXT
