@@ -1,3 +1,3 @@
 'use client'
-import MediatorApp from '../components/MediatorApp'
+import MediatorApp from '../../components/MediatorApp'
 export default function Page() { return <MediatorApp variant="fa2026" /> }
