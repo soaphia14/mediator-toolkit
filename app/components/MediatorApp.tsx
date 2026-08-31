@@ -80,6 +80,8 @@ function PromptBlockLegend({ textOnly }: { textOnly?: boolean }) {
   )
 }
 
+const SUBMISSION_URL = 'https://docs.google.com/forms/d/e/1FAIpQLSfTt_sYtTiiq_DszbId2VyqSLUr0tsfcRZqiC3uHi0YXh-3ew/viewform?usp=dialog'
+
 const POLL_INTERVAL_MS = 10000
 const MAX_WAIT_TIME_MS = 300000
 
@@ -607,6 +609,13 @@ export default function MediatorApp({ variant }: { variant: string }) {
                 }`}
             >
               {saving ? 'Saving…' : isDirty ? 'Save *' : 'Saved'}
+            </button>
+            <button
+                id="tour-submit"
+                onClick={() => window.open(SUBMISSION_URL, '_blank', 'noopener,noreferrer')}
+                className="px-3 py-1.5 rounded-md border border-blue-400/50 bg-blue-500/10 text-sm text-blue-300 hover:border-blue-300 hover:text-blue-200 transition-colors cursor-pointer"
+            >
+                Submit
             </button>
             <button
               id="tour-load-default"
