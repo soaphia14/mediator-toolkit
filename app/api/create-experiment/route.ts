@@ -3,6 +3,7 @@ import fs from 'fs'
 import { generate, type Mode } from './generator'
 import { adminAuth, adminDb } from '../../lib/firebaseAdmin'
 import { FieldValue } from 'firebase-admin/firestore'
+import { TOPIC_SETS } from '@/app/lib/topicSets'
 
 const MODES: Mode[] = ['human-human', 'human-agent', 'agent-agent']
 
@@ -35,11 +36,11 @@ async function checkAndIncrementQuota(email: string, cohorts: number): Promise<{
 
 export async function POST(req: Request) {
   const body = await req.json().catch(() => ({}))
-  const { mediatorTemplate, p1 = 'participant-1', p2 = 'participant-2', topic = 'covenant_marriage', mode, numCohorts, numUtterances, action = 'create', idToken } = body as {
+  const { mediatorTemplate, p1 = 'participant-1', p2 = 'participant-2', variant = 'default', mode, numCohorts, numUtterances, action = 'create', idToken } = body as {
     mediatorTemplate?: string
     p1?: string
     p2?: string
-    topic?: string
+    variant?: string
     mode?: Mode
     numCohorts?: string | number
     numUtterances?: string | number
@@ -77,14 +78,14 @@ export async function POST(req: Request) {
     }
   }
 
-  // const experimentTemplatePath = path.join(process.cwd(), 'public', 'templates', 'competition', 'experiment.yaml')
+  // const topicsDir = path.join(process.cwd(), 'public', 'templates', 'topics')
+  // const topics = ['congestion_pricing', 'covenant_marriage'] 
 
-  // randomize templates over the 5 topics intead of fixing one
-  const topicsDir = path.join(process.cwd(), 'public', 'templates', 'topics')
-  // const topics = fs.readdirSync(topicsDir)
-  // const chosen = topics.includes(topic) ? topic : topics[Math.floor(Math.random() * topics.length)]
-  const topics = ['congestion_pricing', 'covenant_marriage'] // hardcoded 2 for development, used the other 3 as the testing.
-  const chosen = topics[Math.floor(Math.random() * topics.length)]
+
+  const set = TOPIC_SETS[variant as keyof typeof TOPIC_SETS] ?? TOPIC_SETS.default
+  const topicsDir = path.join(process.cwd(), 'public', 'templates', set.dir)
+
+  const chosen = set.topics[Math.floor(Math.random() * set.topics.length)]
   const experimentTemplatePath = path.join(topicsDir, chosen, 'experiment.yaml')
 
   try {
