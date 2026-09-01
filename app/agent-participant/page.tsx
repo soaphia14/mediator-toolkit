@@ -23,6 +23,7 @@ type SavedPrompt = {
   prompt: PromptItem[]
   order: number
   addTo: string | null
+  type: 'message' | 'character' | 'thought'
 }
 
 function PromptEditorDescription({
@@ -99,6 +100,7 @@ export default function AgentParticipantsPage() {
       prompt: [],
       order: 1,
       addTo: null,
+      type: 'message',
     },
     {
       id: '2',
@@ -108,6 +110,7 @@ export default function AgentParticipantsPage() {
       prompt: [],
       order: 1,
       addTo: null,
+      type: 'message',
     },
     {
       id: '3',
@@ -117,6 +120,7 @@ export default function AgentParticipantsPage() {
       prompt: [],
       order: 1,
       addTo: null,
+      type: 'message',
     },
   ])
 
@@ -131,6 +135,19 @@ export default function AgentParticipantsPage() {
     addTo: null,
   },
 ])
+
+  const [characterPrompt, setCharacterPrompt] = useState<PromptItem[]>([])
+  const [thoughtPrompt, setThoughtPrompt] = useState<PromptItem[]>([])
+
+  const [activePromptType, setActivePromptType] = useState<
+    'message' | 'character' | 'thought'
+  >('message')
+
+  const [characterPromptEnabled, setCharacterPromptEnabled] =
+    useState(false)
+
+  const [thoughtPromptEnabled, setThoughtPromptEnabled] =
+    useState(false)
 
   const [activePromptId, setActivePromptId] = useState(prompts[0].id)
 
@@ -151,6 +168,7 @@ export default function AgentParticipantsPage() {
     temperature: 0.7,
     initialMessage:
       'Hello everyone! Looking forward to discussing this topic.',
+    character: '',
   })
 
   function updatePrompt(
@@ -230,6 +248,41 @@ export default function AgentParticipantsPage() {
       prompt: structuredClone(activePrompt.prompt),
       order: activePrompt.order,
       addTo: activePrompt.addTo,
+      type: 'message',
+    }
+
+    setSavedPrompts(prev => [
+      ...prev,
+      savedPrompt,
+    ])
+  }
+
+  function saveSpecialPrompt(
+  type: 'character' | 'thought'
+  ) {
+    const prompt =
+      type === 'character'
+        ? characterPrompt
+        : thoughtPrompt
+
+    const name =
+      type === 'character'
+        ? 'Character Prompt'
+        : 'Thought Prompt'
+
+    const description =
+      type === 'character'
+        ? 'A prompt defining the character the agent should portray.'
+        : 'A prompt defining the agent’s thought history.'
+
+    const savedPrompt: SavedPrompt = {
+      id: crypto.randomUUID(),
+      name,
+      description,
+      prompt: structuredClone(prompt),
+      order: 1,
+      addTo: null,
+      type,
     }
 
     setSavedPrompts(prev => [
@@ -244,18 +297,31 @@ export default function AgentParticipantsPage() {
     )
   }
 
-  function openSavedPrompt(
-    savedPrompt: SavedPrompt
-  ) {
-    // Check whether this prompt is already
-    // part of the current agent.
+  function openSavedPrompt(savedPrompt: SavedPrompt) {
+    if (savedPrompt.type === 'character') {
+      setCharacterPrompt(
+        structuredClone(savedPrompt.prompt)
+      )
+      setActivePromptType('character')
+      return
+    }
+
+    if (savedPrompt.type === 'thought') {
+      setThoughtPrompt(
+        structuredClone(savedPrompt.prompt)
+      )
+      setActivePromptType('thought')
+      return
+    }
+
+    // Message Creation prompt
     const existing = prompts.find(
-      prompt =>
-        prompt.name === savedPrompt.name
+      prompt => prompt.name === savedPrompt.name
     )
 
     if (existing) {
       setActivePromptId(existing.id)
+      setActivePromptType('message')
       return
     }
 
@@ -274,6 +340,7 @@ export default function AgentParticipantsPage() {
     ])
 
     setActivePromptId(newPrompt.id)
+    setActivePromptType('message')
   }
 
   function addPrompt() {
@@ -389,297 +456,488 @@ export default function AgentParticipantsPage() {
               additional prompts as needed.
             </p>
 
-            {/* PROMPT BAR */}
+            {/* PROMPT TYPE TABS */}
 
-            <div className="rounded-lg border border-neutral-800 overflow-hidden">
+            <div className="flex items-center border-b border-neutral-800">
 
-              <div className="flex overflow-x-auto bg-neutral-900/60 border-b border-neutral-800">
+              {/* MESSAGE CREATION */}
 
-                {prompts.map((prompt, index) => {
+              <button
+                onClick={() =>
+                  setActivePromptType('message')
+                }
+                className={`px-4 py-2.5 text-sm font-medium transition-colors border-b-2 ${
+                  activePromptType === 'message'
+                    ? 'border-neutral-300 text-neutral-100'
+                    : 'border-transparent text-neutral-500 hover:text-neutral-300'
+                }`}
+              >
+                Message Creation
+              </button>
 
-                  const active =
-                    prompt.id ===
-                    activePromptId
+              {/* CHARACTER */}
 
-                  return (
-                    <div
-                      key={prompt.id}
-                      onClick={() =>
-                        setActivePromptId(
-                          prompt.id
-                        )
-                      }
-                      className={`flex items-center gap-2 px-4 py-2.5 cursor-pointer whitespace-nowrap text-sm font-medium transition-colors border-r border-neutral-800 ${
-                        active
-                          ? 'bg-neutral-800 text-neutral-100 border-b-2 border-neutral-300'
-                          : 'bg-transparent text-neutral-500 hover:text-neutral-300 hover:bg-neutral-800/60'
-                      }`}
-                    >
+              <div
+                className={`flex items-center border-b-2 ${
+                  activePromptType === 'character'
+                    ? 'border-neutral-300'
+                    : 'border-transparent'
+                }`}
+              >
+                <button
+                  onClick={() =>
+                    setActivePromptType('character')
+                  }
+                  className={`px-4 py-2.5 text-sm font-medium transition-colors ${
+                    activePromptType === 'character'
+                      ? 'text-neutral-100'
+                      : 'text-neutral-500 hover:text-neutral-300'
+                  }`}
+                >
+                  Character
+                </button>
 
-                      {editingPromptId ===
-                      prompt.id ? (
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={characterPromptEnabled}
+                  onClick={() =>
+                    setCharacterPromptEnabled(
+                      prev => !prev
+                    )
+                  }
+                  className={`mr-3 relative inline-flex h-5 w-9 shrink-0 rounded-full transition-colors ${
+                    characterPromptEnabled
+                      ? 'bg-neutral-200'
+                      : 'bg-neutral-700'
+                  }`}
+                >
+                  <span
+                    className={`pointer-events-none inline-block h-4 w-4 mt-0.5 rounded-full bg-neutral-950 transition-transform ${
+                      characterPromptEnabled
+                        ? 'translate-x-4'
+                        : 'translate-x-0.5'
+                    }`}
+                  />
+                </button>
+              </div>
 
-                        <input
-                          autoFocus
-                          value={prompt.name}
-                          onBlur={() =>
-                            setEditingPromptId(
-                              null
-                            )
-                          }
-                          onChange={e =>
-                            updatePrompt(
-                              prompt.id,
-                              {
-                                name: e
-                                  .target
-                                  .value,
-                              }
-                            )
-                          }
-                          onKeyDown={e => {
-                            if (
-                              e.key ===
-                              'Enter'
-                            ) {
-                              setEditingPromptId(
-                                null
+              {/* THOUGHT */}
+
+              <div
+                className={`flex items-center border-b-2 ${
+                  activePromptType === 'thought'
+                    ? 'border-neutral-300'
+                    : 'border-transparent'
+                }`}
+              >
+                <button
+                  onClick={() =>
+                    setActivePromptType('thought')
+                  }
+                  className={`px-4 py-2.5 text-sm font-medium transition-colors ${
+                    activePromptType === 'thought'
+                      ? 'text-neutral-100'
+                      : 'text-neutral-500 hover:text-neutral-300'
+                  }`}
+                >
+                  Thought
+                </button>
+
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={thoughtPromptEnabled}
+                  onClick={() =>
+                    setThoughtPromptEnabled(
+                      prev => !prev
+                    )
+                  }
+                  className={`mr-3 relative inline-flex h-5 w-9 shrink-0 rounded-full transition-colors ${
+                    thoughtPromptEnabled
+                      ? 'bg-neutral-200'
+                      : 'bg-neutral-700'
+                  }`}
+                >
+                  <span
+                    className={`pointer-events-none inline-block h-4 w-4 mt-0.5 rounded-full bg-neutral-950 transition-transform ${
+                      thoughtPromptEnabled
+                        ? 'translate-x-4'
+                        : 'translate-x-0.5'
+                    }`}
+                  />
+                </button>
+              </div>
+
+            </div>
+
+            {/* MESSAGE CREATION PROMPT BAR */}
+
+            {activePromptType === 'message' && (
+              <div className="rounded-lg border border-neutral-800 overflow-hidden">
+
+                <div className="flex overflow-x-auto bg-neutral-900/60 border-b border-neutral-800">
+
+                  {prompts.map((prompt, index) => {
+                    const active =
+                      prompt.id === activePromptId
+
+                    return (
+                      <div
+                        key={prompt.id}
+                        onClick={() =>
+                          setActivePromptId(prompt.id)
+                        }
+                        className={`flex items-center gap-2 px-4 py-2.5 cursor-pointer whitespace-nowrap text-sm font-medium transition-colors border-r border-neutral-800 ${
+                          active
+                            ? 'bg-neutral-800 text-neutral-100 border-b-2 border-neutral-300'
+                            : 'bg-transparent text-neutral-500 hover:text-neutral-300 hover:bg-neutral-800/60'
+                        }`}
+                      >
+
+                        {editingPromptId === prompt.id ? (
+                          <input
+                            autoFocus
+                            value={prompt.name}
+                            onBlur={() =>
+                              setEditingPromptId(null)
+                            }
+                            onChange={e =>
+                              updatePrompt(
+                                prompt.id,
+                                {
+                                  name: e.target.value,
+                                }
                               )
                             }
-                          }}
-                          className="bg-transparent outline-none w-48"
-                        />
+                            onKeyDown={e => {
+                              if (e.key === 'Enter') {
+                                setEditingPromptId(null)
+                              }
+                            }}
+                            className="bg-transparent outline-none w-48"
+                          />
+                        ) : (
+                          <span
+                            onDoubleClick={() =>
+                              setEditingPromptId(prompt.id)
+                            }
+                          >
+                            {prompt.name}
+                          </span>
+                        )}
 
-                      ) : (
+                        {index !== 0 && (
+                          <button
+                            onClick={e => {
+                              e.stopPropagation()
+                              deletePrompt(prompt.id)
+                            }}
+                            className="hover:text-red-300"
+                          >
+                            ×
+                          </button>
+                        )}
 
-                        <span
-                          onDoubleClick={() =>
-                            setEditingPromptId(
-                              prompt.id
-                            )
-                          }
-                        >
-                          {prompt.name}
-                        </span>
+                      </div>
+                    )
+                  })}
 
-                      )}
+                  <button
+                    onClick={addPrompt}
+                    className="shrink-0 px-4 py-2.5 text-neutral-400 hover:text-neutral-100 hover:bg-neutral-800 transition-colors text-lg"
+                    title="Add prompt"
+                  >
+                    +
+                  </button>
 
-                      {index !== 0 && (
-                        <button
-                          onClick={e => {
-                            e.stopPropagation()
-                            deletePrompt(
-                              prompt.id
-                            )
-                          }}
-                          className="hover:text-red-300"
-                        >
-                          ×
-                        </button>
-                      )}
+                </div>
 
-                    </div>
-                  )
-                })}
-
-            <button
-              onClick={addPrompt}
-              className="shrink-0 px-4 py-2.5 text-neutral-400 hover:text-neutral-100 hover:bg-neutral-800 transition-colors text-lg"
-              title="Add prompt"
-            >
-              +
-            </button>
-
-            </div> {/* flex */}
-
-            </div> {/* rounded-lg */}
+              </div>
+            )}
 
             {/* PROMPT CONTENT */}
 
-            {/* PROMPT EXECUTION SETTINGS */}
+            {/* PROMPT SETTINGS */}
 
-            <div className="rounded-lg border border-neutral-800 bg-neutral-900/40 p-4">
+            {activePromptType === 'message' && (
+              <div className="rounded-lg border border-neutral-800 bg-neutral-900/40 p-4">
 
-              <div className="flex items-center justify-between gap-3">
+                {/* SAVE PROMPT */}
 
-                <div>
-                  <h3 className="text-sm font-medium text-neutral-300">
-                    {activePrompt.name}
-                  </h3>
+                <div className="flex items-center justify-between gap-3 mb-4">
 
-                  <p className="text-xs text-neutral-500 mt-1">
-                    Save this prompt to your prompt library.
-                  </p>
-                </div>
+                  <div>
+                    <h3 className="text-sm font-medium text-neutral-300">
+                      {activePrompt.name}
+                    </h3>
 
-                <button
-                  onClick={saveCurrentPrompt}
-                  className="
-                    shrink-0
-                    px-3
-                    py-1.5
-                    rounded-md
-                    border
-                    border-neutral-700
-                    bg-neutral-900
-                    text-sm
-                    text-neutral-300
-                    hover:border-neutral-500
-                    hover:text-neutral-100
-                    transition-colors
-                  "
-                >
-                  Save Prompt
-                </button>
+                    <p className="text-xs text-neutral-500 mt-1">
+                      Save this prompt to your prompt library.
+                    </p>
+                  </div>
 
-              </div>
-
-              <div className="flex items-center justify-between gap-4 mb-4">
-
-                <div>
-                  <h3 className="text-sm font-medium text-neutral-300">
-                    Prompt Execution
-                  </h3>
-
-                  <p className="text-xs text-neutral-500 mt-1">
-                    Prompts with the same order run at the same time.
-                  </p>
-                </div>
-
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-
-                {/* ORDER */}
-
-                <div className="space-y-1.5">
-
-                  <label className="text-sm font-medium text-neutral-300">
-                    Order
-                  </label>
-
-                  <p className="text-xs text-neutral-500">
-                    Determines when this prompt runs.
-                  </p>
-
-                  <input
-                    type="number"
-                    min={1}
-                    step={1}
-                    value={activePrompt.order}
-                    onChange={e => {
-                      updatePromptOrder(
-                        activePrompt.id,
-                        Number(e.target.value)
-                      )
-                    }}
+                  <button
+                    onClick={saveCurrentPrompt}
                     className="
-                      w-full
+                      shrink-0
                       px-3
-                      py-2
+                      py-1.5
                       rounded-md
                       border
                       border-neutral-700
                       bg-neutral-900
                       text-sm
-                      text-neutral-200
-                      focus:outline-none
-                      focus:border-neutral-500
-                    "
-                  />
-
-                </div>
-
-
-                {/* ADD TO */}
-
-                <div className="space-y-1.5">
-
-                  <label className="text-sm font-medium text-neutral-300">
-                    Add to
-                  </label>
-
-                  <p className="text-xs text-neutral-500">
-                    Run this prompt as part of a later prompt.
-                  </p>
-
-                  <select
-                    value={activePrompt.addTo ?? ''}
-                    onChange={e =>
-                      updatePrompt(activePrompt.id, {
-                        addTo: e.target.value || null,
-                      })
-                    }
-                    className="
-                      w-full
-                      px-3
-                      py-2
-                      rounded-md
-                      border
-                      border-neutral-700
-                      bg-neutral-900
-                      text-sm
-                      text-neutral-200
-                      focus:outline-none
-                      focus:border-neutral-500
+                      text-neutral-300
+                      hover:border-neutral-500
+                      hover:text-neutral-100
+                      transition-colors
                     "
                   >
+                    Save Prompt
+                  </button>
 
-                    <option value="">
-                      None
-                    </option>
+                </div>
 
-                    {prompts
-                      .filter(
-                        prompt =>
-                          prompt.id !== activePrompt.id &&
-                          prompt.order > activePrompt.order
-                      )
-                      .map(prompt => (
-                        <option
-                          key={prompt.id}
-                          value={prompt.id}
-                        >
-                          {prompt.name} (Order {prompt.order})
-                        </option>
-                      ))}
+                {/* PROMPT EXECUTION */}
 
-                  </select>
+                <div className="flex items-center justify-between gap-4 mb-4">
+
+                  <div>
+                    <h3 className="text-sm font-medium text-neutral-300">
+                      Prompt Execution
+                    </h3>
+
+                    <p className="text-xs text-neutral-500 mt-1">
+                      Prompts with the same order run at the same time.
+                    </p>
+                  </div>
+
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+
+                  {/* ORDER */}
+
+                  <div className="space-y-1.5">
+
+                    <label className="text-sm font-medium text-neutral-300">
+                      Order
+                    </label>
+
+                    <p className="text-xs text-neutral-500">
+                      Determines when this prompt runs.
+                    </p>
+
+                    <input
+                      type="number"
+                      min={1}
+                      step={1}
+                      value={activePrompt.order}
+                      onChange={e => {
+                        updatePromptOrder(
+                          activePrompt.id,
+                          Number(e.target.value)
+                        )
+                      }}
+                      className="
+                        w-full
+                        px-3
+                        py-2
+                        rounded-md
+                        border
+                        border-neutral-700
+                        bg-neutral-900
+                        text-sm
+                        text-neutral-200
+                        focus:outline-none
+                        focus:border-neutral-500
+                      "
+                    />
+
+                  </div>
+
+                  {/* ADD TO */}
+
+                  <div className="space-y-1.5">
+
+                    <label className="text-sm font-medium text-neutral-300">
+                      Add to
+                    </label>
+
+                    <p className="text-xs text-neutral-500">
+                      Run this prompt as part of a later prompt.
+                    </p>
+
+                    <select
+                      value={activePrompt.addTo ?? ''}
+                      onChange={e =>
+                        updatePrompt(activePrompt.id, {
+                          addTo: e.target.value || null,
+                        })
+                      }
+                      className="
+                        w-full
+                        px-3
+                        py-2
+                        rounded-md
+                        border
+                        border-neutral-700
+                        bg-neutral-900
+                        text-sm
+                        text-neutral-200
+                        focus:outline-none
+                        focus:border-neutral-500
+                      "
+                    >
+
+                      <option value="">
+                        None
+                      </option>
+
+                      {prompts
+                        .filter(
+                          prompt =>
+                            prompt.id !== activePrompt.id &&
+                            prompt.order > activePrompt.order
+                        )
+                        .map(prompt => (
+                          <option
+                            key={prompt.id}
+                            value={prompt.id}
+                          >
+                            {prompt.name} (Order {prompt.order})
+                          </option>
+                        ))}
+
+                    </select>
+
+                  </div>
 
                 </div>
 
               </div>
+            )}
 
-            </div>
+            {(activePromptType === 'character' ||
+              activePromptType === 'thought') && (
+              <div className="rounded-lg border border-neutral-800 bg-neutral-900/40 p-4">
 
-            <div className="rounded-lg border border-neutral-800 p-4 space-y-4">
+                <div className="flex items-center justify-between gap-3">
 
-              <PromptEditorDescription
-                description={activePrompt.description}
-              />
+                  <div>
+                    <h3 className="text-sm font-medium text-neutral-300">
+                      {activePromptType === 'character'
+                        ? 'Character Prompt'
+                        : 'Thought Prompt'}
+                    </h3>
 
-              <PromptBlockLegend />
+                    <p className="text-xs text-neutral-500 mt-1">
+                      Save this prompt to your prompt library.
+                    </p>
+                  </div>
 
-              <StructuredPromptEditor
-                label={activePrompt.name}
-                prompt={activePrompt.prompt}
-                stageId=""
-                onUpdate={updatePromptItems}
+                  <button
+                    onClick={() =>
+                      saveSpecialPrompt(
+                        activePromptType as 'character' | 'thought'
+                      )
+                    }
+                    className="
+                      shrink-0
+                      px-3
+                      py-1.5
+                      rounded-md
+                      border
+                      border-neutral-700
+                      bg-neutral-900
+                      text-sm
+                      text-neutral-300
+                      hover:border-neutral-500
+                      hover:text-neutral-100
+                      transition-colors
+                    "
+                  >
+                    Save Prompt
+                  </button>
 
-                /*
-                 * These props assume you expose them in
-                 * StructuredPromptEditor.
-                 *
-                 * If you don't already have these,
-                 * I'll show you how to add them later.
-                 */
-                // allowedBlocks={[
-                //   'text',
-                //   'context',
-                // ]}
-              />
+                </div>
 
-            </div>
+              </div>
+            )}
+
+            {/* PROMPT EDITOR */}
+
+            {activePromptType === 'message' && (
+              <div className="rounded-lg border border-neutral-800 p-4 space-y-4">
+
+                <PromptEditorDescription
+                  description={activePrompt.description}
+                />
+
+                <PromptBlockLegend />
+
+                <StructuredPromptEditor
+                  label={activePrompt.name}
+                  prompt={activePrompt.prompt}
+                  stageId=""
+                  onUpdate={updatePromptItems}
+                />
+
+              </div>
+            )}
+
+            {activePromptType === 'character' && (
+              <div className="rounded-lg border border-neutral-800 p-4 space-y-4">
+
+                <PromptEditorDescription
+                  description="Define the character the agent should portray during the discussion."
+                />
+
+                <PromptBlockLegend />
+
+                <StructuredPromptEditor
+                  label="Character Prompt"
+                  prompt={characterPrompt}
+                  stageId=""
+                  onUpdate={items => {
+                    setCharacterPrompt(
+                      items.map((item, index) => ({
+                        ...item,
+                        id: index,
+                      }))
+                    )
+                  }}
+                />
+
+              </div>
+            )}
+
+            {activePromptType === 'thought' && (
+              <div className="rounded-lg border border-neutral-800 p-4 space-y-4">
+
+                <PromptEditorDescription
+                  description="Define the agent's thought history."
+                />
+
+                <PromptBlockLegend />
+
+                <StructuredPromptEditor
+                  label="Thought Prompt"
+                  prompt={thoughtPrompt}
+                  stageId=""
+                  onUpdate={items => {
+                    setThoughtPrompt(
+                      items.map((item, index) => ({
+                        ...item,
+                        id: index,
+                      }))
+                    )
+                  }}
+                />
+
+              </div>
+            )}
 
           </div>
 
@@ -696,6 +954,8 @@ export default function AgentParticipantsPage() {
           <MediatorSection
             title="Agent Parameters"
             mediatorParsed={{
+              character: agentConfig.character,
+
               chat_settings: {
                 words_per_minute:
                   agentConfig.wordsPerMinute,
@@ -757,9 +1017,33 @@ export default function AgentParticipantsPage() {
                 }))
               }
 
+              if (
+                path.join('.') === 'character'
+              ) {
+                setAgentConfig(prev => ({
+                  ...prev,
+                  character: String(value),
+                }))
+              }
+
             }}
 
             fields={[
+              {
+                label: 'Character',
+
+                description:
+                  'Optional character name or description for this agent.',
+
+                path: [
+                  'character',
+                ],
+
+                type: 'text',
+
+                placeholder:
+                  'e.g. A skeptical journalist',
+              },
               {
                 label:
                   'Typing Speed (Words Per Minute)',
@@ -888,7 +1172,11 @@ export default function AgentParticipantsPage() {
                   </div>
 
                   <div className="text-xs text-neutral-500 mt-1">
-                    Order {prompt.order}
+                    {prompt.type === 'message'
+                      ? 'Message Creation'
+                      : prompt.type === 'character'
+                        ? 'Character'
+                        : 'Thought'}
                   </div>
 
                 </div>
