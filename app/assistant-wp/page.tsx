@@ -65,6 +65,14 @@ export default function AssistantPage() {
   const [customArticleLoading, setCustomArticleLoading] = useState(false)
   const [customArticleError, setCustomArticleError] = useState<string | null>(null)
   const [useCustomArticle, setUseCustomArticle] = useState(false)
+  const [expandedPolicyTypes, setExpandedPolicyTypes] = useState<Set<PolicyType>>(new Set())
+  const policiesByType = useMemo(() => {
+    const grouped = {} as Record<PolicyType, Policy[]>
+    for (const policy of POLICIES) {
+      (grouped[policy.type] ??= []).push(policy)
+    }
+    return grouped
+  }, [])
   const [p1HasAssistant, setP1HasAssistant] = useState(true)
   const [p2HasAssistant, setP2HasAssistant] = useState(false)
   const agentAssignment = p1HasAssistant && p2HasAssistant
@@ -149,6 +157,26 @@ export default function AssistantPage() {
   const assistantParsed = useMemo(() => {
     try { return JSON.parse(assistantData ?? '') } catch { return null }
   }, [assistantData])
+
+  const selectedPolicyNames = useMemo(() => {
+    const retrieval = (assistantParsed?.retrieval ?? []) as { name: string }[]
+    return new Set(retrieval.map(r => r.name))
+  }, [assistantParsed])
+
+  const toggleRetrievalPolicy = (policy: Policy) => {
+    setAssistantData(prev => {
+      try {
+        const data = JSON.parse(prev ?? '')
+        const current: { id: number; name: string; type: PolicyType }[] = data.retrieval ?? []
+        const exists = current.some(r => r.name === policy.name)
+        const next = exists
+          ? current.filter(r => r.name !== policy.name)
+          : [...current, { id: current.length, name: policy.name, type: policy.type }]
+        data.retrieval = next.map((r, i) => ({ ...r, id: i }))
+        return JSON.stringify(data, null, 2)
+      } catch { return prev }
+    })
+  }
 
   const updateAssistantPrompt = (prompt: PromptItem[]) => {
     const reindexed = prompt.map((item, i) => ({ ...item, id: i }))
@@ -355,10 +383,10 @@ export default function AssistantPage() {
   )
 
   return (
-    <div className="flex flex-col lg:flex-row lg:h-screen lg:overflow-hidden bg-neutral-950 text-neutral-100">
+    <div className="flex flex-col lg:flex-row bg-neutral-950 text-neutral-100">
 
       {/* Left column — prompt editor */}
-      <div className="lg:flex-3 lg:overflow-y-auto p-8">
+      <div className="lg:flex-3 lg:sticky lg:top-0 lg:h-screen lg:overflow-y-auto lg:min-h-0 p-8">
         <div className="w-full space-y-5">
 
           {/* Header */}
@@ -440,6 +468,69 @@ export default function AssistantPage() {
               </div>
             </div>
           </div>
+          <div className="space-y-3">
+            <div className="border-b border-neutral-800 pb-3 mb-3">
+              <h2 className="text-lg font-semibold tracking-tight">Retrieval Information</h2>
+            </div>
+            <div className="space-y-2">
+              {(Object.keys(policiesByType) as PolicyType[]).map(type => {
+                const policies = policiesByType[type]
+                const isOpen = expandedPolicyTypes.has(type)
+                return (
+                  <div key={type} className="space-y-2">
+                    <button
+                      onClick={() => setExpandedPolicyTypes(prev => {
+                        const next = new Set(prev)
+                        if (next.has(type)) next.delete(type); else next.add(type)
+                        return next
+                      })}
+                      className="w-full flex items-center justify-between px-4 py-2.5 rounded-lg border border-neutral-700 bg-neutral-900 text-sm text-neutral-300 hover:bg-neutral-800 hover:border-neutral-600 transition-colors cursor-pointer"
+                    >
+                      <span>{type.charAt(0) + type.slice(1).toLowerCase()} ({policies.length})</span>
+                      <span className="text-neutral-500">{isOpen ? '▾' : '▸'}</span>
+                    </button>
+                    {isOpen && (
+                      <div className="space-y-0.5 pl-3">
+                        {policies.map(policy => {
+                          const checked = selectedPolicyNames.has(policy.name)
+                          return (
+                            <label
+                              key={policy.name}
+                              className={`flex items-center gap-2 py-1 text-sm cursor-pointer transition-colors ${checked
+                                  ? 'text-neutral-100'
+                                  : 'text-neutral-400 hover:text-neutral-200'
+                                }`}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={checked}
+                                onChange={() => toggleRetrievalPolicy(policy)}
+                                className="sr-only"
+                              />
+                              <span
+                                aria-hidden
+                                className={`w-4 h-4 shrink-0 rounded border flex items-center justify-center transition-colors ${checked
+                                    ? 'border-neutral-300 bg-neutral-100'
+                                    : 'border-neutral-600 bg-transparent'
+                                  }`}
+                              >
+                                {checked && (
+                                  <svg viewBox="0 0 16 16" className="w-3 h-3 text-neutral-950" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                    <path d="M3 8l3.5 3.5L13 5" />
+                                  </svg>
+                                )}
+                              </span>
+                              {policy.name}
+                            </label>
+                          )
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          </div>
 
           <div className="border-b border-neutral-800 pb-3">
             <h2 className="text-lg font-semibold tracking-tight">Assistant Configuration</h2>
@@ -459,7 +550,7 @@ export default function AssistantPage() {
       </div>
 
       {/* Right column — testing & simulation */}
-      <div className="lg:flex-1 lg:overflow-y-auto p-8 space-y-6 border-t border-neutral-800 lg:border-t-0 lg:border-l">
+      <div className="lg:flex-1 lg:sticky lg:top-0 lg:h-screen lg:overflow-y-auto lg:min-h-0 p-8 space-y-6 border-t border-neutral-800 lg:border-t-0 lg:border-l">
         <YamlIOSection label="Assistant" filename="assistant.yaml" data={assistantData} setData={setAssistantData} />
         {/* <div className="space-y-3">
           <div className="border-b border-neutral-800 pb-3 mb-3">

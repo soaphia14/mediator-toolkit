@@ -86,3 +86,5 @@ should_respond_prompt:
 
   - id: 5
     type: CONTEXT
+
+retrieval: []
