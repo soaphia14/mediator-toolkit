@@ -14,6 +14,7 @@ import { ActionButton, ResultBox, type ActionState } from '../components/Experim
 import { create } from 'domain'
 import { StructuredOutputSchema, type StructuredOutputConfig } from '../components/StructuredOutputSchema'
 import { SaveSection } from '../components/SaveSection'
+import { YamlIOSection } from '../components/YamlIOSection'
 import { startTour } from '../lib/tour'
 import { text } from 'stream/consumers'
 
@@ -159,7 +160,6 @@ export default function Home() {
   const [creating, setCreating] = useState<'human-human' | 'human-agent' | 'agent-agent' | null>(null)
   const [numCohorts, setNumCohorts] = useState('5')
   const [numUtterances, setNumUtterances] = useState('15')
-  const [showAsYaml, setShowAsYaml] = useState(false)
   const [activePromptTab, setActivePromptTab] = useState<'response' | 'should-respond' | 'initialization'>('response')
 
   useEffect(() => {
@@ -264,17 +264,6 @@ export default function Home() {
     })
   }
 
-  function downloadMediator() {
-    let text: string
-    try { text = yaml.dump(JSON.parse(mediatorData ?? '')) } catch { text = mediatorData ?? '' }
-    const url = URL.createObjectURL(new Blob([text], { type: 'text/yaml' }))
-    const a = document.createElement('a')
-    a.href = url
-    a.download = 'mediator.yaml'
-    a.click()
-    URL.revokeObjectURL(url)
-  }
-
   function downloadJson(data: unknown, filename: string) {
     const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }))
     const a = document.createElement('a')
@@ -310,14 +299,6 @@ export default function Home() {
     } finally {
       setConvokitLoading(false)
     }
-  }
-
-  function loadMediatorFile(file: File) {
-    const reader = new FileReader()
-    reader.onload = () => {
-      try { setMediatorData(JSON.stringify(yaml.load(String(reader.result)), null, 2)) } catch { /* ignore invalid yaml */ }
-    }
-    reader.readAsText(file)
   }
 
   async function handleCreate(mode: 'human-human' | 'human-agent' | 'agent-agent', action: 'create' | 'simulate' = 'create') {
@@ -620,42 +601,14 @@ export default function Home() {
       {/* Right column — preview & actions */}
       <div className="lg:flex-1 lg:overflow-y-auto p-8 space-y-6 border-t border-neutral-800 lg:border-t-0 lg:border-l">
         {/* YAML preview */}
-        <div className="space-y-1">
-          <div className="border-b border-neutral-800 pb-3 mb-3">
-            <h2 className="text-lg font-semibold tracking-tight">Export Mediator</h2>
-          </div>
-          <div className="space-y-2 gap-2">
-            <button
-              id='tour-template-download'
-              onClick={downloadMediator}
-              className="w-full flex items-center justify-center gap-2 text-md px-4 py-2 rounded-lg border border-neutral-700 bg-neutral-900 text-neutral-300 hover:bg-neutral-800 hover:border-neutral-600 transition-all duration-150 cursor-pointer"
-            >
-              Download Mediator .yaml File
-            </button>
-            <label id="tour-template-upload" className="w-full flex items-center justify-center gap-2 text-md px-4 py-2 rounded-lg border border-neutral-700 bg-neutral-900 text-neutral-300 hover:bg-neutral-800 hover:border-neutral-600 transition-all duration-150 cursor-pointer">
-              Upload Mediator .yaml File
-              <input
-                type="file"
-                accept=".yaml,.yml"
-                className="hidden"
-                onChange={e => { const f = e.target.files?.[0]; if (f) loadMediatorFile(f); e.target.value = '' }}
-              />
-            </label>
-          </div>
-          <button
-            onClick={() => setShowAsYaml(v => !v)}
-            className="cursor-pointer text-xs text-neutral-500 hover:text-neutral-300 transition-colors"
-          >
-            {showAsYaml ? '▾ Hide YAML' : '▸ Show YAML'}
-          </button>
-          {showAsYaml && (
-            <textarea
-              disabled
-              value={(() => { try { return yaml.dump(JSON.parse(mediatorData ?? '')) } catch { return mediatorData ?? '' } })()}
-              className="w-full h-96 p-2 rounded-lg border border-neutral-700 bg-neutral-900 text-sm text-neutral-200 resize-y font-mono"
-            />
-          )}
-        </div>
+        <YamlIOSection
+          label="Mediator"
+          filename="mediator.yaml"
+          data={mediatorData}
+          setData={setMediatorData}
+          downloadId="tour-template-download"
+          uploadId="tour-template-upload"
+        />
 
         {/* Actions: create buttons, then experiment id + export */}
         <div className="space-y-3">

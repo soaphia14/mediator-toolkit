@@ -10,6 +10,7 @@ import { StructuredPromptEditor, type PromptItem } from '../components/Structure
 import { ActionButton, ResultBox, type ActionState } from '../components/ExperimentActions'
 import { MediatorSection } from '../components/MediatorSection'
 import { SaveSection } from '../components/SaveSection'
+import { YamlIOSection } from '../components/YamlIOSection'
 import { CMV_POSTS } from './topics'
 
 const idle: ActionState = { status: 'idle', result: null }
@@ -63,7 +64,6 @@ export default function AssistantPage() {
 
   const [assistantData, setAssistantData] = useState<string | null>(null)
   const [dirty, setDirty] = useState(false)
-  const [showAsYaml, setShowAsYaml] = useState(false)
   const [selectedTopicIndex, setSelectedTopicIndex] = useState<number | null>(0)
   const [p1HasAssistant, setP1HasAssistant] = useState(true)
   const [p2HasAssistant, setP2HasAssistant] = useState(false)
@@ -185,24 +185,6 @@ export default function AssistantPage() {
     })
   }
 
-  function downloadAssistant() {
-    let text: string
-    try { text = yaml.dump(JSON.parse(assistantData ?? '')) } catch { text = assistantData ?? '' }
-    const url = URL.createObjectURL(new Blob([text], { type: 'text/yaml' }))
-    const a = document.createElement('a')
-    a.href = url
-    a.download = 'assistant.yaml'
-    a.click()
-    URL.revokeObjectURL(url)
-  }
-
-  function loadAssistantFile(file: File) {
-    const reader = new FileReader()
-    reader.onload = () => {
-      try { setAssistantData(JSON.stringify(yaml.load(String(reader.result)), null, 2)) } catch { /* ignore invalid yaml */ }
-    }
-    reader.readAsText(file)
-  }
 
   async function downloadConvokit() {
     if (simExport === null) return
@@ -465,41 +447,7 @@ export default function AssistantPage() {
 
       {/* Right column — testing & simulation */}
       <div className="lg:flex-1 lg:overflow-y-auto p-8 space-y-6 border-t border-neutral-800 lg:border-t-0 lg:border-l">
-        <div className="space-y-3">
-          <div className="border-b border-neutral-800 pb-3 mb-3">
-            <h2 className="text-lg font-semibold tracking-tight">Export Assistant</h2>
-          </div>
-          <div className="space-y-2">
-            <button
-              onClick={downloadAssistant}
-              className="w-full flex items-center justify-center gap-2 text-md px-4 py-2 rounded-lg border border-neutral-700 bg-neutral-900 text-neutral-300 hover:bg-neutral-800 hover:border-neutral-600 transition-all duration-150 cursor-pointer"
-            >
-              Download Assistant .yaml File
-            </button>
-            <label className="w-full flex items-center justify-center gap-2 text-md px-4 py-2 rounded-lg border border-neutral-700 bg-neutral-900 text-neutral-300 hover:bg-neutral-800 hover:border-neutral-600 transition-all duration-150 cursor-pointer">
-              Upload Assistant .yaml File
-              <input
-                type="file"
-                accept=".yaml,.yml"
-                className="hidden"
-                onChange={e => { const f = e.target.files?.[0]; if (f) loadAssistantFile(f); e.target.value = '' }}
-              />
-            </label>
-          </div>
-          <button
-            onClick={() => setShowAsYaml(v => !v)}
-            className="cursor-pointer text-xs text-neutral-500 hover:text-neutral-300 transition-colors"
-          >
-            {showAsYaml ? '▾ Hide YAML' : '▸ Show YAML'}
-          </button>
-          {showAsYaml && (
-            <textarea
-              disabled
-              value={(() => { try { return yaml.dump(JSON.parse(assistantData ?? '')) } catch { return assistantData ?? '' } })()}
-              className="w-full h-96 p-2 rounded-lg border border-neutral-700 bg-neutral-900 text-sm text-neutral-200 resize-y font-mono"
-            />
-          )}
-        </div>
+        <YamlIOSection label="Assistant" filename="assistant.yaml" data={assistantData} setData={setAssistantData} />
         <div className="space-y-3">
           <div className="border-b border-neutral-800 pb-3 mb-3">
             <h2 className="text-lg font-semibold tracking-tight">Assistant Testing</h2>
