@@ -224,6 +224,8 @@ export default function AssistantPage() {
         idToken = await auth.currentUser?.getIdToken()
       }
       const selectedTopic = selectedTopicIndex !== null ? CMV_POSTS[selectedTopicIndex] : undefined
+      const p1 = opParticipant === 'participant-1' ? 'participant-op' : 'participant-challenger'
+      const p2 = opParticipant === 'participant-2' ? 'participant-op' : 'participant-challenger'
       const res = await fetch(`${API_BASE}/api/create-experiment`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -239,6 +241,8 @@ export default function AssistantPage() {
           experimentTemplateSet: 'reddit',
           agentAssignment,
           opParticipant,
+          p1,
+          p2,
         }),
       })
       const data = await res.json()
