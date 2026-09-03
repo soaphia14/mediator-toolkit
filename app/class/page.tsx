@@ -8,6 +8,7 @@ import { auth, db, googleProvider } from '../lib/firebase'
 
 const INSTRUCTION_URL = 'https://docs.google.com/document/d/1Ej6vWrdo5QLnPVkLzMYu0ESNvd-yHpr6QCq79KZP2VY/edit?usp=sharing'
 const VIDEO_URL = 'https://drive.google.com/file/d/1ELPMxibpd6Fm9m254UIjp1HoSAnNpJHD/preview'
+const CONSENT_FORM_URL = 'https://cornell.ca1.qualtrics.com/jfe/form/SV_afLclmWLfLJL37M'
 
 export default function LandingPage() {
   const router = useRouter()
@@ -40,6 +41,7 @@ export default function LandingPage() {
 
         <div className="w-full max-w-xl text-left space-y-6">
           <p className="text-base text-neutral-200">
+            Step 1.{' '}
             <a
               href={INSTRUCTION_URL}
               target="_blank"
@@ -49,6 +51,18 @@ export default function LandingPage() {
               Read the instructions
             </a>{' '}
             before you begin.
+          </p>
+
+          <p className="text-base text-neutral-200">
+            Step 2.{' '}
+            <a
+              href={CONSENT_FORM_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline underline-offset-2 text-neutral-100 hover:text-white"
+            >
+              Sign the consent form
+            </a>{' '}
           </p>
 
           <div className="flex flex-col items-start gap-3">
