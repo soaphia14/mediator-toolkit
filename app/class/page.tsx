@@ -61,8 +61,12 @@ export default function LandingPage() {
               rel="noopener noreferrer"
               className="underline underline-offset-2 text-neutral-100 hover:text-white"
             >
-              Sign the consent form
+              Complete the consent form
             </a>{' '}
+          </p>
+
+          <p className="text-base text-neutral-200">
+            Step 3.{' '} Sign in below to develop and submit your mediators.
           </p>
 
           <div className="flex flex-col items-start gap-3">
