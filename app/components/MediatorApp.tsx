@@ -90,7 +90,7 @@ const SUBMISSION_FORMS = {
 const POLL_INTERVAL_MS = 10000
 const MAX_WAIT_TIME_MS = 300000
 
-export default function MediatorApp({ variant }: { variant: string }) {
+export default function MediatorApp({ variant, home = '/' }: { variant: string; home?: string }) {
   const router = useRouter()
   const [authReady, setAuthReady] = useState(false)
   const [userEmail, setUserEmail] = useState<string | null>(null)
@@ -115,14 +115,14 @@ export default function MediatorApp({ variant }: { variant: string }) {
   useEffect(() => {
     return onAuthStateChanged(auth, (user) => {
       if (!user) {
-        router.replace('/')
+        router.replace(home)
       } else {
         setAuthReady(true)
         setUserEmail(user.email)
         fetchQuota()
       }
     })
-  }, [router])
+  }, [router, home])
 
   const [mediatorData, setMediatorData] = useState<string | null>(null)
   const [topicId, setTopicId] = useState<number>(Number(Object.keys(TOPICS)[0]))
@@ -449,7 +449,7 @@ export default function MediatorApp({ variant }: { variant: string }) {
               <button
                 onClick={() => {
                   if (dirty && !window.confirm('You have unsaved changes. Sign out anyway?')) return
-                  signOut(auth).then(() => router.replace('/'))
+                  signOut(auth).then(() => router.replace(home))
                 }}
                 className="text-sm px-3 py-1.5 rounded-md border border-neutral-600 text-neutral-400 hover:border-neutral-500 hover:text-neutral-200 transition-colors cursor-pointer"
               >
