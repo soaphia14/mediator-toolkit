@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo, useRef } from 'react'
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { onAuthStateChanged, signOut } from 'firebase/auth'
 import { auth } from '../lib/firebase'
@@ -11,6 +11,8 @@ import { ApiKeyType, API_KEY_TYPE_LABELS, REASONING_LEVEL_OPTIONS } from '../lib
 import { StructuredPromptEditor, PromptItemType, type PromptItem, type TextPromptItem } from '../components/StructuredPromptEditor'
 import { MediatorSection } from '../components/MediatorSection'
 import { ActionButton, ResultBox, type ActionState } from '../components/ExperimentActions'
+import { SaveSection } from './SaveSection'
+import { YamlIOSection } from './YamlIOSection'
 import { create } from 'domain'
 import { StructuredOutputSchema, type StructuredOutputConfig } from '../components/StructuredOutputSchema'
 import { startTour } from '../lib/tour'
@@ -81,8 +83,8 @@ function PromptBlockLegend({ textOnly }: { textOnly?: boolean }) {
 }
 
 const SUBMISSION_FORMS = {
-    track1: 'https://docs.google.com/forms/d/e/1FAIpQLSfTt_sYtTiiq_DszbId2VyqSLUr0tsfcRZqiC3uHi0YXh-3ew/viewform?usp=dialog',
-    track2: 'https://docs.google.com/forms/d/e/1FAIpQLSdfl4JQUFvxKaIAd2uXZCmMZEPu7NUl4_omg26YgupUqqjvCA/viewform?usp=publish-editor',
+  track1: 'https://docs.google.com/forms/d/e/1FAIpQLSeJV2AnhwoZ6zu4ueqEgTsMkGEwxi3Bo4bp_qmenVldiNA7jw/viewform?usp=publish-editor',
+  track2: 'https://docs.google.com/forms/d/e/1FAIpQLSfEF0TXx77hfN9IYgjWFkPbyRkYJcYOsXqfYmdfhsjH4FdQHA/viewform?usp=publish-editor',
 } as const
 
 const POLL_INTERVAL_MS = 10000
@@ -94,83 +96,8 @@ export default function MediatorApp({ variant }: { variant: string }) {
   const [userEmail, setUserEmail] = useState<string | null>(null)
   const [simQuota, setSimQuota] = useState<{ used: number; limit: number; simMaxWaitTimeMs: number } | null>(null)
 
-  // saving
-  const [savedTemplates, setSavedTemplates] = useState<{ id: string; name: string }[]>([])
-  const [templateName, setTemplateName] = useState('Mediator Export 1')
-  const [lastSavedContent, setLastSavedContent] = useState<string | null>(null)
-  const [lastSavedName, setLastSavedName] = useState<string | null>(null)
-  const [saving, setSaving] = useState(false)
-  const [showSaveAlert, setShowSaveAlert] = useState(false)
   const [showTutorial, setShowTutorial] = useState(false)
-
-  async function fetchSavedTemplates() {
-    try {
-      const token = await auth.currentUser?.getIdToken()
-      if (!token) return
-      const res = await fetch(`${API_BASE}/api/mediators`, { headers: { Authorization: `Bearer ${token}` } })
-      if (!res.ok) return
-      const data = await res.json()
-      setSavedTemplates(data.templates)
-      if (data.count > 0) {
-        const first = data.templates[0]
-        const loadRes = await fetch(`${API_BASE}/api/mediators/load?id=${encodeURIComponent(first.id)}`, {
-          headers: { Authorization: `Bearer ${token}` },
-        })
-        if (loadRes.ok) {
-          const loaded = await loadRes.json()
-          setMediatorData(loaded.content)
-          setTemplateName(loaded.name)
-          setLastSavedContent(loaded.content)
-          setLastSavedName(loaded.name)
-        }
-      } else {
-        setTemplateName('Mediator Export 1')
-      }
-    } catch (e) {
-      console.warn('fetchSavedTemplates failed:', e)
-    }
-  }
-
-  async function handleSave() {
-    if (!templateName.trim()) return
-    const token = await auth.currentUser?.getIdToken()
-    if (!token) return
-
-    setSaving(true)
-    try {
-      const res = await fetch(`${API_BASE}/api/mediators`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ name: templateName.trim(), content: mediatorData }),
-      })
-      if (res.ok) {
-        setLastSavedContent(mediatorData)
-        setLastSavedName(templateName.trim())
-        await fetchSavedTemplates()
-        setShowSaveAlert(true)
-      }
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  async function handleLoad(id: string, name: string) {
-    if (isDirty) {
-      const ok = window.confirm('You have unsaved changes. Load a different template and discard them?')
-      if (!ok) return
-    }
-    const token = await auth.currentUser?.getIdToken()
-    if (!token) return
-    const res = await fetch(`${API_BASE}/api/mediators/load?id=${encodeURIComponent(id)}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-    if (!res.ok) return
-    const data = await res.json()
-    setMediatorData(data.content)
-    setTemplateName(data.name)
-    setLastSavedContent(data.content)
-    setLastSavedName(data.name)
-  }
+  const [dirty, setDirty] = useState(false)
 
   async function fetchQuota() {
     try {
@@ -193,40 +120,29 @@ export default function MediatorApp({ variant }: { variant: string }) {
         setAuthReady(true)
         setUserEmail(user.email)
         fetchQuota()
-        fetchSavedTemplates()
       }
     })
   }, [router])
 
   const [mediatorData, setMediatorData] = useState<string | null>(null)
-  const isDirty = mediatorData !== null && (mediatorData !== lastSavedContent || templateName !== lastSavedName)
   const [topicId, setTopicId] = useState<number>(Number(Object.keys(TOPICS)[0]))
 
-  useEffect(() => {
-    if (isDirty) setShowSaveAlert(false)
-  }, [isDirty])
-
-  async function loadDefaultTemplate() {
+  const getDefaultContent = useCallback(async () => {
     const [defaultsText, topicText] = await Promise.all([
       fetch(`${API_BASE}/templates/defaults/mediator.yaml`).then(res => res.text()),
       fetch(`${API_BASE}/templates/competition/mediator.yaml`).then(res => res.text()),
     ])
     const merged = { ...(yaml.load(defaultsText) as object), ...(yaml.load(topicText) as object) }
-    setMediatorData(JSON.stringify(merged, null, 2))
-    setLastSavedContent(null)
-    setLastSavedName(null)
-  }
+    return JSON.stringify(merged, null, 2)
+  }, [topicId])
 
   useEffect(() => {
-    loadDefaultTemplate()
-  }, [topicId])
-  useEffect(() => {
     const handler = (e: BeforeUnloadEvent) => {
-      if (isDirty) { e.preventDefault(); e.returnValue = '' }
+      if (dirty) { e.preventDefault(); e.returnValue = '' }
     }
     window.addEventListener('beforeunload', handler)
     return () => window.removeEventListener('beforeunload', handler)
-  }, [isDirty])
+  }, [dirty])
 
   useEffect(() => {
     if (authReady && !localStorage.getItem('tourLoaded')) {
@@ -248,7 +164,6 @@ export default function MediatorApp({ variant }: { variant: string }) {
   const [creating, setCreating] = useState<'human-human' | 'human-agent' | 'agent-agent' | null>(null)
   const [numCohorts, setNumCohorts] = useState('5')
   const [numUtterances, setNumUtterances] = useState('15')
-  const [showAsYaml, setShowAsYaml] = useState(false)
   const [activePromptTab, setActivePromptTab] = useState<'response' | 'should-respond' | 'initialization'>('response')
 
   useEffect(() => {
@@ -353,17 +268,6 @@ export default function MediatorApp({ variant }: { variant: string }) {
     })
   }
 
-  function downloadMediator() {
-    let text: string
-    try { text = yaml.dump(JSON.parse(mediatorData ?? '')) } catch { text = mediatorData ?? '' }
-    const url = URL.createObjectURL(new Blob([text], { type: 'text/yaml' }))
-    const a = document.createElement('a')
-    a.href = url
-    a.download = 'mediator.yaml'
-    a.click()
-    URL.revokeObjectURL(url)
-  }
-
   function downloadJson(data: unknown, filename: string) {
     const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }))
     const a = document.createElement('a')
@@ -399,14 +303,6 @@ export default function MediatorApp({ variant }: { variant: string }) {
     } finally {
       setConvokitLoading(false)
     }
-  }
-
-  function loadMediatorFile(file: File) {
-    const reader = new FileReader()
-    reader.onload = () => {
-      try { setMediatorData(JSON.stringify(yaml.load(String(reader.result)), null, 2)) } catch { /* ignore invalid yaml */ }
-    }
-    reader.readAsText(file)
   }
 
   async function handleCreate(mode: 'human-human' | 'human-agent' | 'agent-agent', action: 'create' | 'simulate' = 'create') {
@@ -551,7 +447,7 @@ export default function MediatorApp({ variant }: { variant: string }) {
               {userEmail && <span className="text-sm text-neutral-400">{userEmail}</span>}
               <button
                 onClick={() => {
-                  if (isDirty && !window.confirm('You have unsaved changes. Sign out anyway?')) return
+                  if (dirty && !window.confirm('You have unsaved changes. Sign out anyway?')) return
                   signOut(auth).then(() => router.replace('/'))
                 }}
                 className="text-sm px-3 py-1.5 rounded-md border border-neutral-600 text-neutral-400 hover:border-neutral-500 hover:text-neutral-200 transition-colors cursor-pointer"
@@ -591,28 +487,16 @@ export default function MediatorApp({ variant }: { variant: string }) {
           </div>
 
           {/* Save / Load */}
-          <div className="flex items-center gap-2">
-            <input
-              id="tour-template-name"
-              type="text"
-              value={templateName}
-              onChange={e => setTemplateName(e.target.value)}
-              placeholder="Template name"
-              className="flex-1 px-3 py-1.5 rounded-md border border-neutral-700 bg-neutral-900 text-sm text-neutral-200 placeholder-neutral-600 focus:outline-none focus:border-neutral-500"
-            />
-            <button
-              id="tour-save"
-              onClick={handleSave}
-              disabled={saving}
-              className={`px-3 py-1.5 rounded-md border text-sm transition-colors cursor-pointer disabled:opacity-50 ${saving
-                  ? 'border-neutral-700 bg-neutral-900 text-neutral-400'
-                  : isDirty
-                    ? 'border-amber-500 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 hover:text-amber-300'
-                    : 'border-neutral-700 bg-neutral-900 text-neutral-500 hover:border-neutral-500 hover:text-neutral-300'
-                }`}
-            >
-              {saving ? 'Saving…' : isDirty ? 'Save *' : 'Saved'}
-            </button>
+          <SaveSection
+            collection="mediators"
+            content={mediatorData}
+            onContentChange={setMediatorData}
+            getDefaultContent={getDefaultContent}
+            onDirtyChange={setDirty}
+            enabled={authReady}
+          />
+
+          <div className="flex items-center justify-end gap-2">
             <select
                 id="tour-submit"
                 defaultValue=""
@@ -627,49 +511,7 @@ export default function MediatorApp({ variant }: { variant: string }) {
                 <option value="track1">Track 1</option>
                 <option value="track2">Track 2</option>
             </select>
-            <button
-              id="tour-load-default"
-              onClick={() => {
-                if (window.confirm('Load the default template? Any unsaved changes will be lost.')) {
-                  loadDefaultTemplate()
-                }
-              }}
-              className="px-3 py-1.5 rounded-md border border-neutral-700 bg-neutral-900 text-sm text-neutral-500 hover:border-neutral-500 hover:text-neutral-300 transition-colors cursor-pointer"
-            >
-              Load Default
-            </button>
-            {savedTemplates.length > 0 && (
-              <select
-                defaultValue=""
-                onChange={e => {
-                  const t = savedTemplates.find(t => t.id === e.target.value)
-                  if (t) handleLoad(t.id, t.name)
-                  e.target.value = ''
-                }}
-                className="px-3 py-1.5 rounded-md border border-neutral-700 bg-neutral-900 text-sm text-neutral-300 hover:border-neutral-500 transition-colors cursor-pointer"
-              >
-                <option value="" disabled>Load saved…</option>
-                {savedTemplates.map(t => (
-                  <option key={t.id} value={t.id}>{t.name}</option>
-                ))}
-              </select>
-            )}
           </div>
-
-          {showSaveAlert && (
-            <div className="flex items-start justify-between gap-3 rounded-md border border-emerald-600/40 bg-emerald-500/10 px-3 py-2.5 text-sm text-emerald-300">
-              <p>
-                Template saved!
-              </p>
-              <button
-                onClick={() => setShowSaveAlert(false)}
-                className="text-emerald-400 hover:text-emerald-200 cursor-pointer leading-none"
-                aria-label="Dismiss"
-              >
-                ×
-              </button>
-            </div>
-          )}
 
           {/* Mediator configuration and prompt editors */}
           <div className="space-y-4">
@@ -780,42 +622,14 @@ export default function MediatorApp({ variant }: { variant: string }) {
       {/* Right column — preview & actions */}
       <div className="lg:flex-1 lg:overflow-y-auto p-8 space-y-6 border-t border-neutral-800 lg:border-t-0 lg:border-l">
         {/* YAML preview */}
-        <div className="space-y-1">
-          <div className="border-b border-neutral-800 pb-3 mb-3">
-            <h2 className="text-lg font-semibold tracking-tight">Export Mediator</h2>
-          </div>
-          <div className="space-y-2 gap-2">
-            <button
-              id='tour-template-download'
-              onClick={downloadMediator}
-              className="w-full flex items-center justify-center gap-2 text-md px-4 py-2 rounded-lg border border-neutral-700 bg-neutral-900 text-neutral-300 hover:bg-neutral-800 hover:border-neutral-600 transition-all duration-150 cursor-pointer"
-            >
-              Download Mediator .yaml File
-            </button>
-            <label id="tour-template-upload" className="w-full flex items-center justify-center gap-2 text-md px-4 py-2 rounded-lg border border-neutral-700 bg-neutral-900 text-neutral-300 hover:bg-neutral-800 hover:border-neutral-600 transition-all duration-150 cursor-pointer">
-              Upload Mediator .yaml File
-              <input
-                type="file"
-                accept=".yaml,.yml"
-                className="hidden"
-                onChange={e => { const f = e.target.files?.[0]; if (f) loadMediatorFile(f); e.target.value = '' }}
-              />
-            </label>
-          </div>
-          <button
-            onClick={() => setShowAsYaml(v => !v)}
-            className="cursor-pointer text-xs text-neutral-500 hover:text-neutral-300 transition-colors"
-          >
-            {showAsYaml ? '▾ Hide YAML' : '▸ Show YAML'}
-          </button>
-          {showAsYaml && (
-            <textarea
-              disabled
-              value={(() => { try { return yaml.dump(JSON.parse(mediatorData ?? '')) } catch { return mediatorData ?? '' } })()}
-              className="w-full h-96 p-2 rounded-lg border border-neutral-700 bg-neutral-900 text-sm text-neutral-200 resize-y font-mono"
-            />
-          )}
-        </div>
+        <YamlIOSection
+          label="Mediator"
+          filename="mediator.yaml"
+          data={mediatorData}
+          setData={setMediatorData}
+          downloadId="tour-template-download"
+          uploadId="tour-template-upload"
+        />
 
         {/* Actions: create buttons, then experiment id + export */}
         <div className="space-y-3">
