@@ -132,9 +132,10 @@ export default function MediatorApp({ variant }: { variant: string }) {
       fetch(`${API_BASE}/templates/defaults/mediator.yaml`).then(res => res.text()),
       fetch(`${API_BASE}/templates/competition/mediator.yaml`).then(res => res.text()),
     ])
-    const merged = { ...(yaml.load(defaultsText) as object), ...(yaml.load(topicText) as object) }
+    const merged = { ...(yaml.load(defaultsText) as object), ...(yaml.load(topicText) as object) } as { persona: { id: string } }
+    if (userEmail) merged.persona.id = `${userEmail.split('@')[0]}-mediator`
     return JSON.stringify(merged, null, 2)
-  }, [topicId])
+  }, [topicId, userEmail])
 
   useEffect(() => {
     const handler = (e: BeforeUnloadEvent) => {
