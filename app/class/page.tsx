@@ -54,15 +54,8 @@ export default function LandingPage() {
           </p>
 
           <p className="text-base text-neutral-200">
-            Step 2.{' '}
-            <a
-              href={CONSENT_FORM_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="underline underline-offset-2 text-neutral-100 hover:text-white"
-            >
-              Complete the consent form
-            </a>{' '}
+            Step 2.{' '} 
+              Bookmark this page in case you need to come back to it later.
           </p>
 
           <p className="text-base text-neutral-200">
