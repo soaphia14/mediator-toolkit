@@ -1,3 +1,5 @@
+import { CMV_RULES } from '../../../assistant-reddit/topics'
+
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 export interface StageContextItem {
@@ -19,6 +21,14 @@ export interface ProfileInfoPromptItem {
   type: 'PROFILE_INFO'
 }
 
+export interface ParticipantInfoPromptItem {
+  type: 'PARTICIPANT_INFO'
+}
+
+export interface ParticipantChatInputPromptItem {
+  type: 'PARTICIPANT_CHAT_INPUT'
+}
+
 export interface ProfileContextPromptItem {
   type: 'PROFILE_CONTEXT'
 }
@@ -27,7 +37,7 @@ export interface InitializationContextPromptItem {
   type: 'INITIALIZATION_CONTEXT'
 }
 
-export type PromptItem = StageContextItem | TextPromptItem | ProfileInfoPromptItem | ProfileContextPromptItem | InitializationContextPromptItem
+export type PromptItem = StageContextItem | TextPromptItem | ProfileInfoPromptItem | ParticipantInfoPromptItem | ParticipantChatInputPromptItem | ProfileContextPromptItem | InitializationContextPromptItem
 
 export interface StructuredOutputSchemaProperty {
   name: string
@@ -66,6 +76,7 @@ export interface Persona {
   name: string
   defaultProfile: { name: string; avatar: string; pronouns?: string | null }
   defaultModelSettings: { apiType: string; modelName: string }
+  assistantId?: string | null
 }
 
 // ── shared functions (common.py in the python codes) ───────────────────────────────────────────────────────────────────
@@ -96,7 +107,7 @@ export function buildContextItems(stageId: string, stageIdsInOrder: string[], co
 
 
 
-export function buildPromptItems(tpl: Record<string, any>, stageId: string, stageIdsInOrder: string[], stageSpecificPrompts: PromptItem[] = []): PromptItem[] {
+export function buildPromptItems(tpl: Record<string, any>, stageId: string, stageIdsInOrder: string[], stageSpecificPrompts: PromptItem[] = [], postTitle?: string, postDescription?: string, assistedRole?: string): PromptItem[] {
   const context: string = tpl.context
   const prompts: any[] = [...(tpl.prompt ?? [])].sort((a, b) => (a.id ?? 0) - (b.id ?? 0))
 
@@ -107,6 +118,10 @@ export function buildPromptItems(tpl: Record<string, any>, stageId: string, stag
       items.push(...buildContextItems(stageId, stageIdsInOrder, promptItem.context ?? context))
     } else if (kind === 'PROFILE_INFO') {
       items.push({ type: 'PROFILE_INFO' })
+    } else if (kind === 'PARTICIPANT_INFO') {
+      items.push({ type: 'PARTICIPANT_INFO' })
+    } else if (kind === 'PARTICIPANT_CHAT_INPUT') {
+      items.push({ type: 'PARTICIPANT_CHAT_INPUT' })
     } else if (kind === 'PROFILE_CONTEXT') {
       items.push({ type: 'PROFILE_CONTEXT' })
     } else if (kind === 'INITIALIZATION_CONTEXT' || kind === 'PRELOADED_CONTEXT') {
@@ -115,8 +130,19 @@ export function buildPromptItems(tpl: Record<string, any>, stageId: string, stag
       items.push({ type: 'TEXT', text: promptItem.text })
     } else if (kind === 'BIASED') {
       items.push({ type: 'TEXT', text: '{{target_bias_position}}', })
+    } else if (kind === 'POST_TITLE') {
+      items.push({ type: 'TEXT', text: `Title: ${postTitle ?? ''}` })
+    } else if (kind === 'POST_DESCRIPTION') {
+      items.push({ type: 'TEXT', text: `Description: ${postDescription ?? ''}` })
+    } else if (kind === 'RULE') {
+      const rule = CMV_RULES.find(r => r.rule === promptItem.rule)
+      items.push({ type: 'TEXT', text: rule ? `Rule Title: ${rule.title}\nRule Description: ${rule.description}` : '' })
+    } else if (kind === 'PARTICIPANT_ROLE') {
+      items.push({ type: 'TEXT', text: `Role: ${assistedRole ?? ''}` })
+    } else if (kind === 'ARTICLE_PAGE') {
+      items.push({ type: 'TEXT', text: `${postTitle ?? ''}\n${postDescription ?? ''}` })
     } else {
-      throw new Error(`Unknown prompt item type ${kind}. Must be 'CONTEXT', 'PROFILE_INFO', 'PROFILE_CONTEXT', 'INITIALIZATION_CONTEXT', 'BIASED' or 'TEXT'.`)
+      throw new Error(`Unknown prompt item type ${kind}. Must be 'CONTEXT', 'PROFILE_INFO', 'PARTICIPANT_INFO', 'PARTICIPANT_CHAT_INPUT', 'PROFILE_CONTEXT', 'INITIALIZATION_CONTEXT', 'BIASED', 'POST_TITLE', 'POST_DESCRIPTION', 'RULE', 'PARTICIPANT_ROLE', 'ARTICLE_PAGE' or 'TEXT'.`)
     }
   }
   return [...items, ...stageSpecificPrompts]
@@ -138,6 +164,7 @@ export function buildPersona(tpl: Record<string, any>): Persona {
       apiType: model.apiType,
       modelName: model.modelName,
     },
+    assistantId: persona.assistant_id ?? null,
   }
 }
 
