@@ -24,3 +24,19 @@ export const CREATE_PARTICIPANT_URL = LOCAL
 export const FRONTEND_BASE = LOCAL
 ? 'https://localhost:4201'
 : 'https://convoarenadev.web.app/'
+
+
+export const API_KEY = process.env.DL_API_KEY ?? ''
+
+export const PROJECT_ROOT = process.cwd()
+
+export const MEDIATOR_DEFAULT = path.join(PROJECT_ROOT, 'public', 'templates', 'defaults', 'mediator.yaml')
+export const ASSISTANT_DEFAULT = path.join(PROJECT_ROOT, 'public', 'templates', 'defaults', 'assistant.yaml')
+export const EXPERIMENT_DEFAULT = path.join(PROJECT_ROOT, 'public', 'templates', 'defaults', 'experiment.yaml')
+export const COMPETITION_MEDIATOR = path.join(PROJECT_ROOT, 'public', 'templates', 'competition', 'mediator.yaml')
+
+export const STAGE_R1 = 'chat-round-1'
+export const PRE_SURVEY_STAGE_ID = "pre-survey"
+export const POST_SURVEY_STAGE_ID = "post-survey"
+
+export const COMPLETION_CODE = ''
