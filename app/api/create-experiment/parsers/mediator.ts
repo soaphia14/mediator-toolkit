@@ -89,7 +89,7 @@ export function buildMediator(stageId: string, mediatorTemplate: Record<string, 
   let tpl = replaceDefaults(mediatorTemplate, loadMediatorTemplate(MEDIATOR_DEFAULT))
   tpl = substituteTokens(tpl, { '{topic_name}': `Debate Topic: ${topicInfo.name}`, '{topic_statement}': `Debate Statement: ${topicInfo.statement}` })
   return {
-    persona: buildPersona(tpl),
+    persona: { ...buildPersona(tpl), id: 'mediator' },
     promptMap: { [stageId]: _chatPrompt(tpl, stageId, stageIdsInOrder) },
   }
 }
