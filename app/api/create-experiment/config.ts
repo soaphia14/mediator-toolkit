@@ -2,7 +2,13 @@ import path from 'path'
 
 export const SEED = 123
 
-const LOCAL = process.env.NODE_ENV === 'development'
+// `npm run dev` used to always target a local Cloud Functions/Firestore
+// emulator (127.0.0.1:5001 etc.), which isn't part of this repo and isn't
+// running in most dev setups — every Create/Simulate call just failed with
+// "fetch failed". Default to the real deployed backend instead; opt into the
+// local emulator explicitly (once you actually have it running) by setting
+// USE_LOCAL_BACKEND=true.
+const LOCAL = process.env.USE_LOCAL_BACKEND === 'true'
 
 export const BASE_URL = LOCAL
  ? 'http://127.0.0.1:5001/convoarena-assistant/us-central1/api/v1'

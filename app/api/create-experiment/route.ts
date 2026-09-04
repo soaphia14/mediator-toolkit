@@ -35,9 +35,10 @@ async function checkAndIncrementQuota(email: string, cohorts: number): Promise<{
 
 export async function POST(req: Request) {
   const body = await req.json().catch(() => ({}))
-  const { mediatorTemplate, assistantTemplate, p1 = 'participant-1', p2 = 'participant-2', topic = 'covenant_marriage', mode, numCohorts, numUtterances, action = 'create', idToken, postTitle, postDescription, experimentTemplateSet, agentAssignment, opParticipant } = body as {
+  const { mediatorTemplate, assistantTemplate, agentTemplate, p1 = 'participant-1', p2 = 'participant-2', topic = 'covenant_marriage', mode, numCohorts, numUtterances, action = 'create', idToken, postTitle, postDescription, experimentTemplateSet, agentAssignment, opParticipant } = body as {
     mediatorTemplate?: string
     assistantTemplate?: string
+    agentTemplate?: string
     p1?: string
     p2?: string
     topic?: string
@@ -100,7 +101,7 @@ export async function POST(req: Request) {
   }
 
   try {
-    const result = await generate(p1, p2, experimentTemplatePath, mediatorTemplate, mode, cohortCount, utteranceCount, action, assistantTemplate, postTitle, postDescription, agentAssignment, experimentTemplateSet, opParticipant)
+    const result = await generate(p1, p2, experimentTemplatePath, mediatorTemplate, mode, cohortCount, utteranceCount, action, assistantTemplate, postTitle, postDescription, agentAssignment, experimentTemplateSet, opParticipant, agentTemplate)
     return Response.json(result)
   } catch (e) {
     console.error('Error in create-experiment:', e)

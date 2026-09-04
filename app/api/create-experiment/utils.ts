@@ -87,12 +87,26 @@ export function fillAgentStance(
     '{article_title}': postTitle ?? '',
     '{article_body}': postDescription ?? '',
   }
-  for (const item of agentTemplate.prompt ?? []) {
-    if (item.type === 'TEXT') {
-      for (const [token, value] of Object.entries(substitutions)) {
-        item.text = item.text.replaceAll(token, value)
+  const substituteInBlocks = (items: any[] | undefined) => {
+    for (const item of items ?? []) {
+      if (item.type === 'TEXT') {
+        for (const [token, value] of Object.entries(substitutions)) {
+          item.text = item.text.replaceAll(token, value)
+        }
       }
     }
+  }
+
+  substituteInBlocks(agentTemplate.prompt)
+
+  // New (order/addTo) schema: named prompts live under chatSettings.promptMap,
+  // plus the separate optional thoughtPrompt/characterPrompt block lists.
+  if (agentTemplate.chatSettings?.promptMap) {
+    for (const entry of Object.values(agentTemplate.chatSettings.promptMap) as any[]) {
+      substituteInBlocks(entry?.prompt)
+    }
+    substituteInBlocks(agentTemplate.chatSettings.thoughtPrompt)
+    substituteInBlocks(agentTemplate.chatSettings.characterPrompt)
   }
 
   for (const key of ['human_style_prompt', 'should_concede_prompt', 'thought_prompt', 'post_survey_prompt', 'pre_survey_prompt', 'agent_config']) {

@@ -77,6 +77,7 @@ export interface Persona {
   defaultProfile: { name: string; avatar: string; pronouns?: string | null }
   defaultModelSettings: { apiType: string; modelName: string }
   assistantId?: string | null
+  character?: Record<string, string> | null
 }
 
 // ── shared functions (common.py in the python codes) ───────────────────────────────────────────────────────────────────
@@ -165,6 +166,10 @@ export function buildPersona(tpl: Record<string, any>): Persona {
       modelName: model.modelName,
     },
     assistantId: persona.assistant_id ?? null,
+    // The toolkit's own template stores this as a plain optional string; the
+    // real platform's persona.character is a string map, so it's wrapped here
+    // rather than forcing the editing UI to manage a key/value list.
+    character: persona.character ? { description: String(persona.character) } : null,
   }
 }
 

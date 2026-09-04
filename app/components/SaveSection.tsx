@@ -8,7 +8,7 @@ import { TemplateNameModal } from './TemplateNameModal'
 export type SavedTemplateItem = { id: string; name: string; updatedAt: string | null }
 
 export interface SaveSectionProps {
-  collection: 'mediators' | 'assistants' | 'assistants-reddit'
+  collection: 'mediators' | 'assistants' | 'assistants-reddit' | 'agents'
   content: string | null
   onContentChange: (content: string) => void
   getDefaultContent: () => Promise<string>

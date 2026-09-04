@@ -14,7 +14,7 @@ import { loadTemplate, replaceDefaults, fillAgentStance, agentConfig, createPart
 import { url } from 'inspector/promises'
 
 export type Mode = 'human-human' | 'human-agent' | 'agent-agent'
-type ParticipantSlot = { slot: string; type: 'human' | 'agent'; template?: string }
+type ParticipantSlot = { slot: string; type: 'human' | 'agent'; template?: string; customTemplate?: Record<string, any> }
 
 const randint = (a: number, b: number) => Math.floor(Math.random() * (b - a + 1)) + a
 
@@ -36,17 +36,28 @@ function shuffle<T>(arr: T[]): T[] {
 const agentTemplate = (file: string, templateSet?: 'reddit' | 'wikipedia') =>
   path.join(process.cwd(), 'public', 'templates', templateSet === 'reddit' || templateSet === 'wikipedia' ? templateSet : 'defaults', file)
 
-function participantSlotsFor(mode: Mode, templateSet?: 'reddit' | 'wikipedia'): ParticipantSlot[] {
+// When the caller supplies a custom agent template (from the Agent Participant
+// toolkit page), each agent slot gets its own clone with a slot-suffixed persona
+// id — reusing the same template for both p1 and p2 would otherwise give them
+// identical ids within a cohort.
+function customTemplateFor(customAgentTemplate: Record<string, any> | undefined, slot: string): Record<string, any> | undefined {
+  if (!customAgentTemplate) return undefined
+  const clone = structuredClone(customAgentTemplate)
+  clone.persona = { ...clone.persona, id: `${clone.persona.id}-${slot}` }
+  return clone
+}
+
+function participantSlotsFor(mode: Mode, templateSet?: 'reddit' | 'wikipedia', customAgentTemplate?: Record<string, any>): ParticipantSlot[] {
   if (mode === 'agent-agent') {
     return [
-      { slot: 'p1', type: 'agent', template: agentTemplate('agent-1.yaml', templateSet) },
-      { slot: 'p2', type: 'agent', template: agentTemplate('agent-2.yaml', templateSet) },
+      { slot: 'p1', type: 'agent', template: agentTemplate('agent-1.yaml', templateSet), customTemplate: customTemplateFor(customAgentTemplate, 'p1') },
+      { slot: 'p2', type: 'agent', template: agentTemplate('agent-2.yaml', templateSet), customTemplate: customTemplateFor(customAgentTemplate, 'p2') },
     ]
   }
   if (mode === 'human-agent') {
     return [
       { slot: 'p1', type: 'human' },
-      { slot: 'p2', type: 'agent', template: agentTemplate('agent-1.yaml', templateSet) },
+      { slot: 'p2', type: 'agent', template: agentTemplate('agent-1.yaml', templateSet), customTemplate: customTemplateFor(customAgentTemplate, 'p2') },
     ]
   }
   return [
@@ -75,7 +86,9 @@ export async function generate(p1: string, p2: string, experimentTemplatePath: s
                           mode: Mode, numCohorts?: number, numUtterances?: number, action?: 'create' | 'simulate',
                           assistantTemplateContent?: string, postTitle?: string, postDescription?: string,
                           agentAssignment?: 'participant-1' | 'participant-2' | 'both', templateSet?: 'reddit' | 'wikipedia',
-                          opParticipant?: 'participant-1' | 'participant-2') {
+                          opParticipant?: 'participant-1' | 'participant-2', agentTemplateContent?: string) {
+
+  const customAgentTemplate: Record<string, any> | undefined = agentTemplateContent ? JSON.parse(agentTemplateContent) : undefined
   
   console.log("API KEY", API_KEY)
   const experimentTemplate = replaceDefaults(
@@ -129,7 +142,7 @@ export async function generate(p1: string, p2: string, experimentTemplatePath: s
   }
 
   const exp = experimentTemplate.experiment ?? {}
-  const participantSlots = participantSlotsFor(mode, templateSet)
+  const participantSlots = participantSlotsFor(mode, templateSet, customAgentTemplate)
   const slotToPid: Record<string, string> = { p1, p2 }
 
   const agentSlots = participantSlots.filter((s) => s.type === 'agent').map((s) => s.slot)
@@ -181,7 +194,7 @@ export async function generate(p1: string, p2: string, experimentTemplatePath: s
     for (const pSlot of participantSlots) {
       const slot = pSlot.slot
       if (pSlot.type === 'agent') {
-        const tpl = loadTemplate(pSlot.template!)
+        const tpl = pSlot.customTemplate ? structuredClone(pSlot.customTemplate) : loadTemplate(pSlot.template!)
         if (isSim) tpl.persona.id = `${tpl.persona.id}-c${ci}`
 
         const wantsAssistant = agentAssignment === 'both'
