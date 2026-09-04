@@ -36,6 +36,52 @@ type PromptMapEntry = {
   prompt: PromptItem[]
 }
 
+// There's no separate, distinct "message creation prompt" — whichever
+// prompt(s) send to "Message" ARE the ones that produce the chat message,
+// and that only makes sense as the final step, so they must always sit at
+// the highest order. Rather than leaving raw order numbers to drift and
+// accumulate gaps as prompts are added/removed/reordered, every edit
+// re-compacts everything to clean, contiguous ranks (1, 2, 3, ...) —
+// preserving ties (parallel stages) and relative sequence — with the
+// "Message" prompt(s) always landing on the final rank.
+function normalizeOrders(map: Record<string, PromptMapEntry> | undefined) {
+  if (!map) return
+  const names = Object.keys(map)
+  if (names.length === 0) return
+  let terminalNames = names.filter(n => map[n].addTo === MESSAGE_SENTINEL)
+
+  // Exactly one prompt sends to the chat at all times — it's not a per-prompt
+  // choice that can be toggled off or shared. If none currently holds it
+  // (its previous holder was just deleted), whichever was already ordered
+  // last inherits it. If more than one ended up marked that way (e.g. from
+  // an uploaded YAML), keep just the one ordered last and clear the rest.
+  if (terminalNames.length === 0) {
+    const promoted = names.reduce((a, b) => (map[a].order ?? 1) >= (map[b].order ?? 1) ? a : b)
+    map[promoted].addTo = MESSAGE_SENTINEL
+    terminalNames = [promoted]
+  } else if (terminalNames.length > 1) {
+    const keep = terminalNames.reduce((a, b) => (map[a].order ?? 1) >= (map[b].order ?? 1) ? a : b)
+    for (const n of terminalNames) {
+      if (n !== keep) map[n].addTo = null
+    }
+    terminalNames = [keep]
+  }
+
+  const otherNames = names.filter(n => !terminalNames.includes(n))
+
+  const distinctOrders = Array.from(new Set(otherNames.map(n => map[n].order ?? 1))).sort((a, b) => a - b)
+  const rankOf = new Map(distinctOrders.map((value, i) => [value, i + 1]))
+
+  for (const n of otherNames) {
+    map[n].order = rankOf.get(map[n].order ?? 1)!
+  }
+
+  const lastRank = distinctOrders.length + 1
+  for (const n of terminalNames) {
+    map[n].order = lastRank
+  }
+}
+
 type AgentTemplate = {
   persona: { id: string; name: string; avatar: string; pronouns: string; character: string }
   model: { apiType: string; modelName: string }
@@ -216,6 +262,7 @@ export default function AgentParticipantsPage() {
       try {
         const data = JSON.parse(prev ?? '')
         mutate(data)
+        normalizeOrders(data.chatSettings?.promptMap)
         return JSON.stringify(data, null, 2)
       } catch { return prev }
     })
@@ -234,9 +281,14 @@ export default function AgentParticipantsPage() {
     let n = names.length + 1
     let name = `New Prompt ${n}`
     while (promptMap[name]) { n++; name = `New Prompt ${n}` }
-    const maxOrder = names.reduce((m, k) => Math.max(m, promptMap[k]?.order ?? 1), 0)
+    // Land it right before whichever prompt sends to the chat — order gets
+    // fully re-compacted right after anyway, so this just needs to sit after
+    // every other non-message prompt.
+    const otherMax = names
+      .filter(k => promptMap[k].addTo !== MESSAGE_SENTINEL)
+      .reduce((m, k) => Math.max(m, promptMap[k]?.order ?? 1), 0)
     updateAgentData(data => {
-      data.chatSettings.promptMap[name] = { order: maxOrder + 1, addTo: null, prompt: [] }
+      data.chatSettings.promptMap[name] = { order: otherMax + 1, addTo: null, prompt: [] }
     })
     setActiveMessageName(name)
     setEditingName(name)
@@ -294,7 +346,15 @@ export default function AgentParticipantsPage() {
 
   function setPromptAddTo(name: string, addTo: string) {
     updateAgentData(data => {
-      data.chatSettings.promptMap[name].addTo = addTo || null
+      const map = data.chatSettings.promptMap
+      if (addTo === MESSAGE_SENTINEL) {
+        // Only one prompt can send to the chat at a time — claiming it here
+        // takes it away from whichever prompt held it before.
+        for (const key of Object.keys(map)) {
+          if (key !== name && map[key].addTo === MESSAGE_SENTINEL) map[key].addTo = null
+        }
+      }
+      map[name].addTo = addTo || null
     })
   }
 
@@ -552,7 +612,7 @@ export default function AgentParticipantsPage() {
             </div>
 
             <p className="text-sm text-neutral-500">
-              Configure the prompts that define your agent's behavior. Prompts that share the same <span className="text-neutral-400">order</span> run in parallel; a prompt's <span className="text-neutral-400">add to</span> choice prepends its output to a later prompt, or — once picked as <span className="text-neutral-400">Message</span> — sends its output to the chat. Every agent includes one required Message Creation Prompt, and you can add as many more as needed.
+              Configure the prompts that define your agent's behavior. There's no separate "message creation" prompt — whichever prompt's <span className="text-neutral-400">add to</span> is set to <span className="text-neutral-400">Message</span> is the one that produces the chat message, and it's automatically kept last in the order no matter how many other prompts you add before it. Prompts that share the same <span className="text-neutral-400">order</span> run in parallel; any other <span className="text-neutral-400">add to</span> choice prepends a prompt's output to a later one.
             </p>
 
             {/* PROMPT TYPE TABS — boxed container, matching the assistant toolkit */}
@@ -679,32 +739,47 @@ export default function AgentParticipantsPage() {
 
                             <div className="space-y-1.5">
                               <label className="text-sm font-medium text-neutral-300">Order</label>
-                              <p className="text-xs text-neutral-500">Determines when this prompt runs.</p>
+                              <p className="text-xs text-neutral-500">
+                                {activeEntry.addTo === MESSAGE_SENTINEL
+                                  ? "Kept last automatically — this prompt sends to the chat, so it always runs after everything else."
+                                  : 'Determines when this prompt runs.'}
+                              </p>
                               <input
                                 type="number"
                                 min={1}
                                 step={1}
                                 value={activeEntry.order}
+                                disabled={activeEntry.addTo === MESSAGE_SENTINEL}
                                 onChange={e => updatePromptOrder(activeMessageName, Number(e.target.value))}
-                                className="w-full px-3 py-2 rounded-md border border-neutral-700 bg-neutral-900 text-sm text-neutral-200 focus:outline-none focus:border-neutral-500"
+                                className="w-full px-3 py-2 rounded-md border border-neutral-700 bg-neutral-900 text-sm text-neutral-200 focus:outline-none focus:border-neutral-500 disabled:opacity-50 disabled:cursor-not-allowed"
                               />
                             </div>
 
                             <div className="space-y-1.5">
                               <label className="text-sm font-medium text-neutral-300">Add to</label>
-                              <p className="text-xs text-neutral-500">Prepend this prompt's output to a later prompt, or send it to the chat.</p>
+                              <p className="text-xs text-neutral-500">
+                                {activeEntry.addTo === MESSAGE_SENTINEL
+                                  ? "Locked — this is the prompt that sends to the chat. Delete it to let another prompt take over that role."
+                                  : "Prepend this prompt's output to a later prompt."}
+                              </p>
                               <select
                                 value={activeEntry.addTo ?? ''}
+                                disabled={activeEntry.addTo === MESSAGE_SENTINEL}
                                 onChange={e => setPromptAddTo(activeMessageName, e.target.value)}
-                                className="w-full px-3 py-2 rounded-md border border-neutral-700 bg-neutral-900 text-sm text-neutral-200 focus:outline-none focus:border-neutral-500 cursor-pointer"
+                                className="w-full px-3 py-2 rounded-md border border-neutral-700 bg-neutral-900 text-sm text-neutral-200 focus:outline-none focus:border-neutral-500 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                               >
-                                <option value="">None</option>
-                                <option value={MESSAGE_SENTINEL}>Message (send to chat)</option>
-                                {promptNames
-                                  .filter(n => n !== activeMessageName && promptMap[n].order > activeEntry.order)
-                                  .map(n => (
-                                    <option key={n} value={n}>{n} (Order {promptMap[n].order})</option>
-                                  ))}
+                                {activeEntry.addTo === MESSAGE_SENTINEL ? (
+                                  <option value={MESSAGE_SENTINEL}>Message (send to chat)</option>
+                                ) : (
+                                  <>
+                                    <option value="">None</option>
+                                    {promptNames
+                                      .filter(n => n !== activeMessageName && promptMap[n].order > activeEntry.order)
+                                      .map(n => (
+                                        <option key={n} value={n}>{n} (Order {promptMap[n].order})</option>
+                                      ))}
+                                  </>
+                                )}
                               </select>
                             </div>
 
@@ -712,7 +787,13 @@ export default function AgentParticipantsPage() {
                         </div>
 
                         {/* Block editor */}
-                        <PromptEditorDescription description="This prompt determines how the agent generates its message during the discussion." />
+                        <PromptEditorDescription
+                          description={
+                            activeEntry.addTo === MESSAGE_SENTINEL
+                              ? "This prompt produces the agent's chat message — it runs last, after any prompts that feed into it."
+                              : "This prompt's output is prepended to the prompt it's added to, rather than being sent to the chat directly."
+                          }
+                        />
                         <PromptBlockLegend />
                         <StructuredPromptEditor
                           label={activeMessageName}

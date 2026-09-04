@@ -162,11 +162,18 @@ function _newChatPrompt(tpl: Record<string, any>, stageId: string, stageIdsInOrd
   const order: Record<number, string[]> = {}
   const addTo: Record<string, string[]> = {}
 
+  // addTo is keyed by the RECEIVING prompt, with the list holding the names
+  // of the prompts whose output gets appended to it — i.e. addTo[target]
+  // includes every prompt that sends its output to target. That's the
+  // inverse of how each entry stores its own single `addTo` target, so it
+  // has to be inverted here.
   for (const [name, entry] of Object.entries(promptMap)) {
     prompt[name] = buildPromptItems({ prompt: entry.prompt ?? [], context: cs.context }, stageId, stageIdsInOrder)
     const group = entry.order ?? 1
     ;(order[group] ??= []).push(name)
-    addTo[name] = entry.addTo ? [entry.addTo] : []
+    if (entry.addTo) {
+      (addTo[entry.addTo] ??= []).push(name)
+    }
   }
 
   const thoughtPrompt = Array.isArray(cs.thoughtPrompt)

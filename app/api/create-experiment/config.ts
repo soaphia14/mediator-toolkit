@@ -2,26 +2,33 @@ import path from 'path'
 
 export const SEED = 123
 
-// `npm run dev` used to always target a local Cloud Functions/Firestore
-// emulator (127.0.0.1:5001 etc.), which isn't part of this repo and isn't
-// running in most dev setups — every Create/Simulate call just failed with
-// "fetch failed". Default to the real deployed backend instead; opt into the
-// local emulator explicitly (once you actually have it running) by setting
-// USE_LOCAL_BACKEND=true.
-const LOCAL = process.env.USE_LOCAL_BACKEND === 'true'
+// Local dev normally targets a locally-running Deliberate Lab stack
+// (Functions emulator on :5001, frontend on :4201). Override with
+// USE_LOCAL_BACKEND=false to point this app at the deployed production
+// backend instead (e.g. if that local stack isn't running).
+const LOCAL = process.env.USE_LOCAL_BACKEND === 'false'
+  ? false
+  : process.env.NODE_ENV === 'development'
 
+// The Deliberate Lab experiment engine lives in its own Firebase project
+// (traust-491612 — see .firebaserc in that project, and api/export-experiment
+// which already targets it), separate from this toolkit's own project
+// (convoarena-assistant, used for auth/saved templates). These URLs used the
+// wrong project id, which is why every Create/Simulate call 404'd locally
+// (no function is loaded under the convoarena-assistant namespace) and got
+// "invalid API key" in production (hitting the wrong project's deployment).
 export const BASE_URL = LOCAL
- ? 'http://127.0.0.1:5001/convoarena-assistant/us-central1/api/v1'
- : 'https://us-central1-convoarena-assistant.cloudfunctions.net/api/v1'
+ ? 'http://127.0.0.1:5001/traust-491612/us-central1/api/v1'
+ : 'https://us-central1-traust-491612.cloudfunctions.net/api/v1'
 
 
 export const CREATE_PARTICIPANT_URL = LOCAL
- ? 'http://127.0.0.1:5001/convoarena-assistant/us-central1/createParticipant'
- : 'https://us-central1-convoarena-assistant.cloudfunctions.net/createParticipant'
+ ? 'http://127.0.0.1:5001/traust-491612/us-central1/createParticipant'
+ : 'https://us-central1-traust-491612.cloudfunctions.net/createParticipant'
 
 
 export const FRONTEND_BASE = LOCAL
- ? 'https://localhost:4201'
+ ? 'http://localhost:4201'
  : 'https://convoarena-assistant.web.app/'
 
 export const API_KEY = process.env.DL_API_KEY ?? ''
